@@ -11,7 +11,7 @@ names no picture for `cdn`, and the notes of the R41 widgets from Data Modeling 
 | `enum.cjs`    | Prints every number, checks the model against the old `cdnOutcome`, the lesson's quoted numbers, a discrete-event simulation of Zipf requests through a TTL cache at every location and at the shield, the square's areas, the sample, the experiments' text and word claims, and enumerates the challenge (4,945 checks; `--quick` skips the long simulations) |
 | `mockup.html` | The mockup with the app's tokens and fonts: `?state=default\|shield\|many\|few\|short\|long\|busy\|quiet\|utm\|ghost\|playing(&frac=)\|describe\|reduced\|ask&exp=1..5(&phase=playing&frac=)\|reveal&exp=1..5\|challenge(&start=1)&theme=light\|dark`; any free state also takes `&rps=&pops=&ttl=&shield=&variants=` |
 | `shoot.cjs`   | Screenshots every state at 1280, 390 and 320 px in both themes with the page's collision report and layout assertions, then sweeps all 192 settings at 14 stage widths at rest and at two moments of the play, every experiment asking, playing and revealed, the no-answer sweep (motion off and on) with a planted leak on each flag of the hiding map, the load-time stage against every answer, every sentence the page can print, the stage heights and the whole widget's heights per host width |
-| `changes.md`  | Each critique item and what changed for it (round 0, the designer's own) |
+| `changes.md`  | Each critique item and what changed for it (round 0, the designer's own), and what is left open for the critics |
 
 ## 1. The verdict, and the mechanism
 
@@ -152,8 +152,8 @@ interviewer draws it, then one location's copies up close, then every object at 
 request, everywhere: green the edge, amber the shield, red the origin; blue is a request still travelling. Dashed means
 only "hidden until you answer".
 
-**Header.** "10,000 requests a second through 20 locations" in the title role, over "100,000 images, popularity on a
-Zipf curve. Each location keeps a copy for 1 minute after a miss." (and "A tracking parameter gives each image 10 URLs,
+**Header.** "A CDN of 20 locations serving 10,000 requests a second" in the title role, over "The site serves 100,000
+images, popularity on a Zipf curve. Each location keeps a copy for 1 minute after a miss." (and "A tracking parameter gives each image 10 URLs,
 each cached on its own." with 10 URLs). Lines reserved for the longest setting at this width.
 
 **The tiers (the model).** An art column on the left and a label column on the right (232 px from a 480 px stage;
@@ -163,19 +163,20 @@ each cached on its own." with 10 URLs). Lines reserved for the longest setting a
 - Users: a row of small dots across the art, each joined by a hairline to its nearest location (anycast or DNS:
   "each sent to its nearest location"). The label: "10,000/s requests".
 - Locations: one box per location, as many as fit at 15 px each up to 20, and when there are more, the most columns
-  that divide the locations evenly, said in words ("100 locations, 100/s each, drawn as 20 columns of 5"; "20
-  locations, 500/s each, drawn as 5 columns of 4" on a 320 phone). A box's inner width is its share of requests; its
+  that divide the locations evenly, said in words ("Each of 100 locations, drawn as 20 columns of 5, takes 100/s";
+  "drawn as 5 columns of 4" for 20 locations on a 320 phone). A box's inner width is its share of requests; its
   green part, from the left, is its hits; the rest, blue, leaves its foot as that box's misses. The leftmost box is
-  outlined in ink: the timeline below follows it. Label: "6,920/s answered at the edge", "69.2% of requests, in 10 ms.
-  20 locations, 500/s each; each keeps its own copies."
+  outlined in ink: the timeline below follows it. Label: "6,920/s answered at the edge", "In 10 ms, for 69.2% of requests.
+  Each of 20 locations takes 500/s and keeps its own copies."
 - The fan-in: every box's misses curve into one merged band, side by side in order, so the shield (or with no shield the
   origin) visibly receives every location's misses combined. The band's width is the miss share.
 - The shield (on): a box that hugs the merged band; its amber part is the shield's share, the rest travels on. Its
   label column holds the Origin shield switch (a native checkbox drawn as the house switch, 44 px, "Shield" under a
-  150 px column) and "2,160/s answered by the shield · 21.6% of requests, in 40 ms. It sees every location's misses."
-  Off: no box, the band passes straight down, and "No shield: every miss goes on to the origin."
-- The origin: a box that hugs its red fill, the origin's share. "913/s reach the origin · 9.1% of 10,000/s, in 160
-  ms." The share and its conversion to a rate are said together where the width is drawn.
+  150 px column) and "2,160/s answered by the shield · In 40 ms, for 21.6% of requests. It sees every location's misses."
+  Off: no box, the band passes straight down, and "No shield: every miss goes on to the origin." With 1 location and the
+  shield on: "With 1 location the shield never hits: its copy expires with the edge's. It adds 30 ms to every miss."
+- The origin: a box that hugs its red fill, the origin's share. "913/s reach the origin · In 160 ms, for 9.1% of
+  10,000/s." The share and its conversion to a rate are said together where the width is drawn.
 - Under the art, full width, the ledger: "Mean response 30.2 ms = 69.2% × 10 ms + 21.6% × 40 ms + 9.1% × 160 ms."
 
 **The timeline (one sample).** "The outlined location, 5 minutes · one sample" (then "Outlined location, 5 minutes ·
@@ -232,7 +233,19 @@ where the play runs; the tiers and the square are above and below it and settle 
 **Heights** depend only on the stage's width: every text block reserves the lines its longest form needs at that width
 over all 192 settings and both hidden forms (`reserve()`), the lanes reserve their shield track whether or not the
 shield is on, and the blocks' art has fixed heights. Measured by `shoot.cjs` over every setting, every experiment phase
-and both plays at 14 stage widths: see the table in `shoot.cjs`'s output (filled at the end of this section).
+and both plays at 14 stage widths (one height per width, every setting and phase):
+
+| Stage width (px) | 248 | 254 | 288 | 310 | 324 | 346 | 360 | 420 | 480 | 560 | 620 | 700 | 760 |
+| ---------------- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Stage height     | 1,868 | 1,797 | 1,647 | 1,612 | 1,595 | 1,547 | 1,547 | 1,397 | 1,309 | 1,277 | 1,260 | 1,178 | 1,161 |
+
+So a 320 phone's stage (254 px) is 1,797, a 390 phone's (324) 1,595, and 1280's (620) 1,260. The mockup's whole widget
+at rest, only a guide for `widget-heights.ts` (the build's measuring spec measures the built widget): 2,991 at 320,
+2,748 at 360, 2,712 at 375, 2,677 at 390, 2,626 at 412, 2,595 at 430 and 1,460 at 1280. After a Play under reduced
+motion the story adds a few lines under the stage, a layout change below it that the e2e layout-shift expectations
+include.
+
+The largest SVG over every setting and phase has 733 elements.
 
 **Motion** (3.5's grammar; WAAPI on transform and opacity; one pooled particle).
 
@@ -244,7 +257,7 @@ and both plays at 14 stage widths: see the table in `shoot.cjs`'s output (filled
 - **The particle.** At each miss at the outlined location one ink dot (3.5 px) leaves that box's foot, rides the fan-in
   to the shield and, if the shield had no copy, on to the origin, over 6% of the clock. It moves only on the streams,
   never across a label (the label column is separate).
-- **The step, in words.** "2.1 min: requests arrive at the outlined location; most find their copy there." and on a
+- **The step, in words.** "2.1 min: requests arrive at the outlined location; a short tick found its copy there." and on a
   miss "3 min: #2,500 has no live copy here, a miss: the shield had a copy, 40 ms; a new copy lives 1 minute." It obeys
   `hiding()`.
 - **The climax** is the tail lane: its one request in five minutes arriving to an empty track, a tall tick, and the dot

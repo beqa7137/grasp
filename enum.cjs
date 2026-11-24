@@ -283,7 +283,7 @@ for (const e of M.EXPERIMENTS) {
   check(e.choices.filter((c) => c.right).length === 1, `E${e.id} one right`);
   positions.push(e.choices.findIndex((c) => c.right) + 1);
   for (const t of [M.fill(e.ask, v), ...filled, M.fill(e.reveal, v)]) {
-    check(!/—| /.test(t), `E${e.id} dash or nbsp`);
+    check(!/\u2014|\u00a0/.test(t), `E${e.id} dash or nbsp`);
     check(!/(^|\. )\d/.test(t), `E${e.id} sentence opens on a numeral: ${t.slice(0, 40)}`);
     check(!/\d{4,}/.test(t.replace(/\d{1,3}(,\d{3})+/g, '')), `E${e.id} thousands separators`);
   }

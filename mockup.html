@@ -1038,8 +1038,12 @@
         outline: var(--g-focus-ring);
         outline-offset: 2px;
       }
+      .g-choice {
+        flex-wrap: wrap;
+      }
       .guess-note {
         flex: none;
+        margin-left: auto;
         font-size: var(--g-text-body-s);
         color: var(--g-muted);
       }
@@ -1354,7 +1358,7 @@ function stepWords(sc, sample, t, hid) {
   const ev = events(sample, sc.s).filter((e) => !e.hit && e.at <= t);
   const last = ev.at(-1);
   const clock = F.clock(t);
-  if (!last || t - last.at > M.WINDOW_TTLS * sc.s.ttl * 0.08) return `${clock}: requests arrive at the outlined location; most find their copy there.`;
+  if (!last || t - last.at > M.WINDOW_TTLS * sc.s.ttl * 0.08) return `${clock}: requests arrive at the outlined location; a short tick found its copy there.`;
   const rank = `#${F.group(sc.lanes[last.lane].rank)}`;
   const where = { shield: `the shield had a copy, ${F.ms(sc.paths.shield)}`, origin: `fetched from the origin, ${F.ms(sc.paths.origin)}` }[last.where];
   return `${clock}: ${rank} has no live copy here, a miss: ${hid.laneHits && false ? '' : where}; a new copy lives ${F.ttlWords(sc.s.ttl)}.`;
@@ -2101,7 +2105,7 @@ function collisions(well) {
   return out;
 }
 // What must hold beyond collisions: no false claims, areas as numbers, dashes only while hidden, counts bounded.
-const FALSE_CLAIMS = [/NaN|undefined|Infinity|null/, /(^|[^\d.,])1 (locations|requests|URLs|times|minutes)\b/, /\b([2-9]|\d{2,}) (location|minute|second|hour)\b(?!s)/, /(^|[^\d.,])0\/s/, /\?\?/, /—| /, /\d{4,}(?![\d,])/];
+const FALSE_CLAIMS = [/NaN|undefined|Infinity|null/, /(^|[^\d.,])1 (locations|requests|URLs|times|minutes)\b/, /\b([2-9]|\d{2,}) (location|minute|second|hour)\b(?!s)/, /(^|[^\d.,])0\/s/, /\?\?/, /\u2014|\u00a0/, /\d{4,}(?![\d,])/];
 function assertions(r) {
   const { well, D, sc, hid, view } = r;
   const out = [];
