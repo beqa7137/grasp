@@ -27,22 +27,26 @@
   const LAG_S = 5;
   /** Promoting a standby or a replica to primary takes a fixed minute. */
   const PROMOTE_MIN = 1;
+  /** After a drop the primary keeps serving: a plan recovers to the side and copies the table back, a fixed minute. */
+  const COPY_BACK_MIN = 1;
   /** The delayed replica applies the log this many hours after it arrives. */
   const DELAY_H = 1;
 
   const BASE = { disaster: DISK, size: 2000, restore: 10, base: 24, archive: 60, replay: 10, sync: 0 };
   const PLANS = ['full', 'pitr', 'standby', 'delayed'];
 
-  /** The two fixed axes. Before the disaster: seconds, log scale, 1 s to 24 h. After it: hours, 0 to 24 h, the
-   *  first hour drawn FIRST_HOUR_ZOOM times wider than the rest (a piecewise linear scale). */
+  /** The fixed axes. Before the disaster: seconds, log scale, 1 s to 24 h. After it: 0 to 24 h, linear, so every
+   *  step's length is proportional to its minutes; the inset under it redraws the first INSET_MIN minutes, linear. */
   const BEFORE_AXIS = { minS: 1, maxS: 24 * 3600 };
   const AFTER_AXIS_H = 24;
-  const FIRST_HOUR_ZOOM = 12;
+  const INSET_MIN = 90;
 
   // ---------------------------------------------------------------- the model
   /**
    * Each plan's worst-case recovery point (seconds of writes lost, Infinity when it cannot bring the data back) and
-   * recovery time (minutes until the database serves again), with the steps the time is made of.
+   * recovery time (minutes until the database serves again, or after a drop until the table is back), with the steps
+   * the time is made of. After a drop the primary keeps serving: every plan restores or rolls forward beside it and
+   * copies the table back, because recovering in place would throw away every write made since the drop.
    */
   function plans(s) {
     const restoreMin = s.size / s.restore;
@@ -51,10 +55,11 @@
     const delayedReplayMin = (DELAY_H * 60) / s.replay;
     const drop = s.disaster === DROP;
     const lag = s.sync ? 0 : LAG_S;
+    const copyBack = drop ? [{ kind: 'copyBack', min: COPY_BACK_MIN }] : [];
     const full = {
       recovers: true,
       rpoS: s.base * 3600,
-      steps: [{ kind: 'restore', min: restoreMin }],
+      steps: [{ kind: 'restore', min: restoreMin }, ...copyBack],
     };
     const pitr = {
       recovers: true,
@@ -64,21 +69,19 @@
       steps: [
         { kind: 'restore', min: restoreMin },
         { kind: 'replay', min: replayMin },
+        ...copyBack,
       ],
     };
     const standby = drop
       ? { recovers: false, rpoS: Infinity, lagS: lag, steps: [] }
       : { recovers: true, rpoS: lag, lagS: lag, steps: [{ kind: 'promote', min: PROMOTE_MIN }] };
-    // The delayed replica holds the drop in its received log for DELAY_H: stopped in time, it rolls forward to just
-    // before it. After a dead disk it applies the hour it holds first. Either way: replay the hour, then promote.
+    // The delayed replica holds the drop in its received log for DELAY_H: paused in time, it rolls forward to just
+    // before it and the table is copied back. After a dead disk it applies the hour it holds, then is promoted.
     const delayed = {
       recovers: true,
       rpoS: drop ? 0 : LAG_S,
       lagS: LAG_S,
-      steps: [
-        { kind: 'replay', min: delayedReplayMin },
-        { kind: 'promote', min: PROMOTE_MIN },
-      ],
+      steps: [{ kind: 'replay', min: delayedReplayMin }, drop ? { kind: 'copyBack', min: COPY_BACK_MIN } : { kind: 'promote', min: PROMOTE_MIN }],
     };
     const out = { full, pitr, standby, delayed };
     for (const p of PLANS) out[p].rtoMin = out[p].recovers ? out[p].steps.reduce((t, x) => t + x.min, 0) : Infinity;
@@ -118,13 +121,10 @@
     const f = Math.log(sec / BEFORE_AXIS.minS) / Math.log(BEFORE_AXIS.maxS / BEFORE_AXIS.minS);
     return x1 - gap - f * (x1 - gap - x0);
   }
-  /** After the disaster: the first hour takes `zoomShare` of the width, the other 23 the rest. */
-  const zoomShare = FIRST_HOUR_ZOOM / (FIRST_HOUR_ZOOM + AFTER_AXIS_H - 1);
-  function afterX(min, x0, x1) {
-    const w = x1 - x0;
-    const first = w * zoomShare;
-    return min <= 60 ? x0 + (first * min) / 60 : x0 + first + ((w - first) * (min - 60)) / ((AFTER_AXIS_H - 1) * 60);
-  }
+  /** After the disaster: 0 to 24 h, linear. */
+  const afterX = (min, x0, x1) => x0 + ((x1 - x0) * min) / (AFTER_AXIS_H * 60);
+  /** The inset: 0 to INSET_MIN minutes, linear; a later time is clamped to its right end. */
+  const insetX = (min, x0, x1) => x0 + ((x1 - x0) * Math.min(min, INSET_MIN)) / INSET_MIN;
 
   // ---------------------------------------------------------------- formatting
   const trim = (v, d) => String(Number(v.toFixed(d)));
@@ -179,13 +179,14 @@
     delayed: { ...BASE, disaster: DROP, replay: 5 },
     challenge: { ...BASE },
   };
-  const CHALLENGE_BOUNDS = { pitrRto: 60, base: 6 };
+  const CHALLENGE_BOUNDS = { pitrRpo: 60, pitrRto: 60, base: 6 };
   const CHALLENGE_GOAL = {
     all: [
+      { metric: 'pitrRpo', atMost: CHALLENGE_BOUNDS.pitrRpo },
       { metric: 'pitrRto', below: CHALLENGE_BOUNDS.pitrRto },
       { metric: 'base', atLeast: CHALLENGE_BOUNDS.base },
     ],
-    keep: { size: 2000, archive: 60 },
+    keep: { size: 2000, disaster: DISK },
   };
   const CHALLENGE_SOLUTION = { restore: 50, base: 6, replay: 20 };
   const BIG_SIZE = 10000;
@@ -205,7 +206,7 @@
       ],
       truth: 'outcome',
       reveal:
-        'Nothing: a standby copies every change within seconds, the drop included, so {lag} after the primary loses the table, the standby loses it too. A replica protects against losing a machine, not against losing the data: a bad migration or ransomware reaches it the same way. Point-in-time recovery stops just before the drop and loses nothing, but serves again only in {pitrRto}. The delayed replica, which applies the log {delay} behind, still holds the table.',
+        'Nothing: a standby copies every change within seconds, the drop included, so {lag} after the primary loses the table, the standby loses it too. A replica protects against losing a machine, not against losing the data: a bad migration or ransomware reaches it the same way. Point-in-time recovery, restored beside the primary, stops just before the drop and loses nothing, but gets the table back only in {pitrRto}. The delayed replica, which applies the log {delay} behind, still holds the table. So keep backups immutable in another account, retained long enough to reach back before a mistake noticed weeks later.',
       focus: ['a-standby', 'b-standby'],
       hide: ['replicasDrop'],
       slots: () => {
@@ -230,11 +231,11 @@
       choices: [
         { text: '{restoreOnly}: the restore, since the log replays while the backup copies', value: 'restoreOnly' },
         { text: '{answer}: the restore, then {base} of log at {replay}', value: 'answer' },
-        { text: '{oneX}: the restore, then {base} of log as fast as it was written', value: 'oneX' },
+        { text: "{dayLog}: the restore, then the day's {day} of log at {replay}", value: 'dayLog' },
       ],
       truth: 'answer',
       reveal:
-        'Replay can start only once the restore is done, and it must apply every change since the base backup: {restoreMin} to copy {size} at {speed}, then {base} of log at {replay}, {replayMin}, so {totalMin} in all, {answer}. The size and the restore speed set the first term; the time since the base backup and the replay speed set the second. Only the last {archive} of writes, not yet archived, is lost.',
+        'Replay can start only once the restore is done, and it must apply every change since the base backup: {restoreMin} to copy {size} at {speed}, then {base} of log at {replay}, {replayMin}, so {totalMin} in all, {answer}. The size and the restore speed set the first term. The second is the log since the newest base backup, {base} here and not the whole day, at the replay speed. Only the last {archive} of writes, not yet archived, is lost.',
       focus: ['b-pitr', 'a-pitr'],
       hide: ['pitrTime'],
       slots: () => {
@@ -248,7 +249,8 @@
           replay: times(s.replay),
           restoreOnly: rto(m.restoreMin),
           answer: rto(m.plans.pitr.rtoMin),
-          oneX: rto(m.restoreMin + s.base * 60),
+          dayLog: rto(m.restoreMin + (24 * 60) / s.replay),
+          day: span(24 * 3600),
           restoreMin: mins(m.restoreMin),
           replayMin: mins(m.replayMin),
           totalMin: mins(m.plans.pitr.rtoMin),
@@ -334,15 +336,15 @@
       title: 'A replica an hour behind',
       setup: SETUP.delayed,
       act: { run: 'recover' },
-      ask: 'Someone drops a table just before the nightly backup and notices within minutes. A delayed replica receives the log {lag} after the primary writes it but applies it only {delay} later, and its replay runs {replay} as fast as the writes came in. What can it do?',
+      ask: 'Someone drops a table just before the nightly backup and notices within minutes. A delayed replica receives the log {lag} after the primary writes it but applies it only {delay} later, and its replay runs {replay} as fast as the writes came in. How soon can it give the table back, at the earliest, and how much is lost?',
       choices: [
-        { text: '{answer}, nothing lost: stop it before it applies the drop, roll it forward to just before, promote it', value: 'answer' },
-        { text: '{waitOut}, nothing lost: it waits out its hour, then is promoted', value: 'waitOut' },
+        { text: '{answer}, nothing lost: pause it before it applies the drop, roll it forward to just before, copy the table back', value: 'answer' },
+        { text: '{waitOut}, nothing lost: its {delay} delay cannot be skipped, so it must wait out the hour before replaying', value: 'waitOut' },
         { text: '{never}: like the standby, it applies the drop and loses the table', value: 'never' },
       ],
       truth: 'answer',
       reveal:
-        'Back in {answer} with nothing lost: the drop sits in its log, received but not applied, for {delay}. Stop its replay, roll it forward to just before the drop, at most {delay} of log at {replay}, {replayMin}, and promote it in {promote}. Point-in-time recovery answers the same drop in {pitrRto}. The catch is the hour: a drop noticed later has reached this replica too, which is why it adds to backups and never replaces them.',
+        'The table is back in {answer} with nothing lost: the drop sits in its log, received but not applied, for {delay}. The delay only holds back applying, so pause it before it applies the drop and replay what it has received, up to just before the drop, as fast as it can: at most {delay} of log at {replay}, {replayMin}. Then copy the table back in {copyBack}, while the primary keeps serving. Point-in-time recovery gets the same table back in {pitrRto}. The catch is the hour: a drop noticed later has reached this replica too, which is why it adds to backups and never replaces them.',
       focus: ['a-delayed', 'b-delayed'],
       hide: ['delayedOutcome'],
       slots: () => {
@@ -352,10 +354,10 @@
           delay: span(DELAY_H * 3600),
           replay: times(m.settings.replay),
           answer: rto(m.plans.delayed.rtoMin),
-          waitOut: rto(DELAY_H * 60 + PROMOTE_MIN),
+          waitOut: rto(DELAY_H * 60 + m.delayedReplayMin + COPY_BACK_MIN),
           never: word('Nothing'),
           replayMin: mins(m.delayedReplayMin),
-          promote: mins(PROMOTE_MIN),
+          copyBack: mins(COPY_BACK_MIN),
           pitrRto: rto(m.plans.pitr.rtoMin),
         };
       },
@@ -364,17 +366,17 @@
       id: 'meet',
       title: 'One minute, one hour',
       setup: SETUP.challenge,
-      ask: 'Meet an RPO of {rpoGoal} and an RTO of {rtoGoal} for this {size} database with point-in-time recovery: tune the restore speed, the full backups and the replay. Each full backup reads all {size} from the primary, so run one at most every {baseFloor}.',
+      ask: 'Meet an RPO of {rpoGoal} and an RTO of {rtoGoal} for this {size} database with point-in-time recovery: tune the restore speed, the full backups and the replay. Each full backup reads all {size} from the primary, so run one no more often than every {baseFloor}.',
       goal: CHALLENGE_GOAL,
       reveal:
-        'Restore at {speedSol}, a full backup every {baseSol} and replay at {replaySol}: {restoreSol} to restore {size}, then at most {baseSol} of log in {replaySolMin}, {rtoSol} in all, losing at most {archive}. At {replayMid} the replay alone takes {replayMidMin} and misses the hour; hourly full backups would make it, but read {size} from the primary {perDay} times a day. At {bigSize} nothing here meets the hour: copying it at {speedSol} takes {restoreBig} alone. So large databases restore from volume snapshots, or fail over to a standby for the dead disk and a delayed replica for the bad delete, and keep point-in-time recovery for the rest. And a recovery time is real only once a drill has measured it.',
+        'Restore at {speedSol}, a full backup every {baseSol} and replay at {replaySol}: {restoreSol} to restore {size}, then at most {baseSol} of log in {replaySolMin}, {rtoSol} in all; with the log archived every {archive} or more often, it loses at most that. At {replayMid} the replay alone takes {replayMidMin} and misses the hour; hourly full backups would make it, but read {size} from the primary {perDay} times a day. At {bigSize} nothing here meets the hour: copying it at {speedSol} takes {restoreBig} alone. So large databases restore from volume snapshots, or fail over to a standby for the dead disk and a delayed replica for the bad delete, and keep point-in-time recovery for the rest. And a recovery time is real only once a drill has measured it.',
       focus: ['b-pitr'],
       slots: () => {
         const sol = run({ ...SETUP.challenge, ...CHALLENGE_SOLUTION });
         const mid = run({ ...SETUP.challenge, ...CHALLENGE_SOLUTION, replay: 10 });
         const big = run({ ...SETUP.challenge, ...CHALLENGE_SOLUTION, size: BIG_SIZE });
         return {
-          rpoGoal: span(sol.settings.archive),
+          rpoGoal: span(CHALLENGE_BOUNDS.pitrRpo),
           rtoGoal: rto(CHALLENGE_BOUNDS.pitrRto),
           size: size(sol.settings.size),
           baseFloor: span(CHALLENGE_BOUNDS.base * 3600),
@@ -409,7 +411,7 @@
     return { id: spec.id, title: fill(spec.title), ask: fill(spec.ask), choices, answer, reveal: fill(spec.reveal), slots, focus: spec.focus, hide: spec.hide ?? [] };
   }
 
-  const boundMet = (b, v) => ('below' in b ? v < b.below : v >= b.atLeast);
+  const boundMet = (b, v) => ('below' in b ? v < b.below : 'atMost' in b ? v <= b.atMost : v >= b.atLeast);
   const goalKept = (goal, s) => Object.entries(goal.keep ?? {}).every(([k, v]) => s[k] === v);
   const goalMet = (goal, s, metrics) => goalKept(goal, s) && goal.all.every((b) => boundMet(b, metrics[b.metric]));
 
@@ -425,19 +427,20 @@
     SYNC,
     LAG_S,
     PROMOTE_MIN,
+    COPY_BACK_MIN,
     DELAY_H,
     BASE,
     PLANS,
     BEFORE_AXIS,
     AFTER_AXIS_H,
-    FIRST_HOUR_ZOOM,
+    INSET_MIN,
     ALL_SETTINGS,
     plans,
     scenario,
     run,
     beforeX,
     afterX,
-    zoomShare,
+    insetX,
     formatSpan,
     formatMin,
     formatSize,

@@ -35,6 +35,12 @@ const near = (a, b, tol) => Math.abs(a - b) <= tol;
   check(d.plans.standby.rpoS === 5 && d.plans.standby.rtoMin === 1, 'lesson: the async standby loses 5 s and is back in 1 minute');
   const drop = M.run({ ...M.BASE, disaster: M.DROP });
   check(!drop.plans.standby.recovers && drop.plans.pitr.rpoS === 0 && drop.plans.full.rpoS === 86400, 'lesson: after a delete the standby does not recover, PITR loses nothing, the nightly 24 h');
+  // Worked example 2: after a drop, restore to the side and copy the rows back; never in place, which would roll back
+  // every write since the drop. Every drop recovery ends copying the table back, and none promotes.
+  for (const s of M.ALL_SETTINGS.filter((x) => x.disaster === M.DROP)) {
+    const P = M.run(s).plans;
+    for (const p of ['full', 'pitr', 'delayed']) check(P[p].steps.at(-1).kind === 'copyBack' && !P[p].steps.some((st) => st.kind === 'promote'), `drop: ${p} recovers beside the primary and copies the table back`);
+  }
   const ten = M.run({ ...M.BASE, size: 10000 });
   check(M.formatSpan(ten.plans.pitr.rtoMin * 60) === '19.1 h', 'lesson: 10 TB at 10 GB/min recovers in 19.1 h');
   const tenFast = M.run({ ...M.BASE, size: 10000, restore: 50 });
@@ -120,7 +126,7 @@ function simulatedRecovery(plan, s) {
       copied += (s.restore / 60) * step;
       t += step;
     }
-    if (plan === 'full') return t / 60;
+    if (plan === 'full') return t / 60 + (drop ? M.COPY_BACK_MIN : 0);
     // Replay every write from the base backup to the target: the last archived segment, or just before the drop.
     const target = drop ? T : h.archived;
     let replayed = 0;
@@ -129,7 +135,7 @@ function simulatedRecovery(plan, s) {
       replayed += s.replay * step;
       t += step;
     }
-    return t / 60;
+    return t / 60 + (drop ? M.COPY_BACK_MIN : 0);
   }
   if (plan === 'delayed') {
     // Its delay counts from the primary's commit time (Postgres's recovery_min_apply_delay, MySQL's SOURCE_DELAY):
@@ -141,6 +147,8 @@ function simulatedRecovery(plan, s) {
       replayed += s.replay * step;
       t += step;
     }
+    // After a drop it is paused and the table copied back; after a dead disk it is promoted.
+    return (t + (drop ? M.COPY_BACK_MIN : M.PROMOTE_MIN) * 60) / 60;
   }
   return (t + M.PROMOTE_MIN * 60) / 60;
 }
@@ -200,12 +208,21 @@ function simulatedRecovery(plan, s) {
   check(maxRto <= M.AFTER_AXIS_H * 60, `the after axis holds every recovery time (max ${maxRto} min)`);
   check(maxRpo <= M.BEFORE_AXIS.maxS, `the before axis holds every recovery point (max ${maxRpo} s)`);
   log(`\nScales: recovery times ${minRto} min to ${M.formatSpan(maxRto * 60)} (axis 24 h); recovery points up to ${M.formatSpan(maxRpo)} (axis 24 h). ${M.ALL_SETTINGS.length} settings.`);
-  // The piecewise after-axis: the first hour is FIRST_HOUR_ZOOM times as wide per minute as the rest.
+  // The after axis is linear: within every bar, a step's width over its minutes is the same, at every setting.
   const w = 1000;
-  const firstPerMin = (M.afterX(60, 0, w) - M.afterX(0, 0, w)) / 60;
-  const restPerMin = (M.afterX(24 * 60, 0, w) - M.afterX(60, 0, w)) / (23 * 60);
-  check(near(firstPerMin / restPerMin, M.FIRST_HOUR_ZOOM, 1e-9), 'the first hour is drawn 12 times wider');
+  for (const s of M.ALL_SETTINGS) {
+    const P = M.run(s).plans;
+    for (const p of M.PLANS) {
+      let t = 0;
+      for (const st of P[p].steps) {
+        const per = (M.afterX(t + st.min, 0, w) - M.afterX(t, 0, w)) / st.min;
+        check(near(per, w / (24 * 60), 1e-9), `a ${st.kind} step of ${p} drawn at its own scale`);
+        t += st.min;
+      }
+    }
+  }
   check(M.afterX(24 * 60, 0, w) === w && M.beforeX(86400, 0, w, 10) === 0 && M.beforeX(1, 0, w, 10) === w - 10, 'the axes span their boxes');
+  check(M.insetX(M.INSET_MIN, 0, w) === w && M.insetX(60, 0, w) < w && M.insetX(600, 0, w) === w, 'the inset holds the first 90 min and the 1 h goal inside it');
 }
 
 // ---------------------------------------------------------------- 4. the experiments
@@ -249,7 +266,9 @@ function simulatedRecovery(plan, s) {
   // E2: the three choices are restore only, restore + replay, restore + replay at 1x; all distinct, on the scale.
   {
     const s = E['pitr-time'].slots();
-    check(new Set([s.restoreOnly, s.answer, s.oneX].map(M.formatSlot)).size === 3, 'E2: three distinct times');
+    check(new Set([s.restoreOnly, s.answer, s.dayLog].map(M.formatSlot)).size === 3, 'E2: three distinct times');
+    check(s.restoreOnly.value < s.answer.value && s.answer.value < s.dayLog.value, 'E2: the answer is the middle number');
+    check(M.formatSlot(s.dayLog) === '8.1 h', `E2: a day of log after the restore is 8.1 h (${M.formatSlot(s.dayLog)})`);
     check(s.restoreMin.value + s.replayMin.value === s.totalMin.value, 'E2: the reveal adds up');
     const asked = M.formatSlot(s.answer);
     check(asked === '4.5 h', `E2: the answer is 4.5 h (${asked})`);
@@ -276,7 +295,20 @@ function simulatedRecovery(plan, s) {
   {
     const m = run(E.delayed.setup);
     check(m.plans.delayed.rtoMin === 13 && m.plans.delayed.rpoS === 0, 'E5: 13 min, nothing lost');
+    const sl = E.delayed.slots();
+    check(sl.waitOut.value > sl.answer.value && M.formatSlot(sl.waitOut) !== M.formatSlot(sl.answer), 'E5: waiting out the hour is later than the earliest');
+    check(/at the earliest/.test(M.renderExperiment(E.delayed).ask), 'E5 asks for the earliest time, so one choice is right');
     check(M.formatSpan(m.plans.delayed.rtoMin * 60) !== M.formatSpan(run(E['replica-drop'].setup).plans.delayed.rtoMin * 60), "E5's answer is not on E1's revealed stage");
+  }
+  // After a drop the primary keeps serving: no drop sentence says a plan serves again, is promoted, or is "back in"
+  // without the table (worked example 2: restore to the side, copy the table back).
+  {
+    const dropRule = (t) => t.split(/(?<=[.?!])\s+|;\s+/).filter((x) => /serve again|serves again|promote|back in/i.test(x) && !/table/.test(x));
+    for (const id of ['replica-drop', 'delayed']) {
+      const e = M.renderExperiment(E[id]);
+      for (const t of [e.ask, e.reveal, ...e.choices]) for (const bad of dropRule(t)) check(false, `${id}: a drop sentence without the table: "${bad}"`);
+      checks++;
+    }
   }
   // No asked answer is printed on the stage a learner sees on load (the default, a dead disk).
   {
@@ -302,8 +334,11 @@ function simulatedRecovery(plan, s) {
     const spec = E.meet;
     const pass = M.ALL_SETTINGS.filter((s) => M.goalMet(spec.goal, s, run(s).metrics));
     const configs = new Set(pass.map((s) => `${s.restore}/${s.base}/${s.replay}`));
-    log(`\nChallenge: ${pass.length} of ${M.ALL_SETTINGS.length} settings pass, ${configs.size} configuration: ${[...configs].join(', ')} (restore GB/min / base h / replay x).`);
-    check(configs.size === 1 && configs.has('50/6/20'), 'the challenge passes at exactly one configuration');
+    const archives = new Set(pass.map((s) => s.archive));
+    log(`\nChallenge: ${pass.length} of ${M.ALL_SETTINGS.length} settings pass, ${configs.size} restore/base/replay triple: ${[...configs].join(', ')} (restore GB/min / base h / replay x), at archives ${[...archives].join(' and ')} s.`);
+    check(configs.size === 1 && configs.has('50/6/20'), 'the challenge passes at exactly one restore, base and replay triple');
+    check([...archives].sort((a, b) => a - b).join() === '10,60', 'the RPO bound passes the 10 s and 1 min archives, not 5 min');
+    check(!M.goalMet(spec.goal, { ...spec.setup, ...M.CHALLENGE_SOLUTION, archive: 300 }, run({ ...spec.setup, ...M.CHALLENGE_SOLUTION, archive: 300 }).metrics), 'a 5 min archive misses the RPO');
     check(!M.goalMet(spec.goal, spec.setup, run(spec.setup).metrics), 'the challenge does not start met');
     log('  restore  base  replay  PITR RTO');
     for (const restore of M.RESTORE_GB_PER_MIN)
@@ -315,6 +350,7 @@ function simulatedRecovery(plan, s) {
         }
     const sol = run({ ...spec.setup, ...M.CHALLENGE_SOLUTION });
     check(sol.plans.pitr.rtoMin === 58, 'the solution serves in 58 min');
+    check(!M.goalMet(spec.goal, { ...spec.setup, ...M.CHALLENGE_SOLUTION, disaster: M.DROP }, run({ ...spec.setup, ...M.CHALLENGE_SOLUTION, disaster: M.DROP }).metrics), 'the goal keeps the dead disk: after a drop the archive sets no loss');
     check(run({ ...spec.setup, ...M.CHALLENGE_SOLUTION, replay: 10 }).plans.pitr.rtoMin >= 60, 'reveal: at 10x it misses the hour');
     check(run({ ...spec.setup, ...M.CHALLENGE_SOLUTION, base: 1, replay: 10 }).plans.pitr.rtoMin < 60, 'reveal: hourly full backups would make it');
     const bigBest = Math.min(...M.ALL_SETTINGS.filter((s) => s.size === 10000).map((s) => run(s).plans.pitr.rtoMin));
