@@ -8,7 +8,7 @@ names no picture for `cdn`, and the notes of the R41 widgets from Data Modeling 
 | File          | What it is |
 | ------------- | ---------- |
 | `model.js`    | The analytic model (the old `cdnOutcome`'s rule, with the shield corrected and the edge's distance added), everything the picture reads (shares, rates, paths, half-hit ranks, the square's exact column areas, the three lanes), the seeded sample and its seed rule, the word formatting, and the five experiments and the challenge as slot templates; ported to `libs/engine/src/sysdesign/lessons/widgets/cdn.ts` and `cdn-experiments.ts` |
-| `enum.cjs`    | Prints every number, checks the model against the old `cdnOutcome`, the lesson's quoted numbers, a discrete-event simulation of Zipf requests through a TTL cache at every location and at the shield, the square's areas, the sample, the experiments' text and word claims, and enumerates the challenge (4,945 checks; `--quick` skips the long simulations) |
+| `enum.cjs`    | Prints every number, checks the model against the old `cdnOutcome`, the lesson's quoted numbers, a discrete-event simulation of Zipf requests through a TTL cache at every location and at the shield, the square's areas, the sample, the experiments' text and word claims, and enumerates the challenge (6,896 checks; `--quick` skips the long simulations) |
 | `mockup.html` | The mockup with the app's tokens and fonts: `?state=default\|shield\|many\|few\|short\|long\|busy\|quiet\|utm\|ghost\|playing(&frac=)\|describe\|reduced\|ask&exp=1..5(&phase=playing&frac=)\|reveal&exp=1..5\|challenge(&start=1)&theme=light\|dark`; any free state also takes `&rps=&pops=&ttl=&shield=&variants=` |
 | `shoot.cjs`   | Screenshots every state at 1280, 390 and 320 px in both themes with the page's collision report and layout assertions, then sweeps all 192 settings at 14 stage widths at rest and at two moments of the play, every experiment asking, playing and revealed, the no-answer sweep (motion off and on) with a planted leak on each flag of the hiding map, the load-time stage against every answer, every sentence the page can print, the stage heights and the whole widget's heights per host width |
 | `changes.md`  | Each critique item and what changed for it (round 0, the designer's own), and what is left open for the critics |
@@ -104,7 +104,7 @@ values. 192 settings, all numbers as `ExperimentSettings` requires: `rps`, `pops
 | Stale-while-revalidate, purges, versioned URLs | medium | Lesson text: they change freshness and latency on expiry, not the hit rule drawn here; drawing them would need a second clock |
 | Private responses, cookies, dynamic content at the edge | medium | Lesson text and pitfalls (they are what may not be cached at all) |
 
-**Checks** (`node enum.cjs`, 6,873 pass with `--quick`; the full run adds the long simulations).
+**Checks** (`node enum.cjs`, 6,896 pass; `--quick` skips the long simulations).
 
 1. The old `cdnOutcome` re-implemented: edge hit rate equal at all 96 normalized settings; origin share, rate and mean
    (at 20) equal at every one without a shield; with a shield the old and new origin shares printed side by side. Ten
