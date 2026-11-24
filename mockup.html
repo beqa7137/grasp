@@ -1,0 +1,2391 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Backups and Recovery widget mockup</title>
+    <style>
+      @font-face {
+        font-family: 'Inter Variable';
+        src: url(fonts/inter-latin-wght-normal.woff2) format('woff2');
+        font-weight: 100 900;
+        font-display: block;
+      }
+      @font-face {
+        font-family: 'JetBrains Mono Variable';
+        src: url(fonts/jetbrains-mono-latin-wght-normal.woff2) format('woff2');
+        font-weight: 100 800;
+        font-display: block;
+      }
+      /* The app's tokens (apps/app/src/_theme.scss, styles.scss): light is the base, dark overrides. */
+      :root {
+        color-scheme: light;
+        --g-bg: #f4f5f9;
+        --g-surface: #ffffff;
+        --g-raised: #ffffff;
+        --g-sunken: #eef0f5;
+        --g-line: #dfe2ea;
+        --g-line-strong: #c6cbd6;
+        --g-stroke: #707889;
+        --g-text: #161a23;
+        --g-text-rgb: 22, 26, 35;
+        --g-muted: #4a5263;
+        --g-faint: #5c6477;
+        --g-on-fill: #ffffff;
+        --g-warn-ink: #6e4200;
+        --g-danger-ink: #9d1630;
+        --g-found-ink: #02583f;
+        --g-accent: #5846dc;
+        --g-accent-rgb: 88, 70, 220;
+        --g-accent-soft: rgba(88, 70, 220, 0.14);
+        --g-found: #036b4c;
+        --g-danger: #c3203d;
+        --g-warn: #945800;
+        --g-success-ink: var(--g-found-ink);
+        --g-success-line: var(--g-found);
+        --g-success-soft: rgba(3, 107, 76, 0.12);
+        --g-danger-soft: rgba(195, 32, 61, 0.12);
+        --g-warn-soft: rgba(148, 88, 0, 0.12);
+        --g-viz-stage: #f7f8fb;
+        --g-viz-current: #0b74ad;
+        --g-viz-current-soft: rgba(11, 116, 173, 0.16);
+        --g-viz-considering: #c77700;
+        --g-viz-considering-soft: rgba(199, 119, 0, 0.14);
+        --g-viz-final: #12925f;
+        --g-viz-final-ink: var(--g-found-ink);
+        --g-viz-discarded-ink: #687082;
+        --g-viz-critical: #d42a49;
+        --g-viz-track: #d3d7e0;
+        --g-shadow: 0 1px 2px rgba(var(--g-text-rgb), 0.06), 0 3px 10px rgba(var(--g-text-rgb), 0.07);
+        --g-shadow-raised: 0 1px 2px rgba(var(--g-text-rgb), 0.08);
+        --g-radius-xs: 6px;
+        --g-radius-sm: 10px;
+        --g-radius-md: 14px;
+        --g-radius-pill: 999px;
+        --g-text-title-m: 1.0625rem;
+        --g-text-title-s: 0.9375rem;
+        --g-text-body: 0.875rem;
+        --g-text-body-s: 0.8125rem;
+        --g-text-label: 0.6875rem;
+        --g-font: 'Inter Variable', system-ui, sans-serif;
+        --g-font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+        --g-focus-ring: 2px solid var(--g-accent);
+      }
+      :root.dark {
+        color-scheme: dark;
+        --g-bg: #0b0d12;
+        --g-surface: #141824;
+        --g-raised: #1c2130;
+        --g-sunken: #0f121a;
+        --g-line: #252a37;
+        --g-line-strong: #343b4d;
+        --g-stroke: #6b7387;
+        --g-text: #e9ebf2;
+        --g-text-rgb: 233, 235, 242;
+        --g-muted: #8b93a8;
+        --g-faint: #828a9e;
+        --g-on-fill: #0b0d12;
+        --g-warn-ink: #f3e6b3;
+        --g-danger-ink: #ffb3bd;
+        --g-found-ink: #3ddc97;
+        --g-accent: #9d8cff;
+        --g-accent-rgb: 157, 140, 255;
+        --g-accent-soft: rgba(157, 140, 255, 0.14);
+        --g-found: #3ddc97;
+        --g-danger: #ff5d73;
+        --g-warn: #ffb547;
+        --g-success-soft: rgba(61, 220, 151, 0.12);
+        --g-danger-soft: rgba(255, 93, 115, 0.12);
+        --g-warn-soft: rgba(255, 181, 71, 0.12);
+        --g-viz-stage: #0e1118;
+        --g-viz-current: #1f9fd0;
+        --g-viz-current-soft: rgba(31, 159, 208, 0.16);
+        --g-viz-considering: #c08420;
+        --g-viz-considering-soft: rgba(192, 132, 32, 0.18);
+        --g-viz-final: #22ad74;
+        --g-viz-final-ink: var(--g-found);
+        --g-viz-discarded-ink: var(--g-muted);
+        --g-viz-critical: #e5485f;
+        --g-viz-track: #2a3040;
+        --g-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        --g-shadow-raised: var(--g-shadow);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--g-bg);
+        color: var(--g-text);
+        font: 400 var(--g-text-body) / 1.5 var(--g-font);
+        font-variant-ligatures: none;
+        -webkit-font-smoothing: antialiased;
+        overflow-wrap: break-word;
+      }
+      button {
+        font-size: 0.8333rem;
+      }
+      .page {
+        max-width: 1048px;
+        margin: 0 auto;
+        padding: 20px 16px 40px;
+      }
+      .eyebrow {
+        margin: 0;
+        font: 600 var(--g-text-label) var(--g-font);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--g-muted);
+      }
+      h1 {
+        margin: 4px 0 14px;
+        font: 600 1.25rem/1.3 var(--g-font);
+      }
+      .panel {
+        border: 1px solid var(--g-line);
+        border-radius: var(--g-radius-md);
+        background: var(--g-surface);
+        box-shadow: var(--g-shadow);
+        padding: 16px;
+      }
+      /* Narrow: one column, the controls as the stage's first rows, then the stage, the question, Describe, the cards. */
+      .widget {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 12px;
+      }
+      .main,
+      .experiments {
+        display: contents;
+      }
+      .controls {
+        order: 1;
+      }
+      .stage {
+        order: 2;
+        min-width: 0;
+      }
+      .dock {
+        order: 3;
+      }
+      .describe {
+        order: 4;
+      }
+      .heading,
+      .cards {
+        order: 5;
+      }
+      .controls {
+        padding: 12px 12px 0;
+        border: 1px solid var(--g-line);
+        border-bottom: 0;
+        border-radius: var(--g-radius-md) var(--g-radius-md) 0 0;
+        background: var(--g-viz-stage);
+        display: grid;
+        gap: 10px;
+        min-width: 0;
+      }
+      .stage {
+        margin-top: -12px;
+      }
+      .stage .well {
+        border-top: 0;
+        border-radius: 0 0 var(--g-radius-md) var(--g-radius-md);
+      }
+      @media (min-width: 1000px) {
+        .widget {
+          grid-template-columns: minmax(0, 1fr) 340px;
+          grid-template-rows: auto 1fr;
+          align-items: start;
+          column-gap: 20px;
+        }
+        .main {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr);
+          gap: 12px;
+          grid-column: 1;
+          grid-row: 1 / span 2;
+          min-width: 0;
+        }
+        .controls {
+          grid-column: 2;
+          grid-row: 1;
+          padding: 0;
+          border: 0;
+          background: none;
+        }
+        .experiments {
+          display: block;
+          grid-column: 2;
+          grid-row: 2;
+          min-width: 0;
+        }
+        .stage {
+          margin-top: 0;
+        }
+        .stage .well {
+          border-top: 1px solid var(--g-line);
+          border-radius: var(--g-radius-md);
+        }
+        .dock {
+          margin-top: 12px;
+        }
+      }
+      .well {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid var(--g-line);
+        border-radius: var(--g-radius-md);
+        background-color: var(--g-viz-stage);
+        background-image: radial-gradient(circle, rgba(var(--g-text-rgb), 0.09) 1px, transparent 1.5px);
+        background-size: 24px 24px;
+        background-position: 11px 11px;
+      }
+      /* Every fieldset.group carries the same zero padding; a control's own class only adds to it (the R41 padding bug). */
+      fieldset.group {
+        margin: 0;
+        padding: 0;
+        border: 0;
+        min-width: 0;
+      }
+      .control-label {
+        font: 600 var(--g-text-label) var(--g-font);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--g-muted);
+        padding: 0;
+        margin-bottom: 4px;
+      }
+      .segments {
+        display: flex;
+        gap: 4px;
+      }
+      .segment {
+        position: relative;
+        flex: 1 1 0;
+        min-width: 0;
+      }
+      .segment input {
+        position: absolute;
+        inset: 0;
+        margin: 0;
+        opacity: 0;
+        cursor: pointer;
+      }
+      .segment span {
+        white-space: nowrap;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        min-height: 44px;
+        padding: 0 6px;
+        border-radius: var(--g-radius-sm);
+        border: 1px solid var(--g-line-strong);
+        background: var(--g-raised);
+        box-shadow: var(--g-shadow-raised);
+        color: var(--g-text);
+        font: 500 var(--g-text-body) / 1.15 var(--g-font);
+        text-align: center;
+      }
+      .segment input:checked + span {
+        background: var(--g-accent-soft);
+        border-color: var(--g-accent);
+        box-shadow: inset 0 0 0 1px var(--g-accent);
+        font-weight: 600;
+      }
+      fieldset:disabled .segment span,
+      .segment input:disabled + span {
+        opacity: 0.55;
+      }
+      .control-label .why {
+        font-weight: 500;
+        letter-spacing: normal;
+        text-transform: none;
+      }
+      .segment small {
+        font: 500 var(--g-text-label) var(--g-font);
+        color: var(--g-muted);
+      }
+      .toggles {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px;
+      }
+      .toggles .segment span {
+        flex-direction: column;
+        gap: 0;
+        font-size: var(--g-text-body-s);
+      }
+      .notice {
+        margin: 0;
+        min-height: 2lh;
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+      }
+      /* Below wide the notice would sit over the stage and push it down as it speaks: read out only (_widget-controls.scss). */
+      /* "1,000 GB" keeps one line in a 74 px segment at a 320 px phone. */
+      @media (max-width: 359px) {
+        .controls .segment span {
+          padding-inline: 3px;
+        }
+      }
+      @media (max-width: 999px) {
+        .notice {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          min-height: 0;
+          overflow: hidden;
+          clip-path: inset(50%);
+        }
+        .controls {
+          padding-bottom: 12px;
+        }
+      }
+      .caption {
+        margin: 0;
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+      }
+      .play {
+        position: absolute;
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        border: 0;
+        background: none;
+        cursor: pointer;
+        z-index: 2;
+      }
+      .play svg {
+        display: block;
+        width: 36px;
+        height: 36px;
+        margin: 4px;
+      }
+      .play circle {
+        fill: var(--g-raised);
+        stroke: var(--g-accent);
+        stroke-width: 1.5;
+      }
+      .play path {
+        fill: var(--g-accent);
+      }
+      .play:disabled {
+        cursor: default;
+        opacity: 0.55;
+      }
+      svg.draw {
+        position: absolute;
+        left: 0;
+        top: 0;
+        display: block;
+        overflow: visible;
+      }
+      svg.draw text {
+        paint-order: stroke;
+        stroke: var(--g-viz-stage);
+        stroke-width: 3px;
+        stroke-linejoin: round;
+      }
+      svg.draw text.on-box {
+        stroke: var(--g-raised);
+      }
+      svg.draw text.on-chip {
+        stroke: none;
+      }
+      .t-label {
+        font: 600 var(--g-text-label) var(--g-font);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        fill: var(--g-muted);
+      }
+      .t-cap {
+        font: 500 var(--g-text-body-s) var(--g-font);
+        fill: var(--g-muted);
+      }
+      .t-capB {
+        font: 600 var(--g-text-body-s) var(--g-font);
+        fill: var(--g-text);
+      }
+      .t-small {
+        font: 500 var(--g-text-label) var(--g-font);
+        fill: var(--g-muted);
+      }
+      .t-smallB {
+        font: 700 var(--g-text-label) var(--g-font);
+        fill: var(--g-text);
+      }
+      .t-mono {
+        font: 600 var(--g-text-label) var(--g-font-mono);
+        fill: var(--g-text);
+      }
+      .t-nameS {
+        font: 600 13px var(--g-font-mono);
+        fill: var(--g-text);
+      }
+      .t-head {
+        font: 600 var(--g-text-title-m) var(--g-font-mono);
+        fill: var(--g-text);
+      }
+      .focus-outline {
+        fill: none;
+        stroke: var(--g-accent);
+        stroke-width: 2;
+      }
+      .tag {
+        fill: var(--g-viz-stage);
+        stroke: var(--g-accent);
+        stroke-width: 1.5;
+      }
+      .t-look {
+        font: 600 var(--g-text-label) var(--g-font);
+        fill: var(--g-accent);
+      }
+      /* The experiment dock and cards (experiment-dock.component.ts, widget-check.component.ts). */
+      .dock {
+        padding: 12px 16px;
+        border-radius: var(--g-radius-md);
+        border: 1px solid var(--g-line);
+        border-left: 3px solid var(--g-accent);
+        background: var(--g-surface);
+      }
+      .dock:empty {
+        display: none;
+      }
+      .legend {
+        margin: 0 0 4px;
+        font-weight: 600;
+        line-height: 1.45;
+      }
+      .options {
+        list-style: none;
+        margin: 8px 0 0;
+        padding: 0;
+        display: grid;
+        gap: 8px;
+      }
+      .g-choice {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        padding: 10px 14px;
+        border-radius: 12px;
+        border: 1px solid var(--g-line-strong);
+        background: var(--g-raised);
+        color: var(--g-text);
+        font: 500 0.90625rem/1.45 var(--g-font);
+        text-align: left;
+      }
+      button.g-choice {
+        box-shadow: var(--g-shadow-raised);
+        cursor: pointer;
+      }
+      .g-choice.right {
+        border-color: var(--g-success-line);
+        background: var(--g-success-soft);
+      }
+      .g-choice.wrong {
+        border-color: var(--g-danger);
+        background: var(--g-danger-soft);
+      }
+      .mark {
+        flex: none;
+        width: 20px;
+        height: 20px;
+      }
+      .held {
+        margin: 10px 0 0;
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+      }
+      .reveal {
+        margin: 10px 0 0;
+        line-height: 1.55;
+        font-size: 0.90625rem;
+      }
+      .status-line {
+        margin: 8px 0 4px;
+        font: 600 var(--g-text-body) var(--g-font);
+        color: var(--g-muted);
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .status-line.met {
+        color: var(--g-success-ink);
+      }
+      .status {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        gap: 4px;
+        font: 600 var(--g-text-body-s) var(--g-font);
+        font-variant-numeric: tabular-nums;
+        color: var(--g-muted);
+      }
+      .status li {
+        display: flex;
+        gap: 8px;
+        align-items: baseline;
+      }
+      .status li.met {
+        color: var(--g-success-ink);
+      }
+      .status .state {
+        flex: none;
+        width: 16px;
+      }
+      .heading {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font: 600 var(--g-text-title-s) var(--g-font);
+        margin: 20px 0 8px;
+      }
+      .heading svg {
+        color: var(--g-accent);
+      }
+      .cards {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 8px;
+      }
+      .card-btn {
+        width: 100%;
+        min-height: 48px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 12px;
+        border: 1px solid var(--g-line-strong);
+        border-radius: var(--g-radius-sm);
+        background: var(--g-raised);
+        box-shadow: var(--g-shadow-raised);
+        color: var(--g-text);
+        font: 500 var(--g-text-body) var(--g-font);
+        text-align: left;
+      }
+      .card-btn[aria-current] {
+        border-color: var(--g-accent);
+        box-shadow: inset 0 0 0 1px var(--g-accent);
+        background: var(--g-accent-soft);
+      }
+      .card-btn .num {
+        flex: none;
+        display: grid;
+        place-items: center;
+        width: 26px;
+        height: 26px;
+        border-radius: var(--g-radius-pill);
+        background: var(--g-sunken);
+        font: 600 var(--g-text-body-s) var(--g-font-mono);
+        color: var(--g-muted);
+      }
+      /* Describe: a minmax(0, 1fr) grid, its table scrolling inside its own box; compact on narrow stages. */
+      .describe {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 8px;
+        justify-items: start;
+      }
+      .describe .muted-note {
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+        margin: 0;
+      }
+      .describe p.summary {
+        margin: 0;
+        font-size: var(--g-text-body-s);
+      }
+      .g-btn {
+        appearance: none;
+        border: 1px solid var(--g-line-strong);
+        background: var(--g-raised);
+        box-shadow: var(--g-shadow-raised);
+        color: var(--g-text);
+        border-radius: var(--g-radius-sm);
+        padding: 9px 14px;
+        min-height: 44px;
+        font: 500 var(--g-text-body) / 1 var(--g-font);
+      }
+      .g-btn:disabled {
+        opacity: 0.55;
+      }
+      .table-box {
+        justify-self: stretch;
+        overflow: auto;
+        border-top: 1px solid var(--g-line);
+      }
+      tbody tr {
+        height: 28px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font: 500 var(--g-text-body-s) var(--g-font);
+        font-variant-numeric: tabular-nums;
+      }
+      th,
+      td {
+        text-align: right;
+        padding: 4px 8px;
+        white-space: nowrap;
+      }
+      th:first-child,
+      td:first-child {
+        text-align: left;
+      }
+      th {
+        font: 600 var(--g-text-label) var(--g-font);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--g-muted);
+        position: sticky;
+        top: 0;
+        background: var(--g-surface);
+        vertical-align: bottom;
+      }
+      td {
+        border-top: 1px solid var(--g-line);
+      }
+      tr.now td {
+        background: var(--g-accent-soft);
+        font-weight: 600;
+      }
+      .compact th,
+      .compact td {
+        padding-inline: 4px;
+      }
+      .compact th {
+        letter-spacing: normal;
+        white-space: normal;
+      }
+      th .unit {
+        text-transform: none;
+      }
+      /* "Lookup, filters on" may take two lines rather than widen the table past its box. */
+      th.wrap {
+        white-space: normal;
+      }
+      tbody th {
+        font: inherit;
+        letter-spacing: normal;
+        text-transform: none;
+        color: inherit;
+        position: static;
+        background: none;
+        border-top: 1px solid var(--g-line);
+        font-weight: 500;
+      }
+      tr.now th {
+        background: var(--g-accent-soft);
+        font-weight: 600;
+      }
+      .well .segment {
+        position: absolute;
+        display: block;
+        z-index: 2;
+      }
+      .well .segment span {
+        height: 100%;
+        min-height: 0;
+      }
+      .well .segment.toggle span {
+        flex-direction: row;
+        justify-content: flex-start;
+        gap: 10px;
+        padding: 0 12px;
+        font-size: var(--g-text-body-s);
+      }
+      .well .segment.toggle .box {
+        flex: none;
+        width: 18px;
+        height: 18px;
+        border-radius: 5px;
+        border: 1.5px solid var(--g-stroke);
+        background: var(--g-raised);
+        display: grid;
+        place-items: center;
+      }
+      .well .segment.toggle input:checked + span .box {
+        background: var(--g-accent);
+        border-color: var(--g-accent);
+      }
+      .well .segment.toggle .box svg {
+        width: 12px;
+        height: 12px;
+        visibility: hidden;
+      }
+      .well .segment.toggle input:checked + span .box svg {
+        visibility: visible;
+      }
+      .well .segment.toggle .words {
+        display: grid;
+        text-align: left;
+        line-height: 1.25;
+        font-style: normal;
+        white-space: nowrap;
+      }
+      .well .segment.toggle .words b {
+        font-weight: 500;
+      }
+      /* A checked segment keeps its weight, so its label never re-wraps (prevention 20). */
+      .segment input:checked + span {
+        font-weight: 500;
+      }
+      /* ---- The Backups & Recovery stage. Blue is a copy of the data (a backup, a replica's applied rows, a restore),
+         amber the log (archived segments, a replica's received log, a replay), green a promotion and serving again,
+         the critical hatch writes lost, the critical line the disaster. Dashed is only ever "hidden until you answer". */
+      .focus-outline {
+        stroke-dasharray: none;
+      }
+      .t-title {
+        font: 600 var(--g-text-title-s) var(--g-font);
+        fill: var(--g-text);
+      }
+      .t-num {
+        font: 600 13px var(--g-font-mono);
+        fill: var(--g-text);
+      }
+      .lost-ink {
+        fill: var(--g-danger-ink);
+      }
+      .final-ink {
+        fill: var(--g-viz-final-ink);
+      }
+      .amber-ink {
+        fill: var(--g-warn-ink);
+      }
+      .accent-ink {
+        fill: var(--g-accent);
+      }
+      .track {
+        fill: none;
+        stroke: var(--g-line);
+      }
+      .grid {
+        stroke: var(--g-line);
+        stroke-width: 1;
+      }
+      .grid.kink {
+        stroke: var(--g-line-strong);
+      }
+      .goal-line {
+        stroke: var(--g-accent);
+        stroke-width: 1.5;
+      }
+      .axis {
+        stroke: var(--g-line-strong);
+      }
+      .rule {
+        stroke: var(--g-line);
+      }
+      .copy {
+        fill: var(--g-viz-current-soft);
+        stroke: var(--g-viz-current);
+        stroke-width: 1;
+      }
+      .primary-band {
+        fill: rgba(var(--g-text-rgb), 0.1);
+        stroke: var(--g-stroke);
+        stroke-width: 1;
+      }
+      .full-box {
+        fill: var(--g-viz-current);
+      }
+      .log-band {
+        fill: var(--g-viz-considering-soft);
+        stroke: var(--g-viz-considering);
+        stroke-width: 1;
+      }
+      .comb {
+        stroke: var(--g-viz-considering);
+        stroke-width: 1.25;
+        fill: none;
+      }
+      .lost {
+        fill: url(#lost);
+        stroke: var(--g-viz-critical);
+        stroke-width: 1;
+      }
+      .lost-fill {
+        fill: var(--g-danger-soft);
+      }
+      .lost-line {
+        stroke: var(--g-viz-critical);
+        stroke-width: 1;
+      }
+      .strike-line {
+        stroke: var(--g-viz-critical);
+        stroke-width: 2;
+      }
+      .xmark {
+        fill: none;
+        stroke: var(--g-viz-critical);
+        stroke-width: 2;
+        stroke-linecap: round;
+      }
+      .drop-tick {
+        fill: var(--g-viz-critical);
+      }
+      .ring {
+        fill: var(--g-viz-stage);
+        stroke: var(--g-text);
+        stroke-width: 2;
+      }
+      .seg-restore {
+        fill: var(--g-viz-current);
+      }
+      .seg-replay {
+        fill: var(--g-viz-considering);
+      }
+      .seg-promote {
+        fill: var(--g-viz-final);
+      }
+      .serve {
+        fill: var(--g-viz-final);
+        stroke: var(--g-viz-stage);
+        stroke-width: 1.5;
+      }
+      .never {
+        stroke: var(--g-line-strong);
+        stroke-width: 1;
+      }
+      .playhead {
+        stroke: var(--g-text);
+        stroke-width: 1.5;
+      }
+      .cursor {
+        stroke: var(--g-text);
+        stroke-width: 1.5;
+        stroke-opacity: 0.6;
+      }
+      .ghost-tick {
+        stroke: var(--g-text);
+        stroke-width: 2;
+      }
+      .hidden-box {
+        fill: none;
+        stroke: var(--g-stroke);
+        stroke-width: 1.25;
+        stroke-dasharray: 4 3;
+      }
+      .hatch-fill {
+        fill: var(--g-danger-soft);
+      }
+      .hatch-line {
+        stroke: var(--g-viz-critical);
+        stroke-width: 1.25;
+        stroke-opacity: 0.7;
+      }
+      .well .segment span {
+        font-size: var(--g-text-body-s);
+        padding: 0 4px;
+      }
+      .model-note,
+      .caption {
+        order: 2;
+      }
+      .caption {
+        margin: 0;
+        font-size: var(--g-text-body-s);
+        color: var(--g-text);
+      }
+      .model-note {
+        margin: 0;
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+        text-wrap: pretty;
+      }
+      .nb {
+        white-space: nowrap;
+      }
+      .reduced-note {
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <p class="eyebrow">System design · Backups &amp; Recovery</p>
+      <h1>Try it</h1>
+      <section class="panel widget" id="widget"></section>
+    </main>
+    <script src="model.js"></script>
+    <script>
+      'use strict';
+      const M = window.RecoveryModel;
+      const params = new URLSearchParams(location.search);
+      document.documentElement.classList.toggle('dark', params.get('theme') === 'dark');
+      const DROP = M.DROP;
+
+      // ---------- Text measurement, with the fonts the app ships (no tabular digits: stage text is measured as drawn).
+      // The label role is set in capitals, but a unit keeps its case ("10 GB/min", "1 min", "24 h").
+      const ROLE = {
+        title: { css: '600 15px "Inter Variable"', size: 15 },
+        label: { css: '600 11px "Inter Variable"', size: 11, track: 0.12, upper: true },
+        cap: { css: '500 13px "Inter Variable"', size: 13 },
+        capB: { css: '600 13px "Inter Variable"', size: 13 },
+        small: { css: '500 11px "Inter Variable"', size: 11 },
+        smallB: { css: '700 11px "Inter Variable"', size: 11 },
+        num: { css: '600 13px "JetBrains Mono Variable"', size: 13 },
+        look: { css: '600 11px "Inter Variable"', size: 11 },
+      };
+      const UNIT = /(GB\/min|\d+ (?:min|h|s)\b)/;
+      const upperKeepUnits = (t) => t.toUpperCase().replace(/GB\/MIN/g, 'GB/min').replace(/(\d) (MIN|H|S)\b/g, (_, d, u) => `${d} ${u.toLowerCase()}`);
+      const ctx = document.createElement('canvas').getContext('2d');
+      const widthCache = new Map();
+      function tw(text, role) {
+        const key = role + '|' + text;
+        if (widthCache.has(key)) return widthCache.get(key);
+        const f = ROLE[role];
+        ctx.font = f.css;
+        const s = f.upper ? upperKeepUnits(text) : text;
+        const w = Math.ceil(ctx.measureText(s).width + (f.track ? f.track * f.size * s.length : 0)) + 1;
+        widthCache.set(key, w);
+        return w;
+      }
+      const partsWidth = (parts) => parts.reduce((s, [t, role, , dx = 0]) => s + tw(t, role) + dx, 0);
+      // A number never parts from its unit, nor "at 10×" from its "at": they wrap as one word (stage-text.ts's rule).
+      const KEEP = /(\d[\d,.]*(?:×)?) (s|min|h|GB|TB|GB\/min)\b/g;
+      const glue = (t) =>
+        t
+          .replace(KEEP, '$1 $2')
+          .replace(/(at|every|in|of|up to|loses|back) (\d)/g, '$1 $2')
+          .replace(/"[^"]*"/g, (q) => q.replace(/ /g, ' '));
+      // The wrap measures with the glue spaces as real spaces, and never leaves one short word alone on a last line.
+      const unglue = (t) => t.replace(/ /g, ' ');
+      function wrap(text, role, width) {
+        const lines = [];
+        let line = '';
+        for (const w of glue(text).split(' ')) {
+          const next = line ? line + ' ' + w : w;
+          if (tw(unglue(next), role) <= width || !line) line = next;
+          else {
+            lines.push(line);
+            line = w;
+          }
+        }
+        if (line) lines.push(line);
+        if (lines.length > 1 && !lines.at(-1).includes(' ') && !lines.at(-1).includes(' ')) {
+          const prev = lines.at(-2).split(' ');
+          const moved = prev.length > 1 ? prev.at(-1) + ' ' + lines.at(-1) : null;
+          if (moved && tw(unglue(moved), role) <= width) {
+            lines[lines.length - 2] = prev.slice(0, -1).join(' ');
+            lines[lines.length - 1] = moved;
+          }
+        }
+        return lines.map(unglue);
+      }
+      const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      const labelInner = (t) =>
+        esc(upperKeepUnits(t))
+          .split(UNIT)
+          .map((p, i) => (i % 2 ? `<tspan class="t-unit">${p}</tspan>` : p))
+          .join('');
+      const r1 = (v) => Math.round(v * 10) / 10;
+      const span = M.formatSpan;
+      const rtoSpan = (min) => span(min * 60);
+      const fMin = M.formatMin;
+      const fSize = M.formatSize;
+      const fSpeed = M.formatSpeed;
+      const fTimes = M.formatTimes;
+      // HTML learner text keeps a number with its unit on one line (g-code-text's rule), without a non-breaking space.
+      const KEEP_HTML = /((?:(?:up to|under|at least|at most|every|at|in) )?\d[\d,.]*(?:×| (?:s|min|h|GB\/min|GB|TB|times))|RPO|RTO|"[^"]*")/g;
+      const nb = (s) =>
+        esc(s)
+          .split(KEEP_HTML)
+          .map((p, i) => (i % 2 ? `<span class="nb">${p}</span>` : p))
+          .join('');
+
+      // ---------- The drawing: SVG parts in layers, and the boxes placement checks against.
+      class Draw {
+        constructor(W) {
+          this.W = W;
+          this.layers = { back: [], grid: [], marks: [], dots: [], text: [], top: [] };
+          this.texts = [];
+          this.marks = [];
+          this.links = [];
+          this.hits = [];
+          this.regions = {};
+          this.missing = [];
+          this.meta = { rows: {} };
+        }
+        add(layer, s) {
+          this.layers[layer].push(s);
+        }
+        textBox(x, y, w, role, anchor = 'start') {
+          const fs = ROLE[role].size;
+          const x0 = anchor === 'middle' ? x - w / 2 : anchor === 'end' ? x - w : x;
+          return { x0, x1: x0 + w, y0: y - 0.74 * fs, y1: y + 0.22 * fs };
+        }
+        text(x, y, parts, o = {}) {
+          if (typeof parts === 'string') parts = [[parts, o.role ?? 'small', o.cls ?? 'muted']];
+          const anchor = o.anchor ?? 'start';
+          const w = partsWidth(parts);
+          const role = parts.reduce((a, p) => (ROLE[p[1]].size > ROLE[a].size ? p[1] : a), parts[0][1]);
+          const box = this.textBox(x, y, w, role, anchor);
+          box.owner = o.owner ?? '';
+          box.s = parts.map((p) => p[0]).join('');
+          this.texts.push(box);
+          const spans = parts.map(([t, r, cls = '', dx = 0]) => `<tspan class="t-${r} ${cls}"${dx ? ` dx="${dx}"` : ''}>${r === 'label' ? labelInner(t) : esc(t)}</tspan>`).join('');
+          const attrs = `x="${r1(x)}" y="${r1(y)}" text-anchor="${anchor}"${o.owner ? ` data-owner="${o.owner}"` : ''}${o.id ? ` data-id="${o.id}"` : ''}${o.data ?? ''}`;
+          this.add(o.layer ?? 'text', `<text class="${o.textCls ?? ''}" ${attrs}>${spans}</text>`);
+          return box;
+        }
+        mark(box, owner = '') {
+          this.marks.push({ ...box, owner });
+        }
+        hit(kind, x, y, w, h, extra = {}) {
+          this.hits.push({ kind, x, y, w, h, ...extra });
+          this.mark({ x0: x, x1: x + w, y0: y, y1: y + h }, extra.owner ?? kind);
+        }
+        region(id, box) {
+          (this.regions[id] ??= []).push(box);
+        }
+        free(box, ignoreOwner = '', margin = 2, mx = margin) {
+          const b = { x0: box.x0 - mx, x1: box.x1 + mx, y0: box.y0 - margin, y1: box.y1 + margin };
+          const hit = (o) => !(o.x1 <= b.x0 || o.x0 >= b.x1 || o.y1 <= b.y0 || o.y0 >= b.y1);
+          const mine = (o) => ignoreOwner && o.owner && o.owner.split(' ').some((t) => ignoreOwner.split(' ').includes(t));
+          if (this.texts.some((t) => hit(t) && !mine(t))) return false;
+          if (this.marks.some((m) => hit(m) && !mine(m))) return false;
+          return b.x0 >= 2 && b.x1 <= this.W - 2;
+        }
+        svg(H, label) {
+          const L = this.layers;
+          return `<svg class="draw" width="${this.W}" height="${H}" viewBox="0 0 ${this.W} ${H}" role="img" aria-label="${esc(label)}">
+<defs>
+<pattern id="lost" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" class="hatch-fill"/><line class="hatch-line" x1="0" y1="0" x2="0" y2="5"/></pattern>
+</defs>
+<g>${L.back.join('')}</g><g>${L.grid.join('')}</g><g>${L.marks.join('')}</g><g>${L.dots.join('')}</g><g>${L.text.join('')}</g><g>${L.top.join('')}</g></svg>`;
+        }
+      }
+      const rect = (cls, x, y, w, h, extra = '') => `<rect class="${cls}" x="${r1(x)}" y="${r1(y)}" width="${r1(Math.max(0, w))}" height="${r1(Math.max(0, h))}"${extra}/>`;
+      const line = (cls, x1, y1, x2, y2, extra = '') => `<line class="${cls}" x1="${r1(x1)}" y1="${r1(y1)}" x2="${r1(x2)}" y2="${r1(y2)}"${extra}/>`;
+
+      // ---------- What an open question hides, on every surface: one map (prevention 1). Each region is named in the
+      // question's own `hide` list. `replicasDrop` (E1) and `delayedOutcome` (E5) hide what replicas can bring back
+      // after a drop: their words and numbers while the question asks and while its answer plays, and the marks that
+      // would draw the answer (the drop landing on them, their recovery points, their bars) while it asks; the
+      // answer's play then draws those marks at their moments. `pitrTime` (E2) hides point-in-time recovery's time to
+      // serve; `pitrAfter` (E3) both its numbers at the act's setting while the answer plays; `rtoAfter` (E4) every
+      // plan's time to serve there. No ghost of an earlier setting shows while a question is open.
+      function hiding(view) {
+        const h = new Set(view.hide ?? []);
+        const asking = view.phase === 'asking';
+        const playing = view.phase === 'playing';
+        const open = asking || playing;
+        const map = {
+          standbyWords: h.has('replicasDrop') && open,
+          standbyMarks: h.has('replicasDrop') && asking,
+          delayedWords: (h.has('replicasDrop') || h.has('delayedOutcome')) && open,
+          delayedMarks: (h.has('replicasDrop') || h.has('delayedOutcome')) && asking,
+          pitrRto: (h.has('pitrTime') && open) || ((h.has('pitrAfter') || h.has('rtoAfter')) && playing),
+          pitrRpo: h.has('pitrAfter') && playing,
+          pitrRtoMarks: h.has('pitrTime') && asking,
+          allRto: h.has('rtoAfter') && playing,
+          // A hidden bar's dashed box spans the whole axis, never the hidden time.
+          boxFull: true,
+          ghost: open,
+          locked: open,
+        };
+        for (const flag of view.leak ?? []) map[flag] = false;
+        return map;
+      }
+      const NOTHING_HIDDEN = hiding({ phase: 'rest' });
+      const rtoHidden = (hid, p) => hid.allRto || (p === 'pitr' && hid.pitrRto) || (p === 'standby' && hid.standbyWords) || (p === 'delayed' && hid.delayedWords);
+      const rpoHidden = (hid, p) => (p === 'pitr' && hid.pitrRpo) || (p === 'standby' && hid.standbyWords) || (p === 'delayed' && hid.delayedWords);
+      const marksHidden = (hid, p) => (p === 'standby' && hid.standbyMarks) || (p === 'delayed' && hid.delayedMarks);
+      const anyTimeHidden = (hid) => M.PLANS.some((p) => rtoHidden(hid, p));
+
+      // ---------- The words: plan names, what each plan loses and when it serves, its note and its ledger.
+      const NAMES = {
+        primary: () => ['Primary'],
+        full: () => ['Full backups', 'Full backups'],
+        pitr: () => ['Point-in-time recovery', 'Point-in-time'],
+        standby: (s) => (s.sync ? ['Standby, synchronous', 'Sync standby', 'Standby'] : ['Standby, asynchronous', 'Async standby', 'Standby']),
+        delayed: () => [`Delayed replica, ${span(M.DELAY_H * 3600)} behind`, 'Delayed replica'],
+      };
+      const lossWords = (p) => (!p.recovers ? 'cannot bring it back' : p.rpoS === 0 ? 'loses nothing' : `loses ${span(p.rpoS)}`);
+      const serveWords = (p) => (!p.recovers ? 'never' : `back in ${rtoSpan(p.rtoMin)}`);
+      function aNote(key, m, hid) {
+        const s = m.settings;
+        const drop = s.disaster === DROP;
+        const lag = span(M.LAG_S);
+        switch (key) {
+          case 'primary':
+            return [drop ? 'takes writes all day; a table is dropped at the worst moment' : 'takes writes all day; its disks fail at the worst moment', drop ? 'a table is dropped at the worst moment' : 'its disks fail at the worst moment'];
+          case 'full':
+            return [`a full copy every ${span(s.base * 3600)}, in another account`, `a full copy every ${span(s.base * 3600)}`];
+          case 'pitr':
+            return [`the base backup, then the log archived every ${span(s.archive)}`, `base backup, log every ${span(s.archive)}`];
+          case 'standby': {
+            if (drop && !hid.standbyWords) return s.sync ? ['applies every change with the primary: the drop too', 'applies the drop too'] : [`applies every change ${lag} after the primary: the drop too`, 'applies the drop too'];
+            return s.sync ? ['the primary waits for it on every commit', 'confirms every commit'] : [`applies every change ${lag} after the primary`, `${lag} behind the primary`];
+          }
+          case 'delayed': {
+            if (drop && !hid.delayedWords) return [`the drop waits in its log for ${span(M.DELAY_H * 3600)} before it applies`, `the drop waits ${span(M.DELAY_H * 3600)} in its log`];
+            return [`receives the log ${lag} after the primary, applies it ${span(M.DELAY_H * 3600)} later`, `log in ${lag}, applied ${span(M.DELAY_H * 3600)} later`];
+          }
+        }
+      }
+      function bLedger(key, m) {
+        const s = m.settings;
+        const p = m.plans[key];
+        const drop = s.disaster === DROP;
+        const to = drop ? ' to just before the drop' : '';
+        switch (key) {
+          case 'full':
+            return `restore ${fSize(s.size)} at ${fSpeed(s.restore)}: ${fMin(m.restoreMin)}`;
+          case 'pitr':
+            return `restore: ${fMin(m.restoreMin)}; replay ${span(s.base * 3600)} of log${to} at ${fTimes(s.replay)}: ${fMin(m.replayMin)}; ${fMin(p.rtoMin)} in all`;
+          case 'standby':
+            return p.recovers ? `promote it: ${fMin(M.PROMOTE_MIN)}` : 'it has applied the drop too: no copy without it';
+          case 'delayed':
+            return `replay its ${span(M.DELAY_H * 3600)} of log${to} at ${fTimes(s.replay)}: ${fMin(m.delayedReplayMin)}; promote it: ${fMin(M.PROMOTE_MIN)}`;
+        }
+      }
+      const HIDDEN_TIME = 'Its time to serve again shows after your answer.';
+      const HIDDEN_OUTCOME = 'What it can bring back shows after your answer.';
+      const workload = (s) =>
+        s.disaster === DROP
+          ? `A ${fSize(s.size)} database takes writes all day. At the worst moment, just before the next full backup, someone drops a table.`
+          : `A ${fSize(s.size)} database takes writes all day. Its disks fail at the worst moment: just before the next full backup and the next log archive.`;
+      const REST_STEP = 'Each plan is judged by two numbers: the writes it loses (RPO) and the time until it serves again (RTO).';
+
+      // ---------- The play: one clock (0 to 1). A mark shows once the clock has reached its moment, so nothing is
+      // drawn for an event before it happens (prevention 6). The history sweeps the day before the disaster, right to
+      // left in age (left to right on the stage), the disaster strikes, each plan's recovery point lands, then the
+      // recovery clock runs on the after axis until the last plan serves.
+      const PLAN = { historyEnd: 0.2, strike: 0.24, points: [0.3, 0.33, 0.36, 0.39], recoverStart: 0.44, recoverEnd: 0.96 };
+      const SECONDS = 7.5;
+      function stepOf(m, frac, hid) {
+        const s = m.settings;
+        if (frac === null) return REST_STEP;
+        if (frac < PLAN.historyEnd) return 'The day before: full backups, the archived log and both replicas copy every write.';
+        if (frac < PLAN.points[0]) return s.disaster === DROP ? 'A table is dropped, and every copy that applies the change loses it too.' : 'The disks fail: everything on the primary is gone.';
+        if (frac < PLAN.recoverStart) return "Each plan's recovery point: the newest moment it can bring back.";
+        const at = recoverMinAt(m, frac);
+        if (frac < PLAN.recoverEnd) return anyTimeHidden(hid) ? 'Recovering, on the clock after the disaster.' : `Recovering: ${rtoSpan(Math.round(at))} after the disaster.`;
+        if (anyTimeHidden(hid)) return 'The recovery is over.';
+        const last = M.PLANS.filter((p) => m.plans[p].recovers).reduce((a, p) => (m.plans[p].rtoMin > m.plans[a].rtoMin ? p : a), 'standby' in m.plans && m.plans.standby.recovers ? 'standby' : 'delayed');
+        return `${NAMES[last](s)[0].split(',')[0]} serves last, ${rtoSpan(m.plans[last].rtoMin)} after the disaster.`;
+      }
+      /** Minutes after the disaster that the playhead stands at: x-uniform across the after axis, up to the last plan. */
+      function recoverX(frac, bx0, bx1, m) {
+        const end = M.afterX(m.lastRtoMin, bx0, bx1);
+        const f = Math.min(1, Math.max(0, (frac - PLAN.recoverStart) / (PLAN.recoverEnd - PLAN.recoverStart)));
+        return bx0 + f * (end - bx0);
+      }
+      function recoverMinAt(m, frac) {
+        const x = recoverX(frac, 0, 1000, m);
+        return x <= M.zoomShare * 1000 ? (x / (M.zoomShare * 1000)) * 60 : 60 + ((x - M.zoomShare * 1000) / (1000 - M.zoomShare * 1000)) * 23 * 60;
+      }
+
+      // ---------- The sentences off the stage.
+      function story(m, hid = NOTHING_HIDDEN) {
+        const s = m.settings;
+        const P = m.plans;
+        const out = [];
+        const drop = s.disaster === DROP;
+        out.push(drop ? `A table is dropped just before the next full backup of this ${fSize(s.size)} database.` : `The disks of this ${fSize(s.size)} database fail just before the next full backup and the next log archive.`);
+        out.push(`Full backups lose up to ${span(P.full.rpoS)} of writes and serve again in ${rtoSpan(P.full.rtoMin)}, restoring ${fSize(s.size)} at ${fSpeed(s.restore)}.`);
+        const pitrLoss = hid.pitrRpo ? 'loses what its last archive missed' : drop ? 'replays to just before the drop and loses nothing' : `loses up to ${span(P.pitr.rpoS)}, the log not yet archived`;
+        out.push(hid.pitrRto ? `Point-in-time recovery ${pitrLoss}; it restores the same base backup, then replays the log since it.` : `Point-in-time recovery ${pitrLoss}; it restores the same base backup, then replays ${span(s.base * 3600)} of log at ${fTimes(s.replay)}, and serves in ${rtoSpan(P.pitr.rtoMin)}.`);
+        if (hid.standbyWords) out.push('What the standby can bring back shows after your answer.');
+        else if (!P.standby.recovers) out.push(`The standby applies the drop ${s.sync ? 'with the primary' : `${span(M.LAG_S)} after it`} and cannot bring the table back.`);
+        else out.push(hid.allRto ? `The standby loses ${P.standby.rpoS ? span(P.standby.rpoS) : 'nothing'} and is promoted.` : `The standby loses ${P.standby.rpoS ? `its ${span(P.standby.rpoS)} of lag` : 'nothing'} and is promoted in ${fMin(M.PROMOTE_MIN)}.`);
+        if (hid.delayedWords) out.push('What the delayed replica can bring back shows after your answer.');
+        else if (drop) out.push(hid.allRto ? `The delayed replica holds the drop in its log for ${span(M.DELAY_H * 3600)}: stopped in time, it loses nothing.` : `The delayed replica holds the drop in its log for ${span(M.DELAY_H * 3600)}: stopped in time, it loses nothing and serves in ${rtoSpan(P.delayed.rtoMin)}.`);
+        else out.push(hid.allRto ? `The delayed replica loses the same ${span(P.delayed.rpoS)} once it has applied the hour it holds.` : `The delayed replica loses the same ${span(P.delayed.rpoS)} and serves in ${rtoSpan(P.delayed.rtoMin)}, once it has applied the hour it holds.`);
+        return out.join(' ');
+      }
+      function settingSentence(m, hid = NOTHING_HIDDEN) {
+        const s = m.settings;
+        const P = m.plans;
+        const one = (key, name) => {
+          const p = P[key];
+          if (!p.recovers) return `${name} cannot bring the table back`;
+          const loss = p.rpoS === 0 ? 'loses nothing' : `loses up to ${span(p.rpoS)}`;
+          return `${name} ${loss} and serves again in ${rtoSpan(p.rtoMin)}`;
+        };
+        const lead = s.disaster === DROP ? `With ${fSize(s.size)} and a table dropped` : `With ${fSize(s.size)} and the disks lost`;
+        return `${lead}, ${one('full', 'full backups')}; ${one('pitr', 'point-in-time recovery')}; ${one('standby', s.sync ? 'the synchronous standby' : 'the standby')}; ${one('delayed', 'the delayed replica')}.`;
+      }
+      function summary(m, hid) {
+        const s = m.settings;
+        const P = m.plans;
+        const drop = s.disaster === DROP;
+        const parts = [];
+        parts.push(`A timeline of one disaster and four recovery plans for a ${fSize(s.size)} database ${drop ? 'in which a table is dropped' : 'whose disks fail'} at the worst moment.`);
+        const before = [];
+        before.push(`full backups every ${span(s.base * 3600)} lose up to ${span(P.full.rpoS)}`);
+        before.push(hid.pitrRpo ? 'point-in-time recovery, the base backup plus the archived log: its loss shows after your answer' : `point-in-time recovery, the base backup plus the log archived every ${span(s.archive)}, ${P.pitr.rpoS ? `loses up to ${span(P.pitr.rpoS)}` : 'loses nothing'}`);
+        before.push(hid.standbyWords ? 'the standby: what it can bring back shows after your answer' : `the ${s.sync ? 'synchronous' : 'asynchronous'} standby ${lossWords(P.standby).replace('loses ', P.standby.rpoS ? 'loses up to ' : 'loses ')}`);
+        before.push(hid.delayedWords ? 'the delayed replica: what it can bring back shows after your answer' : `the delayed replica, ${span(M.DELAY_H * 3600)} behind, ${P.delayed.rpoS ? `loses up to ${span(P.delayed.rpoS)}` : 'loses nothing'}`);
+        parts.push(`Before the disaster, on a log scale: ${before.join('; ')}.`);
+        const after = M.PLANS.map((k) => {
+          const name = { full: 'full backups', pitr: 'point-in-time recovery', standby: 'the standby', delayed: 'the delayed replica' }[k];
+          if (rtoHidden(hid, k)) return `${name}: after your answer`;
+          return P[k].recovers ? `${name} in ${rtoSpan(P[k].rtoMin)}` : `${name} never`;
+        });
+        parts.push(`After it, serving again: ${after.join('; ')}.`);
+        parts.push('A schematic, worst-case model.');
+        return parts.join(' ');
+      }
+      const MODEL_NOTE =
+        'A schematic model, worst case: the disaster strikes just before the next full backup and the next log archive. Restores copy at a fixed speed; the log replays at a fixed multiple of the speed it was written; the standby runs a fixed 5 s behind and a promotion takes 1 min; the delayed replica receives the log 5 s behind and applies it 1 h behind, and the drop is noticed within that hour. The clocks start when recovery starts: noticing the disaster, checking the data and repointing the application add to them.';
+      const noteOf = (view) => (hiding(view).locked ? 'A schematic model. Its assumptions show after your answer.' : MODEL_NOTE);
+
+      // ---------- The stage.
+      const ROW_GAP = 18;
+      function rowHeight(noteLines) {
+        return 45 + 14 * (noteLines - 1);
+      }
+      /** Name left, value right on one line: the longest pair of forms that fits, with the value's form kept whole. */
+      function nameValue(D, x0, x1, y, names, values, nameCls, valueCls, owner, id) {
+        for (const v of values)
+          for (const n of names) {
+            if (tw(n, 'capB') + 10 + tw(v, 'capB') <= x1 - x0) {
+              D.text(x0, y, [[n, 'capB', 'ink']], { owner, id: `${id}-name` });
+              D.text(x1, y, [[v, 'capB', valueCls]], { anchor: 'end', owner, id: `${id}-value` });
+              return;
+            }
+          }
+        D.missing.push(`${names[0]} / ${values[0]}`);
+      }
+      const pickFits = (forms, role, w) => forms.find((f) => tw(f, role) <= w) ?? null;
+      /** The lines a wrapped text takes, reserved over every setting at this width, so no setting moves the stage. */
+      const reserveCache = new Map();
+      function reserved(key, W, f) {
+        const k = `${key}|${W}`;
+        if (!reserveCache.has(k)) reserveCache.set(k, Math.max(...M.ALL_SETTINGS.map((s) => f(M.run(s)))));
+        return reserveCache.get(k);
+      }
+
+      function buildStage(W, m, view) {
+        const D = new Draw(W);
+        const s = m.settings;
+        const P = m.plans;
+        const hid = hiding(view);
+        const drop = s.disaster === DROP;
+        const PAD = W < 380 ? 12 : 16;
+        const frac = view.play ? view.play.frac : null;
+        const at = (t) => frac === null || frac >= t;
+        const challenge = view.phase === 'challenge';
+        let y = PAD;
+
+        // Header: the title and Play, the workload, the step.
+        const playX = W - PAD - 44;
+        const title = pickFits(['One disaster, four recovery plans', 'One disaster, four plans'], 'title', W - 2 * PAD - 52) ?? 'Four recovery plans';
+        D.text(PAD, y + 15, [[title, 'title']], { owner: 'head', id: 'title' });
+        D.hit('play', playX, y - 4, 44, 44, { owner: 'play' });
+        y += 15;
+        const textW = playX - 8 - PAD;
+        const wl = wrap(workload(s), 'cap', textW);
+        const wlLines = reserved('workload', W, (mm) => wrap(workload(mm.settings), 'cap', textW).length);
+        wl.forEach((l, i) => D.text(PAD, y + 20 + i * 18, [[l, 'cap', 'muted']], { owner: 'head', id: i === 0 ? 'workload' : undefined }));
+        y += 20 + (wlLines - 1) * 18;
+        const stepW = W - 2 * PAD;
+        const step = view.reduced && view.played ? 'Written below the picture.' : stepOf(m, frac, hid);
+        const stepLines = wrap(step, 'cap', stepW);
+        const allSteps = [REST_STEP, 'The day before: full backups, the archived log and both replicas copy every write.', 'A table is dropped, and every copy that applies the change loses it too.', "Each plan's recovery point: the newest moment it can bring back.", 'Point-in-time recovery serves last, 21.5 h after the disaster.', 'Recovering: 99 min after the disaster.'];
+        const stLines = Math.max(...allSteps.map((t) => wrap(t, 'cap', stepW).length));
+        stepLines.forEach((l, i) => D.text(PAD, y + 20 + i * 18, [[l, 'cap', 'ink']], { owner: 'head', id: i === 0 ? 'step' : undefined }));
+        y += 20 + (stLines - 1) * 18 + 16;
+        D.add('grid', line('rule', PAD, y, W - PAD, y));
+        y += 18;
+
+        // ---- Block A: what each plan loses, on a log scale of the time before the disaster.
+        const ax0 = PAD;
+        const xNow = W - PAD - 6;
+        const GAP = 14;
+        const bx = (sec) => M.beforeX(sec, ax0, xNow, GAP);
+        const blockA0 = y;
+        const headA = 'What each plan loses · RPO';
+        const subA = 'Time before the disaster, log scale';
+        const subA2 = 'Before the disaster, log scale';
+        y = labelRow(D, PAD, W - PAD, y, headA, [subA, subA2], 'a-head');
+        // Ticks: the most that keep 6 px apart.
+        const TICKS_A = [
+          [86400, '24 h'],
+          [6 * 3600, '6 h'],
+          [3600, '1 h'],
+          [600, '10 min'],
+          [60, '1 min'],
+          [10, '10 s'],
+          [1, '1 s'],
+        ];
+        const tickY = y + 10;
+        const goalA = challenge ? 60 : null;
+        const ticksA = fitTicks(
+          TICKS_A.map(([sec, t]) => ({ x: bx(sec), t: sec === goalA ? `${t} goal` : t, sec, goal: sec === goalA })),
+          ax0,
+          xNow - 4,
+          [86400, 3600, 60, 1].concat(goalA ? [goalA] : []),
+        );
+        const disasterLabel = drop ? 'drop' : 'disks fail';
+        const dl = D.text(W - PAD, tickY, [[disasterLabel, 'label', 'lost-ink']], { anchor: 'end', owner: 'strike', id: 'strike-label' });
+        for (const t of ticksA) {
+          if (t.x + tw(t.t, 'small') / 2 > dl.x0 - 6) continue;
+          D.text(t.x, tickY, [[t.t, t.goal ? 'smallB' : 'small', t.goal ? 'accent-ink' : 'muted']], { anchor: t.sec === 86400 ? 'start' : 'middle', owner: 'axis-a', data: ` data-xtick="1" data-tick="${r1(t.x)}" data-anchor="${t.sec === 86400 ? 'start' : 'middle'}"` });
+        }
+        y = tickY + 10;
+        const rowsTop = y;
+        const rowsA = ['primary', 'full', 'pitr', 'standby', 'delayed'];
+        const gridXs = ticksA.map((t) => t);
+        const rowBoxes = {};
+        for (const key of rowsA) {
+          const r0 = y;
+          const trackY = y + 17;
+          const th = 12;
+          const cy = trackY + th / 2;
+          const owner = `a-${key}`;
+          const plan = P[key];
+          const wordsHidden = key !== 'primary' && rpoHidden(hid, key);
+          const marksOff = key !== 'primary' && marksHidden(hid, key);
+          // Grid ticks only across the track, so no grid line runs through a label.
+          for (const t of gridXs) D.add('grid', line(t.goal ? 'goal-line' : 'grid', t.x, trackY - 2, t.x, trackY + th + 2, ' data-grid="a"'));
+          D.add('grid', line('track', ax0, trackY + th + 0.5, xNow, trackY + th + 0.5));
+          const names = NAMES[key](s);
+          let value;
+          let valueCls = 'ink';
+          if (key === 'primary') {
+            value = [drop ? 'table dropped' : 'disks lost'];
+            valueCls = 'lost-ink';
+          } else if (wordsHidden) {
+            value = ['loses ?', '?'];
+            valueCls = 'muted';
+          } else {
+            const v = lossWords(plan);
+            const ghost = ghostOf(view, hid, key, 'rpoS');
+            value = ghost !== null ? [`${v} · was ${span(ghost)}`, `${v.replace('loses ', '')} · was ${span(ghost)}`, v] : [v];
+            valueCls = !plan.recovers || plan.rpoS > 0 ? 'lost-ink' : 'final-ink';
+          }
+          nameValue(D, ax0, xNow - 10, y + 11, names, value, 'ink', valueCls, owner, `a-${key}`);
+          // The marks along the track, each at its own moment of the history sweep.
+          const cursor = frac === null ? ax0 - 1 : ax0 + Math.min(1, frac / PLAN.historyEnd) * (xNow - GAP - ax0);
+          const shown = (x) => frac === null || frac >= PLAN.historyEnd || x <= cursor;
+          const clipTo = (x) => (frac === null || frac >= PLAN.historyEnd ? x : Math.min(x, cursor));
+          const strikeOn = at(PLAN.strike);
+          const pointAt = PLAN.points[Math.max(0, M.PLANS.indexOf(key))];
+          const pointOn = at(pointAt);
+          if (key === 'primary') {
+            const end = clipTo(xNow);
+            D.add('marks', rect('primary-band', ax0, trackY, end - ax0, th));
+            D.mark({ x0: ax0, x1: end, y0: trackY, y1: trackY + th }, owner);
+            if (strikeOn) {
+              if (drop) D.add('marks', rect('drop-tick', xNow - 2, trackY - 3, 4, th + 6));
+              else D.add('marks', `<path class="xmark" d="M${xNow - 5} ${cy - 5}l10 10M${xNow + 5} ${cy - 5}l-10 10"/>`);
+            }
+          } else if (key === 'full') {
+            const fulls = m.fullsH.map((h) => bx(h * 3600));
+            const kept = bx(s.base * 3600);
+            D.add('marks', rect('copy', ax0, trackY + 2, clipTo(kept) - ax0, th - 4));
+            // At most 24 boxes: their widths shrink to keep 1 px between them.
+            fulls.forEach((x, i) => {
+              if (!shown(x)) return;
+              const next = i + 1 < fulls.length ? Math.abs(fulls[i + 1] - x) : 8;
+              const w = Math.max(1.5, Math.min(5, next - 1));
+              D.add('marks', rect('full-box', x - w / 2, trackY, w, th, ` data-full="${i}"`));
+            });
+            D.meta.fulls = fulls.filter(shown).length;
+            if (pointOn) lostAndRing(D, kept, xNow, trackY, th, owner, key, plan);
+          } else if (key === 'pitr') {
+            const base = bx(s.base * 3600);
+            D.add('marks', rect('copy', ax0, trackY + 2, clipTo(base) - ax0, th - 4));
+            if (shown(base)) D.add('marks', rect('full-box', base - 2.5, trackY, 5, th));
+            const lastArchive = drop ? 0 : s.archive;
+            const logEnd = drop ? (strikeOn ? xNow : xNow - GAP) : bx(lastArchive);
+            if (cursor >= base || frac === null || frac >= PLAN.historyEnd) {
+              const e = clipTo(logEnd);
+              D.add('marks', rect('log-band', base + 2.5, trackY + 3, Math.max(0, e - base - 2.5), th - 6));
+              D.add('marks', comb(base, e, s.archive, bx, trackY, th, drop ? 0 : s.archive));
+            }
+            if (drop && strikeOn) D.add('marks', rect('drop-tick', xNow - 2, trackY - 3, 4, th + 6));
+            if (pointOn && !(wordsHidden && !view.play)) lostAndRing(D, bx(lastArchive), xNow, trackY, th, owner, key, plan);
+            else if (pointOn && wordsHidden) lostAndRing(D, bx(lastArchive), xNow, trackY, th, owner, key, plan);
+          } else if (key === 'standby') {
+            const appliedTo = drop ? xNow : plan.lagS ? bx(plan.lagS) : xNow;
+            if (marksOff) {
+              const held = plan.lagS ? bx(plan.lagS) : xNow - GAP;
+              D.add('marks', rect('copy', ax0, trackY + 2, held - ax0, th - 4));
+              hiddenBox(D, held + 3, xNow + 5, trackY - 1, th + 2, owner, 'standby');
+            } else {
+              const end = clipTo(drop && !strikeOn ? (plan.lagS ? bx(plan.lagS) : xNow - GAP) : appliedTo);
+              D.add('marks', rect('copy', ax0, trackY + 2, end - ax0, th - 4));
+              if (drop && strikeOn) D.add('marks', `<path class="xmark" data-id="standby-x" d="M${xNow - 5} ${cy - 5}l10 10M${xNow + 5} ${cy - 5}l-10 10"/>`);
+              if (!drop && pointOn) lostAndRing(D, appliedTo, xNow, trackY, th, owner, key, plan);
+            }
+          } else if (key === 'delayed') {
+            const applied = bx(M.DELAY_H * 3600);
+            const received = drop ? xNow : bx(M.LAG_S);
+            if (marksOff) {
+              D.add('marks', rect('copy', ax0, trackY + 2, applied - ax0, th - 4));
+              D.add('marks', rect('log-band', applied, trackY + 3, bx(M.LAG_S) - applied, th - 6));
+              hiddenBox(D, bx(M.LAG_S) + 3, xNow + 5, trackY - 1, th + 2, owner, 'delayed');
+            } else {
+              D.add('marks', rect('copy', ax0, trackY + 2, clipTo(applied) - ax0, th - 4));
+              if (shown(applied) || frac === null) {
+                const recvEnd = clipTo(drop && !strikeOn ? bx(M.LAG_S) : received);
+                D.add('marks', rect('log-band', applied, trackY + 3, Math.max(0, recvEnd - applied), th - 6));
+              }
+              if (drop && strikeOn) D.add('marks', rect('drop-tick', xNow - 2, trackY - 3, 4, th + 6, ' data-id="delayed-drop"'));
+              if (pointOn) lostAndRing(D, drop ? xNow : received, xNow, trackY, th, owner, key, plan);
+            }
+          }
+          // The note under the track.
+          const noteForms = key === 'pitr' && hid.pitrRpo ? ['the base backup, then the log archived'] : aNote(key, m, hid);
+          const note = (marksOff || wordsHidden) && (key === 'standby' || key === 'delayed') ? pickFits([HIDDEN_OUTCOME, 'shows after your answer'], 'small', xNow - 10 - ax0) : pickFits(noteForms, 'small', xNow - 10 - ax0);
+          if (note) D.text(ax0, y + 42, [[note, 'small', 'muted']], { owner, id: `a-${key}-note` });
+          else D.missing.push(noteForms[0]);
+          const r1y = y + rowHeight(1);
+          rowBoxes[key] = { x: ax0 - 2, y: r0, w: W - 2 * PAD + 4, h: r1y - r0 };
+          D.region(`a-${key}`, rowBoxes[key]);
+          y = r1y + ROW_GAP;
+        }
+        // The disaster: one line down the rows, at the moment it strikes.
+        if (at(PLAN.strike)) {
+          D.add('marks', line('strike-line', xNow, tickY + 6, xNow, y - ROW_GAP, ' data-id="strike"'));
+        }
+        D.region('a-all', { x: ax0 - 2, y: rowsTop, w: W - 2 * PAD + 4, h: y - ROW_GAP - rowsTop });
+        // Its on-stage controls: the full backups, the archive, the standby.
+        y = controlsRow(D, PAD, W - PAD, y - 2, [
+          { group: 'base', legend: 'Full backup every', items: M.BASE_EVERY_H.map((h) => [h, span(h * 3600)]), cur: s.base },
+          { group: 'archive', legend: 'Log archived every', items: M.ARCHIVE_EVERY_S.map((a) => [a, span(a)]), cur: s.archive },
+          { group: 'sync', legend: 'Standby', items: [[0, 'Async'], [1, 'Sync']], cur: s.sync },
+        ]);
+        y += 18;
+        D.add('grid', line('rule', PAD, y, W - PAD, y));
+        y += 18;
+
+        // ---- Block B: the time until each plan serves again, on the after axis (the first hour 12 times wider).
+        const cx0 = PAD;
+        const cx1 = W - PAD;
+        const ax = (min) => M.afterX(min, cx0, cx1);
+        y = labelRow(D, PAD, W - PAD, y, 'Time until it serves again · RTO', ['Time after the disaster · first hour 12× wider', 'After the disaster · first hour 12× wider', 'First hour 12× wider'], 'b-head');
+        const TICKS_B = [
+          [0, '0'],
+          [15, '15 min'],
+          [30, '30 min'],
+          [60, '1 h'],
+          [6 * 60, '6 h'],
+          [12 * 60, '12 h'],
+          [18 * 60, '18 h'],
+          [24 * 60, '24 h'],
+        ];
+        const goalB = challenge ? 60 : null;
+        const tickYB = y + 10;
+        const ticksB = fitTicks(
+          TICKS_B.map(([min, t]) => ({ x: ax(min), t: min === goalB ? `${t} goal` : t, sec: min, goal: min === goalB })),
+          cx0,
+          cx1,
+          [0, 60, 24 * 60].concat(goalB ? [goalB] : []),
+        );
+        for (const t of ticksB) {
+          const anchor = t.sec === 0 ? 'start' : t.sec === 24 * 60 ? 'end' : 'middle';
+          D.text(t.x, tickYB, [[t.t, t.goal ? 'smallB' : 'small', t.goal ? 'accent-ink' : 'muted']], { anchor, owner: 'axis-b', data: ` data-xtick="1" data-tick="${r1(t.x)}" data-anchor="${anchor}"` });
+        }
+        y = tickYB + 10;
+        const rowsTopB = y;
+        const ledgerW = cx1 - cx0;
+        const playX0 = recoverX(frac ?? 1, cx0, cx1, m);
+        const playing = frac !== null && frac >= PLAN.recoverStart;
+        const headAt = frac === null ? Infinity : frac < PLAN.recoverStart ? cx0 - 1 : playX0;
+        for (const key of M.PLANS) {
+          const r0 = y;
+          const trackY = y + 17;
+          const th = 12;
+          const owner = `b-${key}`;
+          const plan = P[key];
+          const timeHidden = rtoHidden(hid, key);
+          const marksOff = marksHidden(hid, key) || (key === 'pitr' && hid.pitrRtoMarks);
+          for (const t of ticksB) D.add('grid', line(t.goal ? 'goal-line' : t.sec === 60 ? 'grid kink' : 'grid', t.x, trackY - 2, t.x, trackY + th + 2, ' data-grid="b"'));
+          D.add('grid', line('track', cx0, trackY + th + 0.5, cx1, trackY + th + 0.5));
+          const names = NAMES[key](s);
+          let value;
+          let valueCls = 'ink';
+          const done = frac === null || (plan.recovers && headAt >= ax(plan.rtoMin) - 0.01) || (!plan.recovers && frac >= PLAN.recoverEnd);
+          if (timeHidden || marksOff) {
+            value = ['back in ?', '?'];
+            valueCls = 'muted';
+          } else if (!done) {
+            value = plan.recovers ? ['recovering'] : ['…'];
+            valueCls = 'muted';
+          } else {
+            const v = serveWords(plan);
+            const ghost = ghostOf(view, hid, key, 'rtoMin');
+            value = ghost !== null ? [`${v} · was ${rtoSpan(ghost)}`, `${v.replace('back in ', '')} · was ${rtoSpan(ghost)}`, v] : [v];
+            valueCls = plan.recovers ? 'final-ink' : 'lost-ink';
+          }
+          nameValue(D, cx0, cx1, y + 11, names, value, 'ink', valueCls, owner, `b-${key}`);
+          if (marksOff) {
+            hiddenBox(D, cx0, hid.boxFull ? cx1 : ax(plan.rtoMin), trackY - 1, th + 2, owner, `b-${key}`);
+          } else if (!plan.recovers) {
+            // An empty set is a solid hairline, never a dashed box (prevention 17).
+            if (done) D.add('marks', line('never', cx0, trackY + th / 2, cx1, trackY + th / 2, ` data-id="never-${key}"`));
+          } else {
+            let t0 = 0;
+            plan.steps.forEach((st, i) => {
+              const xa = ax(t0);
+              const xb = ax(t0 + st.min);
+              const end = Math.min(xb, headAt);
+              // A step under a pixel still shows: 1.5 px, its length said in the ledger under it.
+              const w = Math.max(end > xa ? end - xa : 0, end >= xb && xb - xa < 1.5 ? 1.5 : 0);
+              if (w > 0) D.add('marks', rect(`seg-${st.kind}`, xa, trackY, w, th, i === plan.steps.length - 1 ? ` data-id="bar-${key}" data-end="${r1(xb)}"` : ''));
+              t0 += st.min;
+            });
+            const endX = ax(plan.rtoMin);
+            D.mark({ x0: cx0, x1: endX, y0: trackY, y1: trackY + th }, owner);
+            if (done) {
+              D.add('dots', `<circle class="serve" cx="${r1(Math.max(endX, cx0 + 4) + 0)}" cy="${trackY + th / 2}" r="4" data-id="serve-${key}" data-owner="${owner}"/>`);
+              const g = ghostOf(view, hid, key, 'rtoMin');
+              if (g !== null) D.add('marks', line('ghost-tick', ax(g), trackY - 4, ax(g), trackY + th + 4, ` data-id="ghost-${key}"`));
+            }
+          }
+          const ledger = timeHidden || marksOff ? HIDDEN_TIME : bLedger(key, m);
+          const lines = wrap(ledger, 'small', ledgerW);
+          const ledgerLines = reserved(`ledger-${key}`, W, (mm) => wrap(bLedger(key, mm), 'small', ledgerW).length);
+          lines.forEach((l, i) => D.text(cx0, y + 42 + i * 14, [[l, 'small', 'muted']], { owner, id: i === 0 ? `b-${key}-ledger` : undefined }));
+          const rB = y + rowHeight(ledgerLines);
+          D.region(`b-${key}`, { x: cx0 - 2, y: r0, w: cx1 - cx0 + 4, h: rB - r0 });
+          y = rB + ROW_GAP;
+        }
+        if (playing && frac < PLAN.recoverEnd) D.add('top', line('playhead', playX0, rowsTopB, playX0, y - ROW_GAP, ' data-id="playhead"'));
+        D.region('b-all', { x: cx0 - 2, y: rowsTopB, w: cx1 - cx0 + 4, h: y - ROW_GAP - rowsTopB });
+        y = controlsRow(D, PAD, W - PAD, y - 2, [
+          { group: 'restore', legend: 'Restore speed', items: M.RESTORE_GB_PER_MIN.map((v) => [v, fSpeed(v)]), cur: s.restore },
+          { group: 'replay', legend: 'Log replay', items: M.REPLAY_SPEEDS.map((v) => [v, `${fTimes(v)} the writes`]), shortItems: M.REPLAY_SPEEDS.map((v) => fTimes(v)), cur: s.replay },
+        ]);
+        const H = y + PAD;
+        D.meta.H = H;
+        D.label = summary(m, hid);
+        return { D, H };
+      }
+      function labelRow(D, x0, x1, y, head, subs, owner) {
+        const hw = tw(head, 'label');
+        const sub = subs.find((t) => hw + 16 + tw(t, 'label') <= x1 - x0);
+        D.text(x0, y + 9, [[head, 'label', 'ink']], { owner, id: owner });
+        if (sub) {
+          D.text(x1, y + 9, [[sub, 'label', 'muted']], { anchor: 'end', owner });
+          return y + 14;
+        }
+        const s2 = subs.find((t) => tw(t, 'label') <= x1 - x0) ?? subs.at(-1);
+        D.text(x0, y + 25, [[s2, 'label', 'muted']], { owner });
+        return y + 30;
+      }
+      /** The ticks that keep 6 px apart, the must-keep ones first. */
+      function fitTicks(all, x0, x1, keep) {
+        const box = (t, anchor) => {
+          const w = tw(t.t, 'small');
+          return anchor === 'start' ? [t.x, t.x + w] : anchor === 'end' ? [t.x - w, t.x] : [t.x - w / 2, t.x + w / 2];
+        };
+        const anchorOf = (t) => (t.x <= x0 + 0.5 ? 'start' : t.x >= x1 - 0.5 ? 'end' : 'middle');
+        const chosen = [];
+        const order = [...all.filter((t) => keep.includes(t.sec)), ...all.filter((t) => !keep.includes(t.sec))];
+        for (const t of order) {
+          const [a, b] = box(t, anchorOf(t));
+          if (a < x0 - 0.5 || b > x1 + 0.5) continue;
+          if (chosen.some((c) => {
+            const [ca, cb] = box(c, anchorOf(c));
+            return a < cb + 6 && b > ca - 6;
+          }))
+            continue;
+          // A goal replaces the plain tick at its place.
+          chosen.push(t);
+        }
+        return chosen.filter((t, i, arr) => !(t.goal === false && arr.some((u) => u.goal && u.sec === t.sec))).sort((a, b) => a.x - b.x);
+      }
+      /** The archived log: a tick a segment where they stand 2.5 px apart, a solid band where they would crowd. */
+      function comb(from, to, every, bx, trackY, th, firstAge) {
+        let d = '';
+        let n = 0;
+        if (every <= 0) return '';
+        for (let age = Math.max(every, firstAge); age <= 86400; age += every) {
+          const x = bx(age);
+          if (x < from + 3) break;
+          if (x > to + 0.01) continue;
+          const prev = bx(age + every);
+          if (x - prev < 2.5) break;
+          d += `M${r1(x)} ${trackY + 1}v${th - 2}`;
+          n++;
+          if (n > 400) break;
+        }
+        return d ? `<path class="comb" d="${d}" data-ticks="${n}"/>` : '';
+      }
+      function lostAndRing(D, x, xNow, trackY, th, owner, key, plan) {
+        const cy = trackY + th / 2;
+        const rx = plan.rpoS === 0 ? xNow - 6 : x;
+        if (plan.rpoS > 0) {
+          D.add('marks', rect('lost', rx + 5, trackY, xNow - rx - 5, th, ` data-id="lost-${key}" data-from="${r1(rx)}"`));
+        }
+        D.add('dots', `<circle class="ring" cx="${r1(rx)}" cy="${r1(cy)}" r="5" data-id="ring-${key}" data-owner="${owner}"/>`);
+        D.mark({ x0: rx - 5, x1: rx + 5, y0: cy - 5, y1: cy + 5 }, owner);
+      }
+      function hiddenBox(D, x0, x1, y, h, owner, id) {
+        D.add('marks', rect('hidden-box', x0, y, x1 - x0, h, ` rx="3" data-id="hidden-${id}" data-w="${r1(x1 - x0)}"`));
+        D.mark({ x0, x1, y0: y, y1: y + h }, owner);
+      }
+      /** The on-stage controls under a block: one row from a 520 px stage, else stacked. Each is a fieldset.group. */
+      function controlsRow(D, x0, x1, y, groups) {
+        const avail = x1 - x0;
+        const oneRow = avail >= 520;
+        const n = groups.reduce((a, g) => a + g.items.length, 0);
+        const gap = 12;
+        let x = x0;
+        let rowY = y;
+        for (const g of groups) {
+          const w = oneRow ? ((avail - gap * (groups.length - 1)) * g.items.length) / n : avail;
+          if (!oneRow && x !== x0) {
+            x = x0;
+          }
+          D.text(x, rowY + 9, [[g.legend, 'label', 'muted']], { owner: `ctl-${g.group}` });
+          const sw = (w - 4 * (g.items.length - 1)) / g.items.length;
+          const labels = g.items.map(([, l], i) => (g.shortItems && tw(l, 'cap') + 10 > sw ? g.shortItems[i] : l));
+          const useShort = labels.some((l, i) => l !== g.items[i][1]);
+          g.items.forEach(([v], i) => {
+            const label = useShort && g.shortItems ? g.shortItems[i] : g.items[i][1];
+            D.hit('seg', x + i * (sw + 4), rowY + 16, sw, 44, { owner: `ctl-${g.group}`, group: g.group, legend: g.legend, label, checked: v === g.cur });
+          });
+          if (oneRow) x += w + gap;
+          else rowY += 60 + 12;
+        }
+        return oneRow ? rowY + 60 : rowY - 12;
+      }
+      /** A ghost: the value before the learner's last change, said in words beside the new one. */
+      function ghostOf(view, hid, key, field) {
+        if (!view.ghost || hid.ghost) return null;
+        const g = M.run(view.ghost).plans[key];
+        const now = M.run(view.s).plans[key];
+        if (!g.recovers || !now.recovers || g[field] === now[field]) return null;
+        return g[field];
+      }
+
+      function focusOutlines(D, ids, H) {
+        const GUTTER = 8;
+        const TAG = { w: 72, h: 16 };
+        for (const id of ids) {
+          for (const b of D.regions[id] ?? []) {
+            const within = (t) => {
+              const cx = (t.x0 + t.x1) / 2;
+              const cy = (t.y0 + t.y1) / 2;
+              return cx >= b.x && cx <= b.x + b.w && cy >= b.y && cy <= b.y + b.h;
+            };
+            const inside = new Set(D.texts.filter((t) => t.owner !== 'look' && within(t)));
+            const grow = (a, t, d) => ({ x0: Math.min(a.x0, t.x0 - d), y0: Math.min(a.y0, t.y0 - d), x1: Math.max(a.x1, t.x1 + d), y1: Math.max(a.y1, t.y1 + d) });
+            let box = { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h };
+            for (const t of inside) box = grow(box, t, GUTTER);
+            const x = Math.max(3, box.x0);
+            const yy = Math.max(3, box.y0);
+            const w = Math.min(D.W - 3, box.x1) - x;
+            const h = Math.min(H - 3, box.y1) - yy;
+            D.add('top', `<rect class="focus-outline" x="${r1(x)}" y="${r1(yy)}" width="${r1(w)}" height="${r1(h)}" rx="10" data-region="${id}"/>`);
+            const across = [];
+            for (let ax = x + w - TAG.w - 16; ax >= x + 16; ax -= 8) across.push(ax);
+            const xs = [x + w - TAG.w - 12, x + w - TAG.w - 16, x + 16, ...across];
+            let placed = false;
+            for (const [tx, ty] of [yy + h - TAG.h / 2, yy - TAG.h / 2].flatMap((t) => xs.map((sx) => [sx, t]))) {
+              const tag = { x0: tx, x1: tx + TAG.w, y0: ty, y1: ty + TAG.h };
+              if (tx < 3 || tx + TAG.w > D.W - 3 || ty < 3 || ty + TAG.h > H - 3) continue;
+              if (!D.free(tag, '', 1, 6)) continue;
+              D.add('top', `<rect class="tag" x="${r1(tx)}" y="${r1(ty)}" width="${TAG.w}" height="${TAG.h}" rx="8"/>`);
+              D.add('top', `<text x="${r1(tx + TAG.w / 2)}" y="${r1(ty + 12)}" text-anchor="middle" data-owner="look"><tspan class="t-look">LOOK HERE</tspan></text>`);
+              D.mark(tag, 'look');
+              placed = true;
+              break;
+            }
+            if (!placed) D.missingTags = (D.missingTags ?? 0) + 1;
+          }
+        }
+      }
+
+      // ---------- Mockup states.
+      const B = M.BASE;
+      const ALL = M.ALL_SETTINGS;
+      window.ALL_SETTINGS = ALL;
+      window.ALL_SETTINGS_LIST = ALL;
+      const show = (s) => `${s.disaster ? 'drop' : 'disk'} ${s.size}GB r${s.restore} b${s.base}h a${s.archive}s x${s.replay} ${s.sync ? 'sync' : 'async'}`;
+      const actSettings = (spec) => ({ ...spec.setup, ...(spec.act?.set ?? {}) });
+      function expView(spec, phase, frac = 0.62, from = null) {
+        const e = M.renderExperiment(spec);
+        if (spec.goal) {
+          const met = phase !== 'start';
+          return { s: met ? { ...spec.setup, ...M.CHALLENGE_SOLUTION } : spec.setup, phase: 'challenge', hide: [], focus: met ? spec.focus : [], exp: e, spec, met, play: null, ghost: null };
+        }
+        const wrong = (e.answer + 1) % e.choices.length;
+        if (phase === 'asking') return { s: spec.setup, phase, hide: spec.hide, focus: [], exp: e, spec, play: null, ghost: from };
+        if (phase === 'playing') return { s: actSettings(spec), phase, hide: spec.hide, focus: [], exp: e, spec, chosen: wrong, play: { frac }, ghost: null };
+        return { s: actSettings(spec), phase: 'revealed', hide: [], focus: spec.focus, exp: e, spec, chosen: wrong, play: null, ghost: spec.act.set ? spec.setup : null };
+      }
+      window.expView = expView;
+      function viewOf(name) {
+        const base = { s: B, phase: 'rest', hide: [], focus: [], play: null, ghost: null };
+        const exp = M.EXPERIMENTS[Number(params.get('exp') ?? 1) - 1];
+        const frac = Number(params.get('frac') ?? 0.62);
+        switch (name) {
+          case 'drop':
+            return { ...base, s: { ...B, disaster: DROP }, ghost: B, changed: true };
+          case 'big':
+            return { ...base, s: { ...B, size: 10000, restore: 50 }, ghost: B, changed: true };
+          case 'frequent':
+            return { ...base, s: { ...B, base: 1, archive: 10, replay: 20, sync: 1 }, ghost: B, changed: true };
+          case 'small':
+            return { ...base, s: { ...B, size: 500, restore: 50, base: 6, archive: 300, replay: 5 } };
+          case 'playing':
+            return { ...base, s: { ...B, disaster: Number(params.get('disaster') ?? 0) }, play: { frac } };
+          case 'describe':
+            return { ...base, describe: true };
+          case 'reduced':
+            return { ...base, reduced: true, played: true };
+          case 'ask':
+            return expView(exp, params.get('phase') === 'playing' ? 'playing' : 'asking', frac);
+          case 'reveal':
+            return expView(exp, 'revealed');
+          case 'challenge':
+            return expView(M.EXPERIMENTS.at(-1), params.get('start') ? 'start' : 'met');
+          default:
+            return base;
+        }
+      }
+
+      // ---------- The page around the stage.
+      function noticeOf(m, view) {
+        const hid = hiding(view);
+        if (view.phase === 'asking' || view.phase === 'playing') return 'Play and every setting wait for your answer.';
+        if (view.played) return story(m);
+        if (view.phase === 'revealed' || view.phase === 'challenge' || view.changed) return settingSentence(m, hid);
+        return 'Change the disaster or any setting, or press Play to watch the disaster strike and each plan recover.';
+      }
+      function controlsHtml(m, view) {
+        const s = m.settings;
+        const dis = hiding(view).locked ? ' disabled' : '';
+        const seg = (name, items, cur) => items.map(([v, label]) => `<label class="segment"><input type="radio" name="${name}" ${v === cur ? 'checked' : ''}/><span>${label}</span></label>`).join('');
+        return `<fieldset class="group disaster-control"${dis}><legend class="control-label">The disaster</legend><div class="segments">${seg(
+          'disaster',
+          [
+            [M.DISK, 'Disks lost'],
+            [M.DROP, 'Table dropped'],
+          ],
+          s.disaster,
+        )}</div></fieldset>
+<fieldset class="group size-control"${dis}><legend class="control-label">Database</legend><div class="segments">${seg(
+          'size',
+          M.SIZES_GB.map((v) => [v, fSize(v)]),
+          s.size,
+        )}</div></fieldset>
+<p class="notice" aria-live="polite" aria-atomic="true">${nb(noticeOf(m, view))}</p>`;
+      }
+      const ICON_RIGHT = '<svg class="mark" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="var(--g-success-line)"/><path d="M6 10.2l2.6 2.6 5.2-5.6" fill="none" stroke="var(--g-surface)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      const ICON_WRONG = '<svg class="mark" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="var(--g-danger)"/><path d="M7 7l6 6M13 7l-6 6" fill="none" stroke="var(--g-surface)" stroke-width="2" stroke-linecap="round"/></svg>';
+      /** The challenge's status: each bound in the ask's own terms with its state in words (the house goalParts). */
+      function goalChecks(m) {
+        const b = M.CHALLENGE_BOUNDS;
+        const said = (met) => (met ? 'met' : 'not yet');
+        const r = m.plans.pitr.rtoMin < b.pitrRto;
+        const f = m.settings.base >= b.base;
+        return [
+          { met: r, text: `point-in-time recovery serves again in ${rtoSpan(m.plans.pitr.rtoMin)}, under ${rtoSpan(b.pitrRto)}: ${said(r)}` },
+          { met: f, text: `a full backup every ${span(m.settings.base * 3600)}, at most one every ${span(b.base * 3600)}: ${said(f)}` },
+        ];
+      }
+      function dockHtml(m, view) {
+        const e = view.exp;
+        if (!e) return '';
+        if (view.phase === 'challenge') {
+          const checks = goalChecks(m);
+          const kept = M.goalKept(view.spec.goal, m.settings);
+          const status = view.met ? 'Goal met:' : kept ? '' : `The goal keeps ${fSize(view.spec.goal.keep.size)} and the log archived every ${span(view.spec.goal.keep.archive)}.`;
+          return `<p class="legend">${nb(e.ask)}</p>${status ? `<p class="status-line${view.met ? ' met' : ''}" role="status">${view.met ? ICON_RIGHT : ''}${esc(status)}</p>` : ''}<ul class="status">${checks
+            .map((c) => `<li class="${c.met ? 'met' : ''}"><span class="state" aria-hidden="true">${c.met ? '✓' : '·'}</span><span>${nb(c.text)}</span></li>`)
+            .join('')}</ul>${view.met ? `<p class="reveal" aria-live="polite" aria-atomic="true">${nb(e.reveal)}</p>` : ''}`;
+        }
+        if (view.phase === 'asking') {
+          return `<fieldset style="border:0;padding:0;margin:0"><legend class="legend">${nb(e.ask)}</legend><div class="options">${e.choices.map((c) => `<button class="g-choice"><span>${nb(c)}</span></button>`).join('')}</div></fieldset>`;
+        }
+        const marked = e.choices
+          .map((c, i) => {
+            const right = view.phase === 'revealed' && i === e.answer;
+            const wrong = view.phase === 'revealed' && i === view.chosen && !right;
+            const chosen = view.phase === 'playing' && i === view.chosen;
+            return `<li class="g-choice${right ? ' right' : wrong ? ' wrong' : ''}"${chosen ? ' style="border-color:var(--g-accent);box-shadow:inset 0 0 0 1px var(--g-accent)"' : ''}><span>${nb(c)}${chosen ? ' <small>(your guess)</small>' : ''}</span>${right ? ICON_RIGHT : wrong ? ICON_WRONG : ''}</li>`;
+          })
+          .join('');
+        if (view.phase === 'playing') return `<p class="legend">${nb(e.ask)}</p><ul class="options">${marked}</ul><p class="held">Watch the picture: the answer plays out on it.</p>`;
+        return `<p class="legend">${nb(e.ask)}</p><ul class="options">${marked}</ul><p class="reveal" aria-live="polite" aria-atomic="true">${nb(e.reveal)}</p>`;
+      }
+      function cardsHtml(view) {
+        return `<h3 class="heading"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8zM19 14l.9 2.6 2.6.9-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9z"/></svg>Experiments</h3>
+<ol class="cards">${M.EXPERIMENTS.map((s, i) => `<li><button class="card-btn"${view.exp && view.exp.id === s.id ? ' aria-current="step"' : ''}><span class="num">${s.goal ? '⚑' : i + 1}</span><span>${esc(M.renderExperiment(s).title)}</span></button></li>`).join('')}</ol>`;
+      }
+      // Describe: a row a plan and a disaster, for this database and these settings; the current disaster's rows marked.
+      const PLAN_ROW = { full: 'Full backups', pitr: 'Point-in-time recovery', standby: 'Standby', delayed: 'Delayed replica' };
+      const PLAN_ROW_SHORT = { full: 'Full backups', pitr: 'Point-in-time', standby: 'Standby', delayed: 'Delayed replica' };
+      function describeRows(m, compact) {
+        const s = m.settings;
+        const head = compact ? ['Plan', 'Loses', 'Back in'] : ['Plan', 'Disaster', 'Loses (RPO)', 'Back in (RTO)'];
+        const rows = [];
+        for (const disaster of [M.DISK, M.DROP]) {
+          const mm = M.run({ ...s, disaster });
+          for (const k of M.PLANS) {
+            const p = mm.plans[k];
+            const loses = !p.recovers ? 'cannot' : p.rpoS === 0 ? 'nothing' : span(p.rpoS);
+            const back = p.recovers ? rtoSpan(p.rtoMin) : 'never';
+            const dname = disaster === DROP ? 'a dropped table' : 'disks lost';
+            rows.push({ now: disaster === s.disaster, cells: compact ? [`${PLAN_ROW_SHORT[k]}, ${disaster === DROP ? 'drop' : 'disk'}`, loses, back] : [PLAN_ROW[k], dname, loses, back] });
+          }
+        }
+        const note = `Rows are this setting's: ${fSize(s.size)} restored at ${fSpeed(s.restore)}, a full backup every ${span(s.base * 3600)}, the log archived every ${span(s.archive)} and replayed at ${fTimes(s.replay)}, the standby ${s.sync ? 'synchronous' : `${span(M.LAG_S)} behind`}. Worst case, from a schematic model.`;
+        return { head, rows, note };
+      }
+      function describeHtml(m, view, compact) {
+        const waits = view.phase === 'asking' || view.phase === 'playing' || (view.phase === 'challenge' && !view.met);
+        const open = !!view.describe && !waits;
+        const btn = `<button class="g-btn" aria-expanded="${open}"${waits ? ' disabled' : ''}>${open ? 'Hide the description' : 'Describe'}</button>`;
+        if (waits) return `${btn}<p class="muted-note">${view.phase === 'challenge' ? 'Describe waits until you meet the goal.' : 'Describe waits for your answer.'}</p>`;
+        if (!open) return btn;
+        const { head, rows, note } = describeRows(m, compact);
+        return `${btn}<p class="summary">${nb(summary(m, NOTHING_HIDDEN))}</p><div class="table-box${compact ? ' compact' : ''}" tabindex="0" role="region" aria-label="Each plan against each disaster, for these settings"><table><thead><tr>${head
+          .map((h) => `<th scope="col"><span class="nb">${esc(h)}</span></th>`)
+          .join('')}</tr></thead><tbody>${rows.map((r) => `<tr${r.now ? ' class="now" aria-current="true"' : ''}>${r.cells.map((c, i) => (i === 0 ? `<th scope="row">${nb(c)}</th>` : `<td>${esc(c)}</td>`)).join('')}</tr>`).join('')}</tbody></table></div><p class="muted-note">${nb(note)}</p>`;
+      }
+      function overlaysHtml(D, view, m) {
+        const locked = hiding(view).locked;
+        const out = [];
+        for (const h of D.hits) {
+          const at = `left:${r1(h.x)}px;top:${r1(h.y)}px;width:${r1(h.w)}px;height:${r1(h.h)}px`;
+          if (h.kind === 'play') {
+            const playing = view.phase === 'rest' && view.play;
+            const glyph = playing ? '<rect x="12.5" y="11" width="4" height="14" rx="1"/><rect x="19.5" y="11" width="4" height="14" rx="1"/>' : '<path d="M14 11v14l11-7z"/>';
+            const label = `${playing ? 'Stop' : 'Play'} the disaster and the recovery${locked ? ', after your answer' : ''}`;
+            out.push(`<button class="play hit" data-owner="${h.owner}" style="${at}" aria-label="${label}"${locked ? ' disabled' : ''}><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="16"/>${glyph}</svg></button>`);
+          } else if (h.kind === 'seg') {
+            out.push(`<label class="segment hit" data-owner="${h.owner}" style="${at}"><input type="radio" name="${h.group}" aria-label="${esc(h.legend)} ${esc(h.label)}" ${h.checked ? 'checked' : ''}${locked ? ' disabled' : ''}/><span>${esc(h.label)}</span></label>`);
+          }
+        }
+        return out.join('');
+      }
+
+      function render(name, override) {
+        const view = override ?? viewOf(name);
+        const m = M.run(view.s);
+        const root = document.getElementById('widget');
+        root.innerHTML = `<div class="controls">${controlsHtml(m, view)}</div>
+<div class="main"><div class="stage" role="group" aria-roledescription="visualization" aria-label="Backups and recovery: one disaster, what four recovery plans lose and how long each takes to serve again"><div class="well" id="well"></div></div>
+${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story(m))}</p>` : ''}<p class="model-note">${nb(noteOf(view))}</p><div class="describe" id="describe"></div></div>
+<div class="experiments"><section class="dock" aria-label="Experiment">${dockHtml(m, view)}</section>${cardsHtml(view)}</div>`;
+        const well = document.getElementById('well');
+        const W = well.clientWidth;
+        const { D, H } = buildStage(W, m, view);
+        if (view.focus?.length) focusOutlines(D, view.focus, H);
+        well.style.height = H + 'px';
+        well.innerHTML = D.svg(H, D.label) + overlaysHtml(D, view, m);
+        document.getElementById('describe').innerHTML = describeHtml(m, view, W < 560);
+        window.__stage = { W, H, missingTags: D.missingTags ?? 0, summary: D.label, missing: D.missing };
+        if (view.reduced) root.querySelector('.caption')?.scrollIntoView({ block: 'nearest' });
+        const play = well.querySelector('.play');
+        if (play && !play.disabled && view.phase === 'rest') play.addEventListener('click', () => animate(view));
+        return { W, H, D, view, m };
+      }
+      // The mockup's own Play: one clock, one frame a render, for a reader to watch (the build uses WAAPI).
+      function animate(view) {
+        const t0 = performance.now();
+        const tick = (now) => {
+          const frac = Math.min(1, (now - t0) / (SECONDS * 1000));
+          render(null, { ...view, play: frac < 1 ? { frac } : null });
+          if (frac < 1) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      }
+
+      // ---------- Collisions, measured from the rendered DOM: text on text, labels closer than 6 px, lines through
+      // text, marks under text, off-stage text and marks, dots on dots, hit boxes on hit boxes or under 44 px, x ticks
+      // too close, text against a focus outline's stroke, tags by labels, and labels and tags with no place.
+      const sampleLine = (x1, y1, x2, y2, step = 2) => {
+        const n = Math.max(2, Math.ceil(Math.hypot(x2 - x1, y2 - y1) / step));
+        return Array.from({ length: n + 1 }, (_, i) => ({ x: x1 + ((x2 - x1) * i) / n, y: y1 + ((y2 - y1) * i) / n }));
+      };
+      function collisions(well) {
+        const svg = well.querySelector('svg.draw');
+        const W = Number(svg.getAttribute('width'));
+        const H = Number(svg.getAttribute('height'));
+        const owners = (el) => (el.getAttribute?.('data-owner') ?? '').split(' ').filter(Boolean);
+        const share = (a, b) => a.some((t) => b.includes(t));
+        const texts = [...svg.querySelectorAll('text')].map((t) => {
+          const b = t.getBBox();
+          return { el: t, s: t.textContent, owner: owners(t), x0: b.x + 0.5, x1: b.x + b.width - 0.5, y0: b.y + b.height * 0.2, y1: b.y + b.height * 0.95 };
+        });
+        const out = [];
+        const ov = (a, b, m = 0) => Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > m && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > m;
+        for (let i = 0; i < texts.length; i++) {
+          const a = texts[i];
+          if (a.x0 < -0.5 || a.x1 > W + 0.5 || a.y0 < 0 || a.y1 > H) out.push(`off-stage: "${a.s}"`);
+          for (let j = i + 1; j < texts.length; j++) {
+            const b = texts[j];
+            if (ov(a, b, 0.5)) out.push(`text on text: "${a.s}" / "${b.s}"`);
+            else if (Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > 2 && Math.max(a.x0, b.x0) - Math.min(a.x1, b.x1) < 6 && Math.max(a.x0, b.x0) - Math.min(a.x1, b.x1) > -0.5) out.push(`labels closer than 6 px: "${a.s}" / "${b.s}"`);
+          }
+        }
+        const xt = [...svg.querySelectorAll('text[data-xtick]')].map((t) => texts.find((x) => x.el === t));
+        for (const group of ['axis-a', 'axis-b']) {
+          const g = xt.filter((t) => t.owner.includes(group)).sort((a, b) => a.x0 - b.x0);
+          for (let i = 1; i < g.length; i++) if (g[i].x0 - g[i - 1].x1 < 6) out.push(`x ticks ${g[i - 1].s} and ${g[i].s} ${(g[i].x0 - g[i - 1].x1).toFixed(1)} px apart`);
+        }
+        const inside = (p, t) => p.x > t.x0 + 0.5 && p.x < t.x1 - 0.5 && p.y > t.y0 + 0.5 && p.y < t.y1 - 0.5;
+        for (const el of svg.querySelectorAll('line.grid, line.goal-line, line.rule, line.strike-line, line.playhead, line.ghost-tick, line.never, line.track')) {
+          const o = owners(el);
+          const [x1, y1, x2, y2] = ['x1', 'y1', 'x2', 'y2'].map((a) => Number(el.getAttribute(a)));
+          const pts = sampleLine(x1, y1, x2, y2);
+          for (const t of texts) {
+            if (share(o, t.owner)) continue;
+            if (pts.some((p) => inside(p, t))) out.push(`line through "${t.s}" (${el.getAttribute('class')})`);
+          }
+        }
+        for (const mk of svg.querySelectorAll('[data-mark]')) {
+          const b = mk.getBBox();
+          const box = { x0: b.x, x1: b.x + b.width, y0: b.y, y1: b.y + b.height };
+          for (const t of texts) if (!share(t.owner, owners(mk)) && ov(box, t, 0.5)) out.push(`text on mark ${mk.getAttribute('data-mark')}: "${t.s}"`);
+        }
+        // Every drawn mark's box, against every text: nothing drawn sits under a label.
+        for (const el of svg.querySelectorAll('rect:not(.focus-outline):not(.tag):not(.hatch-fill), path, circle')) {
+          if (el.closest('defs') || el.hasAttribute('data-mark')) continue;
+          const b = el.getBBox();
+          const box = { x0: b.x, x1: b.x + b.width, y0: b.y, y1: b.y + b.height };
+          if (box.x0 < -0.5 || box.x1 > W + 0.5 || box.y0 < 0 || box.y1 > H) out.push(`mark off-stage: ${el.getAttribute('class')}`);
+          for (const t of texts) if (ov(box, t, 0.5)) out.push(`a ${el.getAttribute('class')} under "${t.s}"`);
+        }
+        const dots = [...svg.querySelectorAll('circle')].map((c) => ({ id: c.dataset.id ?? c.getAttribute('class'), x: Number(c.getAttribute('cx')), y: Number(c.getAttribute('cy')), r: Number(c.getAttribute('r')) }));
+        for (let i = 0; i < dots.length; i++) for (let j = i + 1; j < dots.length; j++) if (Math.hypot(dots[i].x - dots[j].x, dots[i].y - dots[j].y) < dots[i].r + dots[j].r - 0.01) out.push(`dot on dot: ${dots[i].id} / ${dots[j].id}`);
+        const wb = well.getBoundingClientRect();
+        const hitBoxes = [...well.querySelectorAll('.hit')].map((h) => {
+          const b = h.getBoundingClientRect();
+          return { o: h.dataset.owner, x0: b.left - wb.left - 1, x1: b.right - wb.left - 1, y0: b.top - wb.top - 1, y1: b.bottom - wb.top - 1 };
+        });
+        for (const o of svg.querySelectorAll('rect.focus-outline')) {
+          const [x, y, w, h] = ['x', 'y', 'width', 'height'].map((a) => Number(o.getAttribute(a)));
+          for (const t of texts) {
+            if (t.owner.includes('look')) continue;
+            const inner = t.x0 >= x + 7.5 && t.x1 <= x + w - 7.5 && t.y0 >= y + 7.5 && t.y1 <= y + h - 7.5;
+            const clear = t.x1 <= x - 4 || t.x0 >= x + w + 4 || t.y1 <= y - 4 || t.y0 >= y + h + 4;
+            if (!inner && !clear) out.push(`text at an outline's stroke: "${t.s}"`);
+          }
+          for (const c of hitBoxes) {
+            const gap = Math.max(x - c.x1, c.x0 - (x + w), y - c.y1, c.y0 - (y + h));
+            if (gap < 7.5) out.push(`an outline ${gap.toFixed(1)} px from the control ${c.o}`);
+          }
+        }
+        for (const tg of svg.querySelectorAll('rect.tag')) {
+          const [x, y, w, h] = ['x', 'y', 'width', 'height'].map((a) => Number(tg.getAttribute(a)));
+          const box = { x0: x, x1: x + w, y0: y, y1: y + h };
+          for (const t of texts) {
+            if (t.owner.includes('look')) continue;
+            const rowShared = Math.min(box.y1, t.y1) - Math.max(box.y0, t.y0) > 2;
+            const gap = Math.max(box.x0 - t.x1, t.x0 - box.x1);
+            if (rowShared && gap < 6) out.push(`a tag ${gap.toFixed(1)} px from "${t.s}"`);
+          }
+        }
+        const outlines = [...svg.querySelectorAll('rect.focus-outline')].map((o) => {
+          const [x, y, w, h] = ['x', 'y', 'width', 'height'].map((a) => Number(o.getAttribute(a)));
+          return { x0: x, x1: x + w, y0: y, y1: y + h };
+        });
+        for (let i = 0; i < outlines.length; i++)
+          for (let j = i + 1; j < outlines.length; j++) {
+            const gap = Math.max(outlines[i].x0 - outlines[j].x1, outlines[j].x0 - outlines[i].x1, outlines[i].y0 - outlines[j].y1, outlines[j].y0 - outlines[i].y1);
+            if (gap < 6) out.push(`focus outlines ${gap.toFixed(1)} px apart`);
+          }
+        for (let i = 0; i < hitBoxes.length; i++) {
+          const a = hitBoxes[i];
+          if (a.x0 < -0.5 || a.x1 > W + 0.5 || a.y0 < -0.5 || a.y1 > H + 0.5) out.push(`hit box off-stage: ${a.o}`);
+          if (a.x1 - a.x0 < 43.5 || a.y1 - a.y0 < 43.5) out.push(`target under 44 px: ${a.o} ${(a.x1 - a.x0).toFixed(0)}x${(a.y1 - a.y0).toFixed(0)}`);
+          for (let j = i + 1; j < hitBoxes.length; j++) if (ov(a, hitBoxes[j], 0)) out.push(`hit on hit: ${a.o} / ${hitBoxes[j].o}`);
+          for (const t of texts) if (ov(a, t, 0.5)) out.push(`a control on "${t.s}"`);
+        }
+        for (const span of well.querySelectorAll('.segment.hit > span')) if (span.scrollWidth > span.clientWidth + 1 || span.scrollHeight > span.clientHeight + 1) out.push(`a control's words overflow: ${span.textContent}`);
+        return out;
+      }
+      function tagMarks(well, D) {
+        const svg = well.querySelector('svg.draw');
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('opacity', '0');
+        for (const mk of D.marks) {
+          if (mk.owner === 'play' || mk.owner.startsWith('ctl-')) continue;
+          const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+          r.setAttribute('x', mk.x0);
+          r.setAttribute('y', mk.y0);
+          r.setAttribute('width', Math.max(0.1, mk.x1 - mk.x0));
+          r.setAttribute('height', Math.max(0.1, mk.y1 - mk.y0));
+          r.setAttribute('data-mark', mk.owner || 'mark');
+          r.setAttribute('data-owner', mk.owner || 'mark');
+          g.appendChild(r);
+        }
+        svg.appendChild(g);
+      }
+      const unplaced = (D) => [...(D.missingTags ? [`${D.missingTags} focus tag(s) without a place`] : []), ...(D.missing ?? []).map((t) => `no room for "${t}"`)];
+
+      // ---------- What must hold on every render, beyond collisions (the layout spec's assertions).
+      const FALSE_CLAIMS = [/NaN|undefined|Infinity|null/, /(^|[^\d.,])0 (s|min|h|GB)\b/, /\b1 (minutes|hours|seconds|plans|backups)\b/, /\?\?/, /—| /, /back in never|loses cannot/];
+      const stageText = (well) =>
+        [...well.querySelectorAll('svg.draw text')].map((t) => t.textContent).join(' | ') +
+        ' | ' +
+        [...well.querySelectorAll('[aria-label]')].map((e) => e.getAttribute('aria-label')).join(' | ') +
+        ' | ' +
+        [...well.querySelectorAll('.segment.hit')].map((e) => e.textContent).join(' | ');
+      function assertions(well, D, m, view) {
+        const out = [];
+        const svg = well.querySelector('svg.draw');
+        const text = stageText(well);
+        for (const g of FALSE_CLAIMS) if (g.test(text)) out.push(`false claim ${g}: "${text.match(g)[0]}"`);
+        const hid = hiding(view);
+        const open = view.phase === 'asking' || view.phase === 'playing';
+        const rest = !view.play;
+        const W = Number(svg.getAttribute('width'));
+        const PAD = W < 380 ? 12 : 16;
+        const xNow = W - PAD - 6;
+        const tx = (id) => svg.querySelector(`[data-id="${id}"]`)?.textContent ?? null;
+        for (const k of M.PLANS) {
+          const p = m.plans[k];
+          // A recovery point's ring sits at its loss on the log scale, and the lost band runs from it to the disaster.
+          const ring = svg.querySelector(`[data-id="ring-${k}"]`);
+          if (rest && !marksHidden(hid, k)) {
+            if (p.recovers && !ring) out.push(`no recovery point for ${k}`);
+            if (ring) {
+              const want = p.rpoS === 0 ? xNow - 6 : M.beforeX(p.rpoS, PAD, xNow, 14);
+              if (Math.abs(Number(ring.getAttribute('cx')) - want) > 0.11) out.push(`${k}'s ring at ${ring.getAttribute('cx')}, not its loss's ${want.toFixed(1)}`);
+              const lost = svg.querySelector(`[data-id="lost-${k}"]`);
+              if (p.rpoS > 0 && !lost) out.push(`${k} loses ${p.rpoS} s with no lost band`);
+              if (p.rpoS === 0 && lost) out.push(`${k} loses nothing but draws a lost band`);
+              if (lost && Math.abs(Number(lost.getAttribute('x')) + Number(lost.getAttribute('width')) - xNow) > 0.2) out.push(`${k}'s lost band does not end at the disaster`);
+            }
+            if (!p.recovers && ring) out.push(`${k} cannot recover but draws a recovery point`);
+            if (!rpoHidden(hid, k)) {
+              const v = tx(`a-${k}-value`) ?? '';
+              if (!v.startsWith(lossWords(p))) out.push(`${k}'s loss reads "${v}", not "${lossWords(p)}"`);
+            }
+          }
+          // A bar ends at its time on the after axis, and its words print that time.
+          const bar = svg.querySelector(`[data-id="bar-${k}"]`);
+          if (rest && !rtoHidden(hid, k) && !marksHidden(hid, k) && !(k === 'pitr' && hid.pitrRtoMarks)) {
+            if (p.recovers) {
+              const want = M.afterX(p.rtoMin, PAD, W - PAD);
+              if (!bar || Math.abs(Number(bar.dataset.end) - want) > 0.11) out.push(`${k}'s bar ends at ${bar?.dataset.end}, not ${want.toFixed(1)}`);
+              const v = tx(`b-${k}-value`) ?? '';
+              if (!v.includes(rtoSpan(p.rtoMin))) out.push(`${k}'s time reads "${v}", not ${rtoSpan(p.rtoMin)}`);
+            } else if (bar || !svg.querySelector(`[data-id="never-${k}"]`)) out.push(`${k} never serves but its row says otherwise`);
+          }
+        }
+        // The ledgers add up as printed: restore and replay minutes sum to the total.
+        const pl = tx('b-pitr-ledger') ?? '';
+        const nums = [...pl.matchAll(/([\d,]+) min/g)].map((x) => Number(x[1].replace(/,/g, '')));
+        if (nums.length === 3 && nums[0] + nums[1] !== nums[2]) out.push(`the PITR ledger does not add up: ${pl}`);
+        // Every full backup in the day is drawn, and no more.
+        if (rest && D.meta.fulls !== m.fullsH.length) out.push(`${D.meta.fulls} full backups drawn for ${m.fullsH.length}`);
+        // The archive comb's ticks keep 2.5 px apart (a band where they would crowd).
+        const comb = svg.querySelector('path.comb');
+        if (comb) {
+          const xs = [...comb.getAttribute('d').matchAll(/M([\d.]+) /g)].map((x) => Number(x[1])).sort((a, b) => a - b);
+          for (let i = 1; i < xs.length; i++) if (xs[i] - xs[i - 1] < 2.4) out.push('archive ticks closer than 2.5 px');
+        }
+        // A tick's value lies within 6 px of its tick.
+        for (const t of svg.querySelectorAll('text[data-tick]')) {
+          const b = t.getBBox();
+          const at = Number(t.dataset.tick);
+          const d = t.dataset.anchor === 'start' ? b.x - at : t.dataset.anchor === 'end' ? at - (b.x + b.width) : Math.abs(b.x + b.width / 2 - at);
+          if (Math.abs(d) > 6) out.push(`a tick's value ${d.toFixed(1)} px from its tick`);
+        }
+        // Dashed means hidden until you answer, and nothing else.
+        if (svg.querySelector('.hidden-box') && !open) out.push('a dashed mark with no question open');
+        // A ghost's old value is said in words wherever its tick is drawn.
+        for (const t of svg.querySelectorAll('.ghost-tick')) {
+          const k = t.dataset.id.replace('ghost-', '');
+          if (!/was /.test(tx(`b-${k}-value`) ?? '')) out.push(`a ghost tick on ${k} with no "was" beside it`);
+        }
+        // Words never contradict the picture: "loses nothing" has no lost band; "never" has no bar.
+        for (const k of M.PLANS) {
+          if (/loses nothing/.test(tx(`a-${k}-value`) ?? '') && svg.querySelector(`[data-id="lost-${k}"]`)) out.push(`${k} says it loses nothing over a lost band`);
+          if (/never/.test(tx(`b-${k}-value`) ?? '') && svg.querySelector(`[data-id="bar-${k}"]`)) out.push(`${k} says never over a bar`);
+        }
+        const count = svg.querySelectorAll('*').length;
+        window.__maxElements = Math.max(window.__maxElements ?? 0, count);
+        if (count > 420) out.push(`${count} SVG elements`);
+        return out;
+      }
+      function check(well, D, m, view) {
+        tagMarks(well, D);
+        return [...collisions(well), ...unplaced(D), ...assertions(well, D, m, view)];
+      }
+      function drawInto(well, W, m, view) {
+        const { D, H } = buildStage(W, m, view);
+        if (view.focus?.length) focusOutlines(D, view.focus, H);
+        well.style.height = H + 'px';
+        well.innerHTML = D.svg(H, D.label) + overlaysHtml(D, view, m);
+        return { D, H };
+      }
+      const restView = (s, extra = {}) => ({ s, phase: 'rest', hide: [], focus: [], play: null, ghost: null, ...extra });
+
+      // Every setting at each width: at rest, at moments of the play, and after a change from the default (its ghost).
+      window.sweep = function (widths, list = ALL, fracs = [null], ghosts = false) {
+        const well = document.getElementById('well');
+        const failures = [];
+        let renders = 0;
+        for (const W of widths) {
+          well.style.width = W + 2 + 'px';
+          for (const s of list) {
+            const views = fracs.map((f) => [f === null ? 'rest' : `play ${f}`, restView(s, f === null ? {} : { play: { frac: f } })]);
+            if (ghosts) views.push(['ghost', restView(s, { ghost: { ...B, disaster: s.disaster } })]);
+            for (const [what, view] of views) {
+              const m = M.run(s);
+              const { D } = drawInto(well, W, m, view);
+              renders++;
+              const out = check(well, D, m, view);
+              if (out.length) failures.push({ W, s: `${show(s)} ${what}`, out: out.slice(0, 4) });
+            }
+          }
+        }
+        well.style.width = '';
+        return { renders, failures };
+      };
+      window.sweepExperiments = function (widths) {
+        const well = document.getElementById('well');
+        const failures = [];
+        let renders = 0;
+        for (const W of widths) {
+          well.style.width = W + 2 + 'px';
+          M.EXPERIMENTS.forEach((spec, i) => {
+            const phases = spec.goal ? [['challenge'], ['start']] : [['asking'], ['playing', 0.1], ['playing', 0.3], ['playing', 0.6], ['playing', 0.98], ['revealed']];
+            for (const [phase, frac] of phases) {
+              const view = expView(spec, phase, frac);
+              const m = M.run(view.s);
+              const { D } = drawInto(well, W, m, view);
+              renders++;
+              const out = check(well, D, m, view);
+              const outlines = well.querySelectorAll('rect.focus-outline').length;
+              if (outlines && well.querySelectorAll('rect.tag').length !== outlines) out.push(`${well.querySelectorAll('rect.tag').length} tags for ${outlines} outlines`);
+              if (phase === 'revealed' && !outlines) out.push('a reveal with no outline');
+              if (out.length) failures.push({ W, exp: i + 1, phase: `${phase}${frac !== undefined ? ` ${frac}` : ''}`, out: out.slice(0, 4) });
+            }
+          });
+        }
+        well.style.width = '';
+        return { renders, failures };
+      };
+      // The outline rule is proven as the leaks are: two neighbouring rows outlined at once must fail at every width.
+      window.touchingOutlines = function (widths) {
+        const well = document.getElementById('well');
+        const spec = M.EXPERIMENTS[0];
+        const caught = widths.filter((W) => {
+          well.style.width = W + 2 + 'px';
+          const view = { ...expView(spec, 'revealed'), focus: ['a-pitr', 'a-standby'] };
+          const m = M.run(view.s);
+          const { D } = drawInto(well, W, m, view);
+          return check(well, D, m, view).some((o) => /^focus outlines/.test(o));
+        });
+        well.style.width = '';
+        return { caught: caught.length, of: widths.length };
+      };
+
+      // ---------- The no-answer sweep: while a question asks and while its answer plays, no rendered text, accessible
+      // name or structure may hold its answer or a false claim (prevention 1 and 2). Each question is entered from
+      // other settings too, so nothing a learner did before carries an answer in.
+      const afterOf = (k) => M.run(actSettings(M.EXPERIMENTS[k]));
+      const setupOf = (k) => M.run(M.EXPERIMENTS[k].setup);
+      const GIVEAWAYS = {
+        'replica-drop': { both: ['cannot', 'the drop too', 'applied the drop', 'waits in its log', 'never', `back in ${rtoSpan(setupOf(0).plans.delayed.rtoMin)}`, 'promote it'], asking: [] },
+        'pitr-time': { both: [`back in ${rtoSpan(setupOf(1).plans.pitr.rtoMin)}`, fMin(setupOf(1).plans.pitr.rtoMin), fMin(setupOf(1).replayMin), 'in all', 'serves last'] },
+        archive: { playing: [`back in ${rtoSpan(afterOf(2).plans.pitr.rtoMin)}`, `loses ${span(afterOf(2).plans.pitr.rpoS)}`, 'was ', 'in all', 'serves last'] },
+        growth: { playing: [`back in ${rtoSpan(afterOf(3).plans.full.rtoMin)}`, `back in ${rtoSpan(afterOf(3).plans.pitr.rtoMin)}`, `back in ${rtoSpan(afterOf(3).plans.standby.rtoMin)}`, fMin(afterOf(3).restoreMin), 'was ', 'serves last', 'after the disaster.'] },
+        delayed: { both: [`back in ${rtoSpan(setupOf(4).plans.delayed.rtoMin)}`, fMin(setupOf(4).delayedReplayMin), 'waits in its log', 'promote it'] },
+      };
+      function structural(well, spec, phase, view) {
+        const out = [];
+        const svg = well.querySelector('svg.draw');
+        const hide = new Set(spec.hide);
+        const playing = phase === 'playing';
+        const tx = (id) => svg.querySelector(`[data-id="${id}"]`)?.textContent ?? null;
+        for (const p of well.querySelectorAll('.play')) if (!p.disabled) out.push('Play is enabled');
+        for (const i of well.querySelectorAll('.segment.hit input')) if (!i.disabled) out.push('an on-stage setting is enabled');
+        if (svg.querySelector('.ghost-tick') || /was /.test(svg.textContent)) out.push('a ghost of an earlier setting');
+        const replicas = hide.has('replicasDrop') ? ['standby', 'delayed'] : hide.has('delayedOutcome') ? ['delayed'] : [];
+        for (const k of replicas) {
+          if (!/\?/.test(tx(`a-${k}-value`) ?? '?')) out.push(`${k}'s loss reads "${tx(`a-${k}-value`)}"`);
+          if (!/\?/.test(tx(`b-${k}-value`) ?? '?')) out.push(`${k}'s time reads "${tx(`b-${k}-value`)}"`);
+          if (/\d/.test(tx(`b-${k}-ledger`) ?? '')) out.push(`${k}'s ledger counts`);
+          if (!playing) {
+            if (svg.querySelector(`[data-id="ring-${k}"], [data-id="lost-${k}"], [data-id="bar-${k}"], [data-id="never-${k}"], [data-id="standby-x"]`) && (k === 'standby' ? svg.querySelector('[data-id="standby-x"], [data-id="ring-standby"], [data-id="never-standby"], [data-id="bar-standby"]') : svg.querySelector('[data-id="ring-delayed"], [data-id="bar-delayed"], [data-id="delayed-drop"]'))) out.push(`${k}'s outcome drawn while the question asks`);
+            const box = svg.querySelector(`[data-id="hidden-b-${k}"]`);
+            if (!box || Math.abs(Number(box.dataset.w) - (Number(svg.getAttribute('width')) - 2 * (Number(svg.getAttribute('width')) < 380 ? 12 : 16))) > 0.2) out.push(`${k}'s hidden box is ${box?.dataset.w} px, not the axis`);
+          }
+        }
+        if (hide.has('pitrTime')) {
+          if (!/\?/.test(tx('b-pitr-value') ?? '?')) out.push(`PITR's time reads "${tx('b-pitr-value')}"`);
+          if (/\d/.test(tx('b-pitr-ledger') ?? '')) out.push("PITR's ledger counts");
+          if (!playing && svg.querySelector('[data-id="bar-pitr"]')) out.push("PITR's bar drawn while the question asks");
+          if (!playing) {
+            const box = svg.querySelector('[data-id="hidden-b-pitr"]');
+            if (!box || Math.abs(Number(box.dataset.w) - (Number(svg.getAttribute('width')) - 2 * (Number(svg.getAttribute('width')) < 380 ? 12 : 16))) > 0.2) out.push(`PITR's hidden box is ${box?.dataset.w} px, not the axis`);
+          }
+        }
+        if (hide.has('pitrAfter') && playing) {
+          if (!/\?/.test(tx('a-pitr-value') ?? '?') || !/\?/.test(tx('b-pitr-value') ?? '?')) out.push("PITR's new numbers shown while the answer plays");
+          if (/\d/.test(tx('b-pitr-ledger') ?? '') || /\d/.test(tx('a-pitr-note') ?? '')) out.push("PITR's new numbers in its words");
+        }
+        if (hide.has('rtoAfter') && playing) for (const k of M.PLANS) if (!/\?/.test(tx(`b-${k}-value`) ?? '?') || /\d/.test(tx(`b-${k}-ledger`) ?? '')) out.push(`${k}'s new time shown while the answer plays`);
+        if (/\d/.test(tx('step') ?? '') && (hide.has('pitrTime') || hide.has('rtoAfter') || hide.has('pitrAfter') || hide.has('replicasDrop') || hide.has('delayedOutcome'))) out.push(`the step counts: "${tx('step')}"`);
+        return out;
+      }
+      function giveaways(well, spec, phase, extraText = '') {
+        const text = stageText(well) + ' | ' + extraText;
+        const g = GIVEAWAYS[spec.id] ?? {};
+        const out = [];
+        for (const w of [...(g.both ?? []), ...(g[phase] ?? []), ...FALSE_CLAIMS]) if (typeof w === 'string' ? text.includes(w) : w.test(text)) out.push(`"${w}"${typeof w === 'string' ? '' : ` in "${text.match(w)[0]}"`}`);
+        return out;
+      }
+      const FROMS = [...M.EXPERIMENTS.filter((e) => e.act?.set).map(actSettings), { ...B, ...M.CHALLENGE_SOLUTION }, { ...B, disaster: DROP, sync: 1 }, { ...B, size: 500, base: 1, archive: 300 }];
+      function probe(well, W, spec, phase, view) {
+        const m = M.run(view.s);
+        drawInto(well, W, m, view);
+        const hid = hiding(view);
+        const notice = noticeOf(m, view);
+        const words = [notice, summary(m, hid), noteOf(view), view.phase === 'playing' ? stepOf(m, view.play.frac, hid) : ''].join(' | ');
+        return [...giveaways(well, spec, phase, words), ...structural(well, spec, phase, view), ...(notice ? [] : ['the notice is blank'])];
+      }
+      window.noAnswer = function (widths) {
+        const well = document.getElementById('well');
+        const out = [];
+        let renders = 0;
+        for (const W of widths) {
+          well.style.width = W + 2 + 'px';
+          for (const spec of M.EXPERIMENTS.filter((e) => !e.goal)) {
+            const runs = [...[null, ...FROMS].map((f) => ['asking', null, f]), ...[0, 0.22, 0.35, 0.6, 0.8, 0.97, 1].map((f) => ['playing', f, null])];
+            for (const [phase, frac, from] of runs) {
+              const view = expView(spec, phase, frac ?? 0.6, from);
+              renders++;
+              const where = `W${W} ${spec.id} ${phase}${frac !== null ? ` ${frac}` : ''}${from ? ` from ${show(from)}` : ''}`;
+              for (const g of probe(well, W, spec, phase, view)) out.push(`${where}: ${g}`);
+            }
+          }
+        }
+        well.style.width = '';
+        return { renders, out };
+      };
+      // Plants a leak on each flag of the hiding map, on copies of the views, to prove the sweep catches every one.
+      window.plantedLeaks = function (W) {
+        const well = document.getElementById('well');
+        well.style.width = W + 2 + 'px';
+        const caught = {};
+        const tryLeak = (name, id, phase, flags, frac = 1, from = null) => {
+          const spec = M.EXPERIMENTS.find((e) => e.id === id);
+          const clean = probe(well, W, spec, phase, expView(spec, phase, frac, from));
+          const dirty = probe(well, W, spec, phase, { ...expView(spec, phase, frac, from), leak: flags });
+          caught[name] = clean.length === 0 && dirty.length > 0 ? 'caught' : `MISSED (clean ${clean.length}: ${clean[0] ?? ''})`;
+        };
+        tryLeak("E1 asked, the standby's words shown", 'replica-drop', 'asking', ['standbyWords']);
+        tryLeak("E1 asked, the standby's outcome drawn", 'replica-drop', 'asking', ['standbyMarks']);
+        tryLeak("E1 played, the standby's words shown", 'replica-drop', 'playing', ['standbyWords']);
+        tryLeak("E1 asked, the delayed replica's words shown", 'replica-drop', 'asking', ['delayedWords']);
+        tryLeak("E1 asked, the delayed replica's outcome drawn", 'replica-drop', 'asking', ['delayedMarks']);
+        tryLeak("E2 asked, PITR's time shown", 'pitr-time', 'asking', ['pitrRto']);
+        tryLeak("E2 asked, PITR's bar drawn", 'pitr-time', 'asking', ['pitrRtoMarks']);
+        tryLeak("E2 played, PITR's time shown", 'pitr-time', 'playing', ['pitrRto']);
+        tryLeak('E2 asked, the hidden box sized by the hidden time', 'pitr-time', 'asking', ['boxFull']);
+        tryLeak("E3 played, PITR's new loss shown", 'archive', 'playing', ['pitrRpo']);
+        tryLeak("E3 played, PITR's new time shown", 'archive', 'playing', ['pitrRto']);
+        tryLeak('E4 played, the new times shown', 'growth', 'playing', ['allRto', 'pitrRto']);
+        tryLeak("E5 asked, the delayed replica's words shown", 'delayed', 'asking', ['delayedWords']);
+        tryLeak("E5 played, the delayed replica's words shown", 'delayed', 'playing', ['delayedWords']);
+        tryLeak("E5 asked, the delayed replica's outcome drawn", 'delayed', 'asking', ['delayedMarks']);
+        tryLeak('E3 asked with the ghost of the setting before it', 'archive', 'asking', ['ghost'], 1, { ...B, size: 10000 });
+        tryLeak("E1 asked, the settings live and the model's note shown", 'replica-drop', 'asking', ['locked']);
+        tryLeak('E4 played, the step counting the clock', 'growth', 'playing', ['allRto', 'pitrRto'], 0.6);
+        well.style.width = '';
+        return caught;
+      };
+      // The stage a learner sees on load (the default, at rest) never prints an answer.
+      const ASKED = () => [
+        'cannot bring it back',
+        `back in ${M.formatSlot(M.EXPERIMENTS[1].slots().answer)}`,
+        `loses ${M.formatSlot(M.EXPERIMENTS[2].slots().rpoAfter)}`,
+        `back in ${M.formatSlot(M.EXPERIMENTS[3].slots().fullAfter)}`,
+        `back in ${M.formatSlot(M.EXPERIMENTS[3].slots().pitrAfter)}`,
+        `back in ${M.formatSlot(M.EXPERIMENTS[4].slots().answer)}`,
+        'the drop too',
+      ];
+      window.restLeaks = function (widths) {
+        const well = document.getElementById('well');
+        const out = [];
+        const asked = ASKED();
+        for (const W of widths) {
+          well.style.width = W + 2 + 'px';
+          const m = M.run(B);
+          const view = restView(B);
+          drawInto(well, W, m, view);
+          const text = [stageText(well), summary(m, NOTHING_HIDDEN), noteOf(view), noticeOf(m, view)].join(' | ');
+          for (const a of asked) if (text.includes(a)) out.push(`W${W}: "${a}" on the stage at load`);
+        }
+        well.style.width = '';
+        return { asked, out };
+      };
+      window.heights = function (widths) {
+        const out = {};
+        for (const W of widths) {
+          const hs = new Set();
+          for (const s of ALL) hs.add(buildStage(W, M.run(s), restView(s)).H);
+          for (const s of ALL.filter((_, i) => i % 17 === 0)) hs.add(buildStage(W, M.run(s), restView(s, { play: { frac: 0.5 } })).H);
+          for (const spec of M.EXPERIMENTS)
+            for (const phase of spec.goal ? ['challenge', 'start'] : ['asking', 'playing', 'revealed']) {
+              const v = expView(spec, phase);
+              hs.add(buildStage(W, M.run(v.s), v).H);
+            }
+          out[W] = [...hs];
+        }
+        return out;
+      };
+      window.widgetHeight = () => document.getElementById('widget').getBoundingClientRect().height;
+      // Every sentence any setting prints off the stage, for the false-claim rules and the prose rules.
+      const PROSE = [/(^|[.?!] )\d/, /\d{4,}/, /  /, / ,| \./, /\b(\w+) \1\b/];
+      window.pageWords = function () {
+        const out = [];
+        for (const s of ALL) {
+          const m = M.run(s);
+          const sentences = [summary(m, NOTHING_HIDDEN), settingSentence(m), story(m), ...goalChecks(m).map((g) => g.text)];
+          const tables = [true, false].map((c) => JSON.stringify(describeRows(m, c)));
+          const words = [...sentences, ...tables].join(' | ');
+          for (const g of FALSE_CLAIMS) if (g.test(words)) out.push(`${show(s)}: ${g} in "${words.match(g)[0]}"`);
+          for (const t of [...sentences, describeRows(m, false).note]) {
+            for (const g of PROSE) if (g.test(t)) out.push(`${show(s)}: ${g} in "${t.slice(Math.max(0, t.search(g) - 20), t.search(g) + 30)}"`);
+            if (!/[.!?:]$/.test(t) && !/: (met|not yet)$/.test(t)) out.push(`${show(s)}: not a sentence: "${t.slice(-40)}"`);
+          }
+        }
+        for (const g of [PROSE[0], PROSE[1]]) if (g.test(MODEL_NOTE)) out.push(`model note: ${g}`);
+        return out;
+      };
+      window.wordsOf = (s) => {
+        const m = M.run(s);
+        return { summary: summary(m, NOTHING_HIDDEN), notice: settingSentence(m), story: story(m), checks: goalChecks(m).map((g) => g.text), describe: describeRows(m, false), compact: describeRows(m, true) };
+      };
+
+      const stateName = params.get('state') ?? 'default';
+      Promise.all([
+        document.fonts.load('600 15px "Inter Variable"'),
+        document.fonts.load('600 11px "Inter Variable"'),
+        document.fonts.load('500 13px "Inter Variable"'),
+        document.fonts.load('600 13px "Inter Variable"'),
+        document.fonts.load('700 11px "Inter Variable"'),
+        document.fonts.load('600 13px "JetBrains Mono Variable"'),
+      ]).then(() => {
+        const first = render(stateName);
+        const well = document.getElementById('well');
+        const issues = check(well, first.D, first.m, first.view);
+        render(stateName);
+        window.__collisions = issues;
+        document.body.dataset.ready = '1';
+      });
+    </script>
+  </body>
+</html>
