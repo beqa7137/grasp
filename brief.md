@@ -8,9 +8,9 @@ its critics. Files beside this brief, on the orphan branch `design/r42-recovery`
 | File          | What it is |
 | ------------- | ---------- |
 | `model.js`    | The schematic worst-case model (four plans, two disasters, the two scales) and the six experiments as slot templates; ported 1:1 to `libs/engine/src/sysdesign/lessons/widgets/recovery.ts` and `recovery-experiments.ts` |
-| `enum.cjs`    | Prints every number and checks the model against the lesson's quoted numbers, a second-by-second simulated timeline (writes, full backups, archived segments, both replicas, the disaster at every moment of the cycle), a second-by-second simulated recovery (copy, replay, promote), the experiments' word claims by rule over all 972 settings, the load-time stage against every answer, and enumerates the challenge (12,108 checks) |
+| `enum.cjs`    | Prints every number and checks the model against the lesson's quoted numbers, a second-by-second simulated timeline (writes, full backups, archived segments, both replicas, the disaster at every moment of the cycle), a second-by-second simulated recovery (copy, replay, promote or copy the table back), the experiments' word claims by rule over all 972 settings, the load-time stage against every answer, and enumerates the challenge (20,866 checks) |
 | `mockup.html` | The mockup with the app's tokens and fonts: `?state=default\|drop\|big\|frequent\|small\|playing\|describe\|reduced\|ask&exp=1..5\|reveal&exp=1..5\|challenge&theme=light\|dark`; `playing` takes `&frac=` (the play's clock, 0 to 1) and `&disaster=1`; `ask` takes `&phase=playing&frac=` (the answer's play, hiding held); `challenge` takes `&start=1`. Its Play button plays the clock for a reader |
-| `shoot.cjs`   | Screenshots every state at 1280, 390 and 320 px in both themes with the page's collision report and layout assertions, then sweeps every setting at many widths (at rest, through the play, after a change with its ghost), every experiment asking, playing and revealed, the no-answer sweep with eighteen planted leaks, the load-time stage against every answer, every sentence of every setting, Describe's box at four widths, the stage heights per width and the widget's heights |
+| `shoot.cjs`   | Screenshots every state at 1280, 390 and 320 px in both themes with the page's collision report and layout assertions, then sweeps every setting at many widths (at rest, through the play, after a change with its ghost), every experiment asking, playing and revealed, the no-answer sweep with twenty planted leaks, the load-time stage against every answer, every sentence of every setting, Describe's box at four widths, the stage heights per width and the widget's heights |
 | `changes.md`  | Each critique item and what changed for it |
 
 ## 1. The verdict, and the mechanism
@@ -439,7 +439,7 @@ once a drill has measured it." Describe waits until the goal is met.
    standby after a drop, a small database with hourly backups) and its play at seven moments, at 14 widths, against its
    answer's words in both phases, the false claims and structure (Play and controls disabled, no ghost, each hidden
    value "?", no digit in a hidden ledger, no hidden outcome drawn while asking, each hidden box the axis's width, no
-   clock in the step). It is proven by eighteen planted leaks, one a flag of the map (each must be caught where the
+   clock in the step). It is proven by twenty planted leaks, one a flag of the map (each must be caught where the
    clean view is clean). `restLeaks()` checks the load-time stage against every asked answer.
 2. **False claims.** No hidden value has a default ("?" and "after your answer", never 0 or "never"); "cannot" and
    "never" are words, never Infinity; the false-claim rules (NaN, Infinity, a bare 0 with a unit, "back in never",
@@ -538,7 +538,7 @@ once a drill has measured it." Describe waits until the goal is met.
   `model.js` (`afterX` linear, `insetX`). Suggested files: `recovery-layout.ts` (a pure `buildStage(width, model,
   view)` returning marks), `recovery-words.ts` (`hiding()`, names, values, notes, ledgers, the summary, the notice, the
   steps, the story, Describe, the goal checks), `recovery-motion.ts` (the clock's moments, the cursor and the
-  playhead), a prims component, the widget component and its spec (the no-answer sweep with its eighteen leaks and the
+  playhead), a prims component, the widget component and its spec (the no-answer sweep with its twenty leaks and the
   rest sweep), `recovery-layout.spec.ts`, `recovery-words.spec.ts`, `recovery-motion.spec.ts`, and e2e
   `recovery-lesson.spec.ts`.
 - The model is closed-form: 972 settings in a few milliseconds; the reserved-line maxima are computed once per width.

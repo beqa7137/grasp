@@ -1727,6 +1727,9 @@
         }
         y = tickYI + 10;
         const insetHead = recovering ? Math.min(clockMin, M.INSET_MIN) : null;
+        // The inset's rows sit close, so its grid lines run unbroken through all four tracks (a broken line would read
+        // as dashed, which means hidden).
+        for (const t of ticksI) if (t.sec > 0) D.add('grid', line(t.goal ? 'goal-line' : 'grid', t.x, y + 3, t.x, y + 4 * 20 - 7, ' data-grid="i"'));
         for (const key of M.PLANS) {
           const owner = `i-${key}`;
           const plan = P[key];
@@ -1736,7 +1739,6 @@
           const trackY = y + 5;
           const th = 6;
           D.text(PAD, y + 11, [[SHORT_NAMES[key], 'small', 'muted']], { owner, id: `i-${key}-name` });
-          for (const t of ticksI) if (t.sec > 0) D.add('grid', line(t.goal ? 'goal-line' : 'grid', t.x, trackY - 2, t.x, trackY + th + 2, ' data-grid="i"'));
           if (struck) D.add('marks', line('strike-line', ix0 - 1, trackY - 3, ix0 - 1, trackY + th + 3, ` data-id="origin-i-${key}"`));
           if (recovering && insetHead < M.INSET_MIN) D.add('top', line('playhead', ixs(insetHead), trackY - 3, ixs(insetHead), trackY + th + 3, ` data-id="playhead-i-${key}"`));
           D.add('grid', line('track', ix0, trackY + th + 0.5, ix1, trackY + th + 0.5));
