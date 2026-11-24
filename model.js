@@ -19,6 +19,9 @@
   /** A rack-wide event that destroys every disk in the rack (a fire, a power fault, a bad firmware push): an assumption,
    * said as one wherever it is used. With one piece a rack it is one more disk failure, part of the AFR. */
   const RACK_EVENT = 0.001;
+  /** What one disk writes, sustained: about 250 MB/s, so a 20 TB disk refilled alone takes about a day. A faster repair
+   * must spread the failed disk's pieces over many disks, each rebuilt in parallel (declustered placement). */
+  const DISK_WRITE_GBPS = 2;
   const SCHEMES = [
     { id: 'r2', kind: 'replicas', copies: 2, label: '2 copies', short: '2 copies' },
     { id: 'r3', kind: 'replicas', copies: 3, label: '3 copies', short: '3 copies' },
@@ -91,6 +94,9 @@
     const failsYear = disks * afr;
     const rebuildTB = (replicas ? 1 : sc.data) * DISK_TB;
     const rebuildGbps = (rebuildTB * 1e12 * 8) / (s.repair * 3600) / 1e9;
+    // The rebuild writes one disk's worth; above one disk's write rate it must be spread over many disks.
+    const writeGbps = (DISK_TB * 1e12 * 8) / (s.repair * 3600) / 1e9;
+    const objectsPerLoss = objectsPerLossOf(n, t, Math.round(disks));
     return {
       settings: s,
       scheme: sc,
@@ -118,9 +124,28 @@
       failsYear,
       rebuildTB,
       rebuildGbps,
+      writeGbps,
+      spread: writeGbps > DISK_WRITE_GBPS,
       trafficTB: failsYear * rebuildTB,
+      // The steps (the leading term) against the exact tail: 0 for copies, whose loss needs every other copy.
+      exactGap: (first * tail) / lead - 1,
+      objectsPerLoss,
+      lossEventsYear: (loss * OBJECTS) / objectsPerLoss,
     };
   }
+
+  /** How many objects one loss takes: the billion objects' pieces lie on the store's D disks, so t + 1 disks down at once
+   * lose every object with a piece on each of them, OBJECTS x C(D - t - 1, n - t - 1) / C(D, n) with random placement. */
+  function objectsPerLossOf(n, t, D) {
+    const c = (a, b) => {
+      let v = 1;
+      for (let i = 1; i <= b; i++) v = (v * (a - b + i)) / i;
+      return v;
+    };
+    return (OBJECTS * c(D - t - 1, n - t - 1)) / c(D, n);
+  }
+  /** The time one disk takes to refill a whole disk alone. */
+  const ALONE_HOURS = (DISK_TB * 1e12 * 8) / (DISK_WRITE_GBPS * 1e9) / 3600;
 
   /** Today's engine function, unchanged, for the regression check in enum.cjs. */
   function durabilityToday(redundancy, options) {
@@ -259,7 +284,11 @@
     return `1 every ${bigCount(1 / v)} years`;
   }
   const formatPct = (pct) => `${trim(pct, 2)}%`;
-  const formatRate = (r) => (r >= 1 ? `${trim(sig2(r), 1)} a year` : `${trim(r, 3)} a year`);
+  /** A small count with two significant figures: 1.5, 0.18, 70. */
+  const formatFew = (r) => (r >= 1 ? trim(sig2(r), 1) : trim(r, 3));
+  const formatRate = (r) => `${formatFew(r)} a year`;
+  /** A duration in words: "about a day" near 24 h, else hours. */
+  const formatAbout = (h) => (h >= 18 && h <= 30 ? 'about a day' : `about ${formatHours(Math.round(h))}`);
   const formatX = (x) => `${trim(Math.round(x * 100) / 100, 2)}×`;
   const formatTB = (tb) => (tb >= 995 ? `${trim(sig2(tb) / 1000, 1)} PB` : `${GROUPED.format(Math.round(sig2(tb)))} TB`);
   const formatGbps = (g) => `${trim(sig2(g), 1)} Gb/s`;
@@ -270,6 +299,103 @@
   const ordinal = (i) => ['', 'first', 'second', 'third', 'fourth'][i];
   const plural = (n, one, many) => (n === 1 ? one : many);
   const listOf = (items) => (items.length <= 1 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`);
+
+
+  // ---------------------------------------------------------------- words (durability-words.ts): every sentence is
+  // computed for its setting from these functions, on the stage, in the page and in Describe alike.
+  const SC = (m) => m.scheme.short;
+  const pieceWord = (m, n = 2) => (m.replicas ? plural(n, 'copy', 'copies') : plural(n, 'piece', 'pieces'));
+  const failedName = (m) => pieces(m)[failedIndex(m)].id;
+  function storedWords(m) {
+    if (m.replicas) return `${m.n} full copies, ${formatX(m.overhead)} its size`;
+    return `${m.n} pieces, ${m.scheme.data} of data and ${m.scheme.parity} of parity, each a ${m.scheme.data === 6 ? 'sixth' : 'tenth'} of its size: ${formatX(m.overhead)} in all`;
+  }
+  function placeWords(m) {
+    return m.settings.rack ? `every ${pieceWord(m, 1)} on its own disk, all in one rack` : `every ${pieceWord(m, 1)} on its own disk in its own rack`;
+  }
+  /** Objects lost a year among a billion, said as the average it is. */
+  const billionWords = (m) => `on average ${formatBillion(m.perBillion)}`;
+  function lossWords(m) {
+    return `${formatNines(m.nines)} nines, a yearly loss chance of ${oneIn(m.loss)}: among a billion such objects, ${billionWords(m)}`;
+  }
+  function summary(m, hid) {
+    const s = m.settings;
+    const a = `One object stored as ${SC(m)}${m.replicas ? '' : ' erasure coding'}: ${storedWords(m)}, ${placeWords(m)}. Disks fail independently at ${formatPct(s.afr)} a year, and a lost ${pieceWord(m, 1)} is detected and rebuilt in ${formatHours(s.repair)}. It survives any ${m.t} lost ${pieceWord(m, m.t)}.`;
+    if (hid.loss) return `${a} The model’s yearly loss shows after your answer.`;
+    return `${a} The model gives ${lossWords(m)}.`;
+  }
+  function settingSentence(m) {
+    const s = m.settings;
+    return `Stored as ${SC(m)}${m.replicas ? '' : ' erasure coding'} at ${formatPct(s.afr)} a year with ${formatHours(s.repair)} repairs${s.rack ? ', all in one rack' : ''}: ${formatNines(m.nines)} nines, ${billionWords(m)} among a billion objects, at ${formatX(m.overhead)} storage.`;
+  }
+  function readoutText(m, hid) {
+    return `Stored as ${SC(m)}, ${formatX(m.overhead)} · ${hid.loss ? '? nines' : `${formatNines(m.nines)} nines, ${billionWords(m)} among a billion`}`;
+  }
+  /** The clause every faster-than-one-disk rebuild prints: what makes the window physically possible. */
+  const SPREAD = 'spread over many disks';
+  /** The race's sentence: what the drawn repair is, and what a loss would take. */
+  function raceSentence(m, ps, kind, hid) {
+    const s = m.settings;
+    const f = failedName(m);
+    const others = m.n - 1;
+    if (kind === 'staged' && s.rack) {
+      if (!ps.lost) return `Staged, not sampled: a rack event is coming.`;
+      return `Staged, not sampled: a rack event destroys the one rack and every ${pieceWord(m, 1)} in it at once, before any repair can start, so nothing is left to rebuild from. A rack event is assumed here once in ${formatCount(1 / RACK_EVENT)} years.`;
+    }
+    if (kind === 'staged') {
+      const names = ps.stagedDown.map((i) => pieces(m)[i].id);
+      if (!ps.failed) return `Staged, not sampled: a loss is coming.`;
+      if (!ps.lost) return `Staged, not sampled: ${f} fails, and its repair starts.${names.length ? ` Then ${listOf(names)} ${names.length === 1 ? 'fails' : 'fail'} too.` : ''}`;
+      const left = m.n - 1 - names.length;
+      const chance = hid.steps ? '' : ` A first failure leads here about once in ${bigCount(1 / m.tail)} times.`;
+      return m.replicas
+        ? `Staged, not sampled: ${f} fails, and before its ${formatHours(s.repair)} repair ends ${listOf(names)} ${names.length === 1 ? 'fails' : 'fail'} too. No copy is left: the object is lost.${chance}`
+        : `Staged, not sampled: ${f} fails, and before its ${formatHours(s.repair)} repair ends ${listOf(names)} fail too. Only ${left} pieces are left, and any rebuild needs ${m.need}: the object is lost.${chance}`;
+    }
+    if (!ps.failed) return `Every ${pieceWord(m, 1)} is whole. Play a repair: a disk fails, and its ${pieceWord(m, 1)} is rebuilt on a free disk.`;
+    const reads = hid.reads ? '' : `, read from ${m.replicas ? 'a surviving copy' : `${m.repairRead} of the others`}`;
+    const spread = m.spread ? `, while the rest of the failed disk is rebuilt at once, ${SPREAD}` : '';
+    const head = ps.rebuilt ? `${f} is rebuilt on a free disk in ${formatHours(s.repair)}${reads}${spread}.` : `${f} fails, and it is being rebuilt on a free disk${reads}${spread}.`;
+    const need = m.t === m.n - 1 ? (m.t === 1 ? `the other copy` : m.t === 2 ? 'both other copies' : `all ${others} others`) : `${m.t} of the ${others} others`;
+    const chance = hid.steps ? ` The chance of that shows after your answer.` : ` Each fails within ${formatHours(s.repair)} with chance ${oneIn(m.p)}, so in a typical repair none does.`;
+    const rack = s.rack ? ` All ${m.n} share one rack: a rack event would take them at once.` : '';
+    return `${head} A loss would need ${need} to fail before it ends.${chance}${rack}`;
+  }
+  /** The facts at the stage's foot: the cost of a billion objects, the rebuild's reads, and what a short window takes. */
+  function factsSentence(m, hid, ghostM) {
+    const s = m.settings;
+    const cost = `A billion 1 MB objects, ${formatTB(DATA_TB)}, take ${formatTB(m.rawTB)} on ${formatCount(m.disks)} disks of ${formatTB(DISK_TB)}; at ${formatPct(s.afr)}, about ${formatFew(m.failsYear)} of them fail a year.`;
+    const reads = hid.reads ? ` The rebuild’s reads show after your answer.` : ` Each rebuild reads ${formatTB(m.rebuildTB)}: ${formatGbps(m.rebuildGbps)} to finish in ${formatHours(s.repair)}.`;
+    const alone = ` One disk writes about ${formatGbps(DISK_WRITE_GBPS)}, so a ${formatTB(DISK_TB)} disk refilled alone takes ${formatAbout(ALONE_HOURS)}; a faster repair spreads the lost pieces over many disks, each rebuilt in parallel.`;
+    const ghost = ghostM && !hid.ghost ? ` Before this change: ${formatNines(ghostM.nines)} nines.` : '';
+    return cost + reads + alone + ghost;
+  }
+  /** Describe's note on the steps against the exact model, computed for the setting. */
+  function exactWords(m) {
+    if (m.replicas) return 'For copies the steps are the model exactly: a loss needs every other copy.';
+    const g = m.exactGap;
+    const pct = Math.abs(g) * 100;
+    const said = pct < 0.01 ? 'under 0.01%' : `${trim(sig2(pct), 2)}%`;
+    return `The steps multiply the leading term of the model; its exact sum also weighs the other pieces surviving the window and the rarer cases of more failures, ${said} ${g < 0 ? 'less' : 'more'} here.`;
+  }
+  /** A step row's words, longest first: the stage's rows and Describe's row headers both take them. */
+  function stepWords(m, row, hidLoss = false) {
+    const s = m.settings;
+    const tFmt = formatHours(s.repair);
+    if (row.kind === 'first') return [`First failures: ${m.n} ${pieceWord(m, m.n)} × ${formatPct(s.afr)} a year`, `First failures: ${m.n} × ${formatPct(s.afr)}`, 'First failures'];
+    if (row.kind === 'window') {
+      if (row.i === 1) return [`A given other ${pieceWord(m, 1)} fails before the ${tFmt} repair ends`, `Another fails within ${tFmt}`, `One more within ${tFmt}`];
+      return [`And a ${ordinal(row.i)} given ${pieceWord(m, 1)}`, `And a ${ordinal(row.i)}`];
+    }
+    if (row.kind === 'ways') {
+      if (m.ways === 1) return [`One choice only: ${m.t === 1 ? 'the other copy' : m.t === 2 ? 'both other copies' : `all ${m.t} other copies`}`, 'One choice only'];
+      return [`Any ${m.t} of the ${m.n - 1} others will do`, `Any ${m.t} of the ${m.n - 1}`, `Any ${m.t} of ${m.n - 1}`];
+    }
+    if (row.kind === 'rack') return [`Or a rack event takes every ${pieceWord(m, 1)} at once (assumed)`, 'Or a rack event (assumed)', 'Rack event'];
+    if (hidLoss) return ['Lost in a year'];
+    const rack = s.rack ? [', set by the rack event (assumed)', ' (rack event)'] : ['', ''];
+    return [`Lost in a year: ${oneIn(m.loss)}${rack[0]}`, `Lost a year: ${oneIn(m.loss)}${rack[0]}`, `Lost a year: ${oneIn(m.loss)}${rack[1]}`];
+  }
 
   // ---------------------------------------------------------------- experiments
   const E = {
@@ -352,7 +478,7 @@
       ],
       truth: 'ratio',
       reveal:
-        '{ratio} likelier: {ninesAfter} nines against {ninesBefore}. A loss needs both other copies to fail before the repair ends, and each one’s chance of failing inside the window grows with the window, from {pBefore} to {pAfter}. Two such chances multiply: {kn} × {kn} is {k2n}. The window enters the loss once for every failure the scheme tolerates, which is why systems rebuild from many disks in parallel and put repairs ahead of other work.',
+        '{ratio} likelier: {ninesAfter} nines against {ninesBefore}. A loss needs both other copies to fail before the repair ends, and each one’s chance of failing inside the window grows with the window, from {pBefore} to {pAfter}. Two such chances multiply: {kn} × {kn} is {k2n}. The window enters the loss once for every failure the scheme tolerates, which is why systems rebuild from many disks in parallel and put repairs ahead of other work. The window runs from the failure to full redundancy: a slow failure detector lengthens it just as a slow rebuild does.',
       focus: ['steps', 'race'],
       hide: ['steps', 'after'],
       slots: () => {
@@ -391,7 +517,7 @@
       reveal:
         '{readAfter}: a lost piece is decoded, not copied, and decoding takes any 10 of the 13 pieces left. So a 10 + 4 rebuild reads {kAfter} the lost data, and finishing it in {win} takes {gbpsAfter} of reads against {gbpsBefore} for copies. That is the price of {ohAfter} storage: repair traffic, and slower reads of a missing piece. Locally repairable codes cut it: Azure’s code splits 12 data pieces into two groups of 6, each with a local parity, and rebuilds a lost data piece from the 6 of its group.',
       focus: ['pieces', 'race'],
-      hide: ['after'],
+      hide: ['after', 'reads'],
       slots: () => {
         const a = run(E.copies);
         const b = run({ ...E.copies, scheme: 3 });
@@ -487,9 +613,9 @@
       title: 'A billion objects',
       setup: E.challengeStart,
       goal: CHALLENGE_GOAL,
-      ask: 'Your disks fail at {afr} a year. Store a billion objects of 1 MB, {data} in all, and lose fewer than 1 in {margin} years: a {marginX} margin on 1 a year, since the model leaves correlated failures out. Store at most {oh}, and keep any one disk’s rebuild under {gbps} of reads.',
+      ask: 'Your disks fail at {afr} a year. Store a billion objects of 1 MB, {data} in all, and lose fewer than 1 in {margin} years: a {marginX} margin on 1 a year for what the simple model rounds off. Correlated failures are met by placement, not by margin, so keep pieces in separate racks. Store at most {oh}, and keep any one disk’s rebuild under {gbps} of reads.',
       reveal:
-        '10 + 4 in separate racks, rebuilt in {win}: {nines} nines, {billion} among a billion, at {oh2} storage, {raw} on {disks} disks. A rebuild reads {read}, {gbps2} spread over {win}. Three copies would store {raw3}; 6 + 3 needs {win63} repairs for the margin, and reading {read63} that fast is {gbps63}; a week’s repairs lose it. The design: a wide erasure code, repairs throttled but bounded, pieces in separate racks, and nines quoted only as the model’s, since correlated failures, bugs and deletes are not in them.',
+        '10 + 4 in separate racks, rebuilt in {win}: {nines} nines, {billion} among a billion, at {oh2} storage, {raw} on {disks} disks. That is an average: the billion objects share {disks} disks, so a loss, when it comes, takes about {perLoss} objects at once, about once in {eventYears} years; limiting which disks share objects trades how often for how many. A rebuild reads {read}, {gbps2} spread over {win}. Three copies would store {raw3}; 6 + 3 needs {win63} repairs for the margin, and reading {read63} that fast is {gbps63}; a week’s repairs lose it. The design: a wide erasure code, repairs throttled but bounded, pieces in separate racks, and nines quoted only as the model’s, since correlated failures, bugs and deletes are not in them.',
       focus: ['headline', 'steps'],
       hide: [],
       slots: () => {
@@ -509,6 +635,8 @@
           oh2: formatX(m.overhead),
           raw: formatTB(m.rawTB),
           disks: formatCount(m.disks),
+          perLoss: bigCount(m.objectsPerLoss),
+          eventYears: bigCount(1 / m.lossEventsYear),
           read: formatTB(m.rebuildTB),
           gbps2: formatGbps(m.rebuildGbps),
           raw3: formatTB(r3.rawTB),
@@ -551,6 +679,9 @@
     OBJECT_MB,
     DATA_TB,
     RACK_EVENT,
+    DISK_WRITE_GBPS,
+    ALONE_HOURS,
+    objectsPerLossOf,
     SCHEMES,
     AFRS,
     REPAIRS,
@@ -575,6 +706,8 @@
     formatBillion,
     formatPct,
     formatRate,
+    formatFew,
+    formatAbout,
     formatX,
     formatTB,
     formatGbps,
@@ -594,6 +727,21 @@
     boundMet,
     goalKept,
     goalMet,
+    SC,
+    pieceWord,
+    failedName,
+    storedWords,
+    placeWords,
+    billionWords,
+    lossWords,
+    summary,
+    settingSentence,
+    readoutText,
+    SPREAD,
+    raceSentence,
+    factsSentence,
+    exactWords,
+    stepWords,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.DurabilityModel = api;

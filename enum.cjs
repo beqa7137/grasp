@@ -140,11 +140,46 @@ for (const [name, s, said] of lesson) {
   check(Number(got) === said, `lesson ${name}`);
 }
 
+// ---------------------------------------------------------------- the words' rules, at every setting
+{
+  const none = { steps: false, loss: false, reads: false, ghost: false };
+  let spreadAt = new Set();
+  for (const s of M.ALL_SETTINGS) {
+    const m = r(s);
+    check(m.spread === m.writeGbps > M.DISK_WRITE_GBPS, `spread flag at ${JSON.stringify(s)}`);
+    const rest = M.raceSentence(m, M.playState(s, 'repair', null), 'repair', none);
+    const mid = M.raceSentence(m, M.playState(s, 'repair', M.playPlan(s).winStart + 0.5), 'repair', none);
+    for (const t of [rest, mid]) check(t.includes(M.SPREAD) === m.spread, `a rebuild faster than one disk writes must say it is spread: ${JSON.stringify(s)}`);
+    if (m.spread) spreadAt.add(s.repair);
+    check(M.factsSentence(m, none, null).includes(`about ${M.formatFew(m.failsYear)} of them fail a year`), 'facts round failures a year as formatFew');
+    // The steps against the exact model: for copies they are the model exactly, so Describe says so; for codes its gap.
+    if (m.replicas) check(Math.abs(m.lead / (m.first * m.tail) - 1) < 1e-12 && /exactly/.test(M.exactWords(m)), `copies: lead = first x tail at ${JSON.stringify(s)}`);
+    else check(!/exactly/.test(M.exactWords(m)) && M.exactWords(m).includes(m.exactGap < 0 ? 'less here' : 'more here'), `codes: the exact gap's sign at ${JSON.stringify(s)}`);
+    // Step words: one form set a row, the same on the stage and in Describe; no "Any 2 of the 2 others"; short forms unique.
+    const rows = [...m.steps, { kind: 'final' }];
+    const shortest = rows.map((row) => M.stepWords(m, row).at(-1));
+    check(new Set(shortest).size === shortest.length, `step row headers repeat at ${JSON.stringify(s)}: ${shortest.join(' / ')}`);
+    for (const row of rows) for (const w of M.stepWords(m, row)) check(!/Any (\d+) of (the )?\1\b/.test(w), `"${w}"`);
+  }
+  console.log(`\nthe rebuild says "${M.SPREAD}" at repair times ${[...spreadAt].sort((a, b) => a - b).join(', ')} h (one disk writes ${M.DISK_WRITE_GBPS} Gb/s: a 20 TB disk alone takes ${M.ALONE_HOURS.toFixed(1)} h)`);
+  check([...spreadAt].every((h) => h < 24) && spreadAt.has(6) && spreadAt.has(1), 'spread exactly below 24 h');
+  // The challenge's clustered losses: objects a loss takes, by the product form of the same hypergeometric chance.
+  const m = r(M.CHALLENGE_SOLUTION);
+  const D = Math.round(m.disks);
+  let prod = 1;
+  for (let i = 0; i <= m.t; i++) prod *= (m.n - i) / (D - i);
+  check(Math.abs((prod * M.OBJECTS) / m.objectsPerLoss - 1) < 1e-9, 'objects a loss takes');
+  check(Math.abs((m.lossEventsYear * m.objectsPerLoss) / m.perBillion - 1) < 1e-12, 'events x objects = the yearly average');
+  const sl = M.EXPERIMENTS[5].slots();
+  console.log(`challenge: ${D} disks; a loss takes about ${sl.perLoss} objects, about once in ${sl.eventYears} years (${m.objectsPerLoss.toFixed(0)}, ${(1 / m.lossEventsYear).toExponential(2)})`);
+  check(sl.perLoss === '170,000' && sl.eventYears === '12 million', 'E6 cluster numbers');
+}
+
 // ---------------------------------------------------------------- formats at every setting
 for (const s of M.ALL_SETTINGS) {
   const m = r(s);
-  const said = [M.formatNines(m.nines), M.formatBillion(m.perBillion), M.oneIn(m.p), M.formatX(m.overhead), M.formatTB(m.rebuildTB), M.formatGbps(m.rebuildGbps), M.formatTB(m.rawTB), M.formatRate(m.first), M.oneIn(m.tail), M.formatCount(m.disks)];
-  for (const t of said) check(t && !/NaN|Infinity|undefined|^0 |e[+-]/.test(t), `format "${t}" at ${JSON.stringify(s)}`);
+  const said = [M.formatNines(m.nines), M.formatBillion(m.perBillion), M.oneIn(m.p), M.formatX(m.overhead), M.formatTB(m.rebuildTB), M.formatGbps(m.rebuildGbps), M.formatTB(m.rawTB), M.formatRate(m.first), M.oneIn(m.tail), M.formatCount(m.disks), M.formatFew(m.failsYear), M.exactWords(m), M.factsSentence(m, {}, null)];
+  for (const t of said) check(t && !/NaN|Infinity|undefined|^0 |\de[+-]\d|\u2014/.test(t), `format "${t}" at ${JSON.stringify(s)}`);
   check(/ (a year|years)$/.test(M.formatBillion(m.perBillion)), 'billion keeps its unit');
   check(/^1 in \d/.test(M.oneIn(m.p)), 'a chance is 1 in N');
   check(m.nines > 0 && m.nines < 25, `nines on the 0 to 25 scale at ${JSON.stringify(s)}`);
