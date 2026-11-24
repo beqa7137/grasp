@@ -153,6 +153,15 @@ const group = (failures, key) => {
       for (const k of group(r.failures, (f) => `W${f.W} ${f.s}`).slice(0, 10)) console.log(`  ${k.n} x ${k.eg}`);
       total += r.failures.length;
     }
+    // The play's clock at 0.05 steps, both disasters and the settings the experiments use: no word before its mark.
+    const motion = await page.evaluate(() => {
+      const B = window.RecoveryModel.BASE;
+      const list = [B, { ...B, disaster: 1 }, { ...B, size: 10000, restore: 50, base: 6, replay: 5 }, { ...B, disaster: 1, replay: 5, sync: 1 }, { ...B, size: 500, restore: 50, base: 1, archive: 10, replay: 20 }];
+      return window.motionSweep([252, 344, 620], list);
+    });
+    console.log(`the play's clock at 0.05 steps, no word or mark before its moment: ${motion.renders} renders, ${motion.failures.length} with findings`);
+    for (const k of group(motion.failures, (f) => `W${f.W} ${f.s}`).slice(0, 10)) console.log(`  ${k.n} x ${k.eg}`);
+    total += motion.failures.length;
     console.log(`most SVG elements in any render: ${await page.evaluate(() => window.__maxElements)}`);
     const hs = await page.evaluate((w) => window.heights(w), [248, 252, 270, 300, 322, 332, 344, 360, 380, 400, 460, 499, 520, 532, 560, 620, 700, 800]);
     console.log('stage heights by stage width (one value each means the height depends on the width alone):');
@@ -177,6 +186,17 @@ const group = (failures, key) => {
       if (r.page || r.nbs.length || !r.fits) total++;
       await p.close();
     }
+    // The question's box across asking, playing and revealed, and tabular digits kept off prose, at a desktop and a phone.
+    for (const width of [1280, 390]) {
+      const p = await browser.newPage({ viewport: { width, height: 900 } });
+      await p.goto(`${base}?state=default`);
+      await p.waitForSelector('body[data-ready="1"]');
+      const shift = await p.evaluate(() => window.dockShift());
+      const tnum = await p.evaluate(() => window.proseDigits());
+      console.log(`the dock at ${width}: ${shift.length ? shift.join('; ') : 'the question keeps its box in every phase'}; ${tnum.length ? tnum.join('; ') : 'no prose has tabular digits'}`);
+      total += shift.length + tnum.length;
+      await p.close();
+    }
     // The whole widget's height at the phone widths, for widget-heights.ts (a guide: the build measures its own).
     const hp = await browser.newPage({ viewport: { width: 320, height: 900 } });
     const wh = [];
@@ -191,6 +211,15 @@ const group = (failures, key) => {
   }
   await browser.close();
   server.close();
+  // The shot set must match the mockup: every shot is newer than mockup.html and model.js.
+  if (shots) {
+    const newest = Math.max(...['mockup.html', 'model.js'].map((f) => fs.statSync(path.join(DIR, f)).mtimeMs));
+    const stale = fs.readdirSync(path.join(DIR, 'shots')).filter((f) => f.endsWith('.png') && fs.statSync(path.join(DIR, 'shots', f)).mtimeMs < newest);
+    if (stale.length && !opt('only') && !opt('widths')) {
+      console.log(`${stale.length} screenshots older than the mockup (e.g. ${stale[0]}): remove or reshoot them`);
+      total += stale.length;
+    }
+  }
   for (const e of errors) console.log(`page error: ${e}`);
   console.log(`\n${total + errors.length} findings in all.`);
   process.exit(total + errors.length ? 1 : 0);

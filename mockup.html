@@ -369,7 +369,8 @@
         stroke: var(--g-accent);
         stroke-width: 1.5;
       }
-      .play path {
+      .play path,
+      .play rect {
         fill: var(--g-accent);
       }
       .play:disabled {
@@ -400,6 +401,10 @@
         letter-spacing: 0.12em;
         text-transform: uppercase;
         fill: var(--g-muted);
+      }
+      /* A unit keeps its case inside a capitalised label ("2.9 h", "10 GB/min"). */
+      .t-unit {
+        text-transform: none;
       }
       .t-cap {
         font: 500 var(--g-text-body-s) var(--g-font);
@@ -456,8 +461,24 @@
       }
       .legend {
         margin: 0 0 4px;
+        padding: 0;
         font-weight: 600;
         line-height: 1.45;
+      }
+      /* The question keeps one box in every phase (asking, playing, revealed), so it never rewraps under a finger. */
+      fieldset.ask {
+        border: 0;
+        padding: 0;
+        margin: 0;
+        min-width: 0;
+      }
+      fieldset.ask > legend.legend {
+        display: block;
+        width: 100%;
+        float: left;
+      }
+      fieldset.ask > legend.legend + * {
+        clear: both;
       }
       .options {
         list-style: none;
@@ -525,7 +546,6 @@
         display: grid;
         gap: 4px;
         font: 600 var(--g-text-body-s) var(--g-font);
-        font-variant-numeric: tabular-nums;
         color: var(--g-muted);
       }
       .status li {
@@ -631,6 +651,10 @@
         width: 100%;
         border-collapse: collapse;
         font: 500 var(--g-text-body-s) var(--g-font);
+      }
+      /* Tabular digits only where figures align in a column, never on prose (they spread its hyphens). */
+      td.num,
+      th.num {
         font-variant-numeric: tabular-nums;
       }
       th,
@@ -836,10 +860,27 @@
       .drop-tick {
         fill: var(--g-viz-critical);
       }
+      /* Stroke only: the backup box or archived log a ring stands on stays visible inside it. */
       .ring {
-        fill: var(--g-viz-stage);
+        fill: none;
         stroke: var(--g-text);
         stroke-width: 2;
+      }
+      .comb-solid {
+        fill: var(--g-viz-considering);
+      }
+      .more {
+        fill: none;
+        stroke: var(--g-muted);
+        stroke-width: 1.5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      svg.draw .muted {
+        fill: var(--g-muted);
+      }
+      svg.draw .ink {
+        fill: var(--g-text);
       }
       .seg-restore {
         fill: var(--g-viz-current);
@@ -847,7 +888,8 @@
       .seg-replay {
         fill: var(--g-viz-considering);
       }
-      .seg-promote {
+      .seg-promote,
+      .seg-copyBack {
         fill: var(--g-viz-final);
       }
       .serve {
@@ -1094,6 +1136,8 @@
           allRto: h.has('rtoAfter') && playing,
           // A hidden bar's dashed box spans the whole axis, never the hidden time.
           boxFull: true,
+          // While a hidden region's answer plays, its outcome marks (ring, hatch, cross, green dot) wait for the reveal.
+          outcomesHeld: playing,
           ghost: open,
           locked: open,
         };
@@ -1106,54 +1150,76 @@
       const marksHidden = (hid, p) => (p === 'standby' && hid.standbyMarks) || (p === 'delayed' && hid.delayedMarks);
       const anyTimeHidden = (hid) => M.PLANS.some((p) => rtoHidden(hid, p));
 
-      // ---------- The words: plan names, what each plan loses and when it serves, its note and its ledger.
+      // ---------- The words: plan names, what each plan loses and when it is back, its note and its ledger. After a
+      // drop the primary keeps serving: plans recover beside it and copy the table back, so no drop word says a plan
+      // serves again or is promoted (worked example 2).
       const NAMES = {
         primary: () => ['Primary'],
-        full: () => ['Full backups', 'Full backups'],
+        full: () => ['Full backups'],
         pitr: () => ['Point-in-time recovery', 'Point-in-time'],
         standby: (s) => (s.sync ? ['Standby, synchronous', 'Sync standby', 'Standby'] : ['Standby, asynchronous', 'Async standby', 'Standby']),
         delayed: () => [`Delayed replica, ${span(M.DELAY_H * 3600)} behind`, 'Delayed replica'],
       };
+      const SHORT_NAMES = { full: 'Full backups', pitr: 'Point-in-time', standby: 'Standby', delayed: 'Delayed replica' };
       const lossWords = (p) => (!p.recovers ? 'cannot bring it back' : p.rpoS === 0 ? 'loses nothing' : `loses ${span(p.rpoS)}`);
-      const serveWords = (p) => (!p.recovers ? 'never' : `back in ${rtoSpan(p.rtoMin)}`);
-      function aNote(key, m, hid) {
+      const backIn = (drop) => (drop ? 'table back in' : 'back in');
+      const serveWords = (p, drop) => (!p.recovers ? 'never' : `${backIn(drop)} ${rtoSpan(p.rtoMin)}`);
+      /** A value's forms, longest first; a ghost's "was" is its own part, set in the muted ink. */
+      const withGhost = (v, short, was) => (was === null ? [v, short] : [`${v} · was ${was}`, `${short} · was ${was}`, v, short]);
+      function aNote(key, m, hid, struck) {
         const s = m.settings;
         const drop = s.disaster === DROP;
         const lag = span(M.LAG_S);
+        const every = span(s.base * 3600);
         switch (key) {
           case 'primary':
-            return [drop ? 'takes writes all day; a table is dropped at the worst moment' : 'takes writes all day; its disks fail at the worst moment', drop ? 'a table is dropped at the worst moment' : 'its disks fail at the worst moment'];
+            if (!struck) return ['takes writes all day'];
+            return drop ? ['keeps serving; only the table is gone', 'only the table is gone'] : ['takes writes all day; its disks fail at the worst moment', 'its disks fail at the worst moment'];
           case 'full':
-            return [`a full copy every ${span(s.base * 3600)}, in another account`, `a full copy every ${span(s.base * 3600)}`];
+            return drop && struck ? [`a full copy every ${every}: the table as it was then`, `a full copy every ${every}`] : [`a full copy every ${every}, in another account`, `a full copy every ${every}`];
           case 'pitr':
             return [`the base backup, then the log archived every ${span(s.archive)}`, `base backup, log every ${span(s.archive)}`];
           case 'standby': {
-            if (drop && !hid.standbyWords) return s.sync ? ['applies every change with the primary: the drop too', 'applies the drop too'] : [`applies every change ${lag} after the primary: the drop too`, 'applies the drop too'];
+            if (drop && struck && !hid.standbyWords) return s.sync ? ['applies every change with the primary: the drop too', 'applies the drop too'] : [`applies every change ${lag} after the primary: the drop too`, 'applies the drop too'];
             return s.sync ? ['the primary waits for it on every commit', 'confirms every commit'] : [`applies every change ${lag} after the primary`, `${lag} behind the primary`];
           }
           case 'delayed': {
-            if (drop && !hid.delayedWords) return [`the drop waits in its log for ${span(M.DELAY_H * 3600)} before it applies`, `the drop waits ${span(M.DELAY_H * 3600)} in its log`];
+            if (drop && struck && !hid.delayedWords) return [`the drop waits in its log for ${span(M.DELAY_H * 3600)} before it applies`, `the drop waits ${span(M.DELAY_H * 3600)} in its log`];
             return [`receives the log ${lag} after the primary, applies it ${span(M.DELAY_H * 3600)} later`, `log in ${lag}, applied ${span(M.DELAY_H * 3600)} later`];
           }
         }
       }
-      function bLedger(key, m) {
+      /** The ledger's steps, each with its minutes, and the total where there is one. */
+      function ledgerParts(key, m) {
         const s = m.settings;
         const p = m.plans[key];
         const drop = s.disaster === DROP;
         const to = drop ? ' to just before the drop' : '';
+        const copy = drop ? [['copy the table back', M.COPY_BACK_MIN]] : [];
         switch (key) {
           case 'full':
-            return `restore ${fSize(s.size)} at ${fSpeed(s.restore)}: ${fMin(m.restoreMin)}`;
+            return { steps: [[`restore ${fSize(s.size)}${drop ? ' beside the primary' : ''} at ${fSpeed(s.restore)}`, m.restoreMin], ...copy], total: false };
           case 'pitr':
-            return `restore: ${fMin(m.restoreMin)}; replay ${span(s.base * 3600)} of log${to} at ${fTimes(s.replay)}: ${fMin(m.replayMin)}; ${fMin(p.rtoMin)} in all`;
+            return { steps: [[drop ? 'restore beside the primary' : 'restore', m.restoreMin], [`replay ${span(s.base * 3600)} of log${to} at ${fTimes(s.replay)}`, m.replayMin], ...copy], total: true };
           case 'standby':
-            return p.recovers ? `promote it: ${fMin(M.PROMOTE_MIN)}` : 'it has applied the drop too: no copy without it';
+            return p.recovers ? { steps: [['promote it', M.PROMOTE_MIN]], total: false } : { fixed: 'it has applied the drop too: no copy without it' };
           case 'delayed':
-            return `replay its ${span(M.DELAY_H * 3600)} of log${to} at ${fTimes(s.replay)}: ${fMin(m.delayedReplayMin)}; promote it: ${fMin(M.PROMOTE_MIN)}`;
+            return { steps: [[`${drop ? 'pause it, replay' : 'replay'} its ${span(M.DELAY_H * 3600)} of log${to} at ${fTimes(s.replay)}`, m.delayedReplayMin], drop ? ['copy the table back', M.COPY_BACK_MIN] : ['promote it', M.PROMOTE_MIN]], total: false };
         }
       }
-      const HIDDEN_TIME = 'Its time to serve again shows after your answer.';
+      /** The ledger as printed once the recovery clock stands at `passed` minutes: a step's minutes land when it ends. */
+      function bLedger(key, m, passed = Infinity) {
+        const L = ledgerParts(key, m);
+        if (L.fixed) return passed >= 0 ? L.fixed : '';
+        let t = 0;
+        const out = L.steps.map(([label, min]) => {
+          t += min;
+          return `${label}: ${passed >= t ? fMin(min) : '…'}`;
+        });
+        if (L.total && passed >= t) out.push(`${fMin(t)} in all`);
+        return out.join('; ');
+      }
+      const hiddenTime = (drop) => (drop ? 'Whether and when it gets the table back shows after your answer.' : 'Its time to serve again shows after your answer.');
       const HIDDEN_OUTCOME = 'What it can bring back shows after your answer.';
       const workload = (s) =>
         s.disaster === DROP
@@ -1161,34 +1227,38 @@
           : `A ${fSize(s.size)} database takes writes all day. Its disks fail at the worst moment: just before the next full backup and the next log archive.`;
       const REST_STEP = 'Each plan is judged by two numbers: the writes it loses (RPO) and the time until it serves again (RTO).';
 
-      // ---------- The play: one clock (0 to 1). A mark shows once the clock has reached its moment, so nothing is
-      // drawn for an event before it happens (prevention 6). The history sweeps the day before the disaster, right to
-      // left in age (left to right on the stage), the disaster strikes, each plan's recovery point lands, then the
-      // recovery clock runs on the after axis until the last plan serves.
+      // ---------- The play: one clock (0 to 1). A mark and its words show once the clock has reached their moment, so
+      // nothing is drawn or said for an event before it happens (prevention 6): the primary's value and the disaster's
+      // name at the strike, each row's loss with its ring, block B's values from the recovery's start ("recovering"),
+      // a ledger step's minutes as the playhead passes its end, and "in all" with the green dot.
       const PLAN = { historyEnd: 0.2, strike: 0.24, points: [0.3, 0.33, 0.36, 0.39], recoverStart: 0.44, recoverEnd: 0.96 };
+      const pointOf = (key) => (key === 'primary' ? PLAN.strike : PLAN.points[M.PLANS.indexOf(key)]);
       const SECONDS = 7.5;
+      const HISTORY_STEP = 'The day before: full backups, the archived log and both replicas copy every write.';
+      const POINTS_STEP = "Each plan's recovery point: the newest moment it can bring back.";
+      const after = (drop) => (drop ? 'after the drop' : 'after the disaster');
+      function lastPlan(m) {
+        return M.PLANS.filter((p) => m.plans[p].recovers).reduce((a, p) => (m.plans[p].rtoMin > m.plans[a].rtoMin ? p : a));
+      }
       function stepOf(m, frac, hid) {
         const s = m.settings;
+        const drop = s.disaster === DROP;
         if (frac === null) return REST_STEP;
-        if (frac < PLAN.historyEnd) return 'The day before: full backups, the archived log and both replicas copy every write.';
-        if (frac < PLAN.points[0]) return s.disaster === DROP ? 'A table is dropped, and every copy that applies the change loses it too.' : 'The disks fail: everything on the primary is gone.';
-        if (frac < PLAN.recoverStart) return "Each plan's recovery point: the newest moment it can bring back.";
-        const at = recoverMinAt(m, frac);
-        if (frac < PLAN.recoverEnd) return anyTimeHidden(hid) ? 'Recovering, on the clock after the disaster.' : `Recovering: ${rtoSpan(Math.round(at))} after the disaster.`;
+        if (frac < PLAN.historyEnd) return HISTORY_STEP;
+        if (frac < PLAN.points[0]) return drop ? 'A table is dropped, and every copy that applies the change loses it too.' : 'The disks fail: everything on the primary is gone.';
+        if (frac < PLAN.recoverStart) return POINTS_STEP;
+        if (frac < PLAN.recoverEnd) return anyTimeHidden(hid) ? `Recovering ${after(drop)}: the times show after your answer.` : `Recovering: ${rtoSpan(Math.round(recoverMinAt(m, frac)))} ${after(drop)}.`;
         if (anyTimeHidden(hid)) return 'The recovery is over.';
-        const last = M.PLANS.filter((p) => m.plans[p].recovers).reduce((a, p) => (m.plans[p].rtoMin > m.plans[a].rtoMin ? p : a), 'standby' in m.plans && m.plans.standby.recovers ? 'standby' : 'delayed');
-        return `${NAMES[last](s)[0].split(',')[0]} serves last, ${rtoSpan(m.plans[last].rtoMin)} after the disaster.`;
+        const last = lastPlan(m);
+        const name = NAMES[last](s)[0].split(',')[0];
+        return drop ? `${name} gets the table back last, ${rtoSpan(m.plans[last].rtoMin)} after the drop.` : `${name} serves last, ${rtoSpan(m.plans[last].rtoMin)} after the disaster.`;
       }
-      /** Minutes after the disaster that the playhead stands at: x-uniform across the after axis, up to the last plan. */
-      function recoverX(frac, bx0, bx1, m) {
-        const end = M.afterX(m.lastRtoMin, bx0, bx1);
-        const f = Math.min(1, Math.max(0, (frac - PLAN.recoverStart) / (PLAN.recoverEnd - PLAN.recoverStart)));
-        return bx0 + f * (end - bx0);
-      }
-      function recoverMinAt(m, frac) {
-        const x = recoverX(frac, 0, 1000, m);
-        return x <= M.zoomShare * 1000 ? (x / (M.zoomShare * 1000)) * 60 : 60 + ((x - M.zoomShare * 1000) / (1000 - M.zoomShare * 1000)) * 23 * 60;
-      }
+      const allSteps = () => [REST_STEP, HISTORY_STEP, 'A table is dropped, and every copy that applies the change loses it too.', POINTS_STEP, 'Point-in-time recovery gets the table back last, 21.5 h after the drop.', 'Recovering after the disaster: the times show after your answer.', 'Recovering: 99 min after the disaster.'];
+      /** The recovery clock: the playhead runs at a uniform speed from 0 to the last plan's time (the axis is linear). */
+      const recoverFrac = (frac) => Math.min(1, Math.max(0, (frac - PLAN.recoverStart) / (PLAN.recoverEnd - PLAN.recoverStart)));
+      const recoverMinAt = (m, frac) => recoverFrac(frac) * m.lastRtoMin;
+      /** Minutes the recovery clock has passed: Infinity at rest, below 0 before the recovery starts. */
+      const passedMin = (m, frac) => (frac === null ? Infinity : frac < PLAN.recoverStart ? -1 : frac >= PLAN.recoverEnd ? Infinity : recoverMinAt(m, frac));
 
       // ---------- The sentences off the stage.
       function story(m, hid = NOTHING_HIDDEN) {
@@ -1196,29 +1266,38 @@
         const P = m.plans;
         const out = [];
         const drop = s.disaster === DROP;
-        out.push(drop ? `A table is dropped just before the next full backup of this ${fSize(s.size)} database.` : `The disks of this ${fSize(s.size)} database fail just before the next full backup and the next log archive.`);
-        out.push(`Full backups lose up to ${span(P.full.rpoS)} of writes and serve again in ${rtoSpan(P.full.rtoMin)}, restoring ${fSize(s.size)} at ${fSpeed(s.restore)}.`);
-        const pitrLoss = hid.pitrRpo ? 'loses what its last archive missed' : drop ? 'replays to just before the drop and loses nothing' : `loses up to ${span(P.pitr.rpoS)}, the log not yet archived`;
-        out.push(hid.pitrRto ? `Point-in-time recovery ${pitrLoss}; it restores the same base backup, then replays the log since it.` : `Point-in-time recovery ${pitrLoss}; it restores the same base backup, then replays ${span(s.base * 3600)} of log at ${fTimes(s.replay)}, and serves in ${rtoSpan(P.pitr.rtoMin)}.`);
+        if (drop) {
+          out.push(`A table is dropped just before the next full backup of this ${fSize(s.size)} database, and the primary keeps serving.`);
+          out.push(`Full backups lose up to ${span(P.full.rpoS)} of the table's writes and get the table back in ${rtoSpan(P.full.rtoMin)}, restoring ${fSize(s.size)} beside the primary at ${fSpeed(s.restore)} and copying the table back.`);
+          out.push(hid.pitrRto ? 'Point-in-time recovery replays to just before the drop and loses nothing; it restores the same base backup beside the primary, then replays the log since it.' : `Point-in-time recovery replays to just before the drop and loses nothing; it restores the same base backup beside the primary, then replays ${span(s.base * 3600)} of log at ${fTimes(s.replay)}, and gets the table back in ${rtoSpan(P.pitr.rtoMin)}.`);
+        } else {
+          out.push(`The disks of this ${fSize(s.size)} database fail just before the next full backup and the next log archive.`);
+          out.push(`Full backups lose up to ${span(P.full.rpoS)} of writes and serve again in ${rtoSpan(P.full.rtoMin)}, restoring ${fSize(s.size)} at ${fSpeed(s.restore)}.`);
+          const pitrLoss = hid.pitrRpo ? 'loses what its last archive missed' : `loses up to ${span(P.pitr.rpoS)}, the log not yet archived`;
+          out.push(hid.pitrRto ? `Point-in-time recovery ${pitrLoss}; it restores the same base backup, then replays the log since it.` : `Point-in-time recovery ${pitrLoss}; it restores the same base backup, then replays ${span(s.base * 3600)} of log at ${fTimes(s.replay)}, and serves in ${rtoSpan(P.pitr.rtoMin)}.`);
+        }
         if (hid.standbyWords) out.push('What the standby can bring back shows after your answer.');
         else if (!P.standby.recovers) out.push(`The standby applies the drop ${s.sync ? 'with the primary' : `${span(M.LAG_S)} after it`} and cannot bring the table back.`);
         else out.push(hid.allRto ? `The standby loses ${P.standby.rpoS ? span(P.standby.rpoS) : 'nothing'} and is promoted.` : `The standby loses ${P.standby.rpoS ? `its ${span(P.standby.rpoS)} of lag` : 'nothing'} and is promoted in ${fMin(M.PROMOTE_MIN)}.`);
         if (hid.delayedWords) out.push('What the delayed replica can bring back shows after your answer.');
-        else if (drop) out.push(hid.allRto ? `The delayed replica holds the drop in its log for ${span(M.DELAY_H * 3600)}: stopped in time, it loses nothing.` : `The delayed replica holds the drop in its log for ${span(M.DELAY_H * 3600)}: stopped in time, it loses nothing and serves in ${rtoSpan(P.delayed.rtoMin)}.`);
+        else if (drop) out.push(hid.allRto ? `The delayed replica holds the drop in its log for ${span(M.DELAY_H * 3600)}: paused in time, it loses nothing.` : `The delayed replica holds the drop in its log for ${span(M.DELAY_H * 3600)}: paused in time, it loses nothing and gets the table back in ${rtoSpan(P.delayed.rtoMin)}.`);
         else out.push(hid.allRto ? `The delayed replica loses the same ${span(P.delayed.rpoS)} once it has applied the hour it holds.` : `The delayed replica loses the same ${span(P.delayed.rpoS)} and serves in ${rtoSpan(P.delayed.rtoMin)}, once it has applied the hour it holds.`);
         return out.join(' ');
       }
-      function settingSentence(m, hid = NOTHING_HIDDEN) {
+      function settingSentence(m) {
         const s = m.settings;
         const P = m.plans;
+        const drop = s.disaster === DROP;
         // "Full backups" is plural: its verbs agree.
         const one = (key, name, many = false) => {
           const p = P[key];
           if (!p.recovers) return `${name} cannot bring the table back`;
-          const loss = p.rpoS === 0 ? (many ? 'lose nothing' : 'loses nothing') : `${many ? 'lose' : 'loses'} up to ${span(p.rpoS)}`;
-          return `${name} ${loss} and ${many ? 'serve' : 'serves'} again in ${rtoSpan(p.rtoMin)}`;
+          const of = drop && key === 'full' ? " of the table's writes" : '';
+          const loss = p.rpoS === 0 ? (many ? 'lose nothing' : 'loses nothing') : `${many ? 'lose' : 'loses'} up to ${span(p.rpoS)}${of}`;
+          const back = drop ? `${many ? 'get' : 'gets'} the table back in` : `${many ? 'serve' : 'serves'} again in`;
+          return `${name} ${loss} and ${back} ${rtoSpan(p.rtoMin)}`;
         };
-        const lead = s.disaster === DROP ? `With ${fSize(s.size)} and a table dropped` : `With ${fSize(s.size)} and the disks lost`;
+        const lead = drop ? `With ${fSize(s.size)} and a table dropped` : `With ${fSize(s.size)} and the disks lost`;
         return `${lead}, ${one('full', 'full backups', true)}; ${one('pitr', 'point-in-time recovery')}; ${one('standby', s.sync ? 'the synchronous standby' : 'the standby')}; ${one('delayed', 'the delayed replica')}.`;
       }
       function summary(m, hid) {
@@ -1228,40 +1307,43 @@
         const parts = [];
         parts.push(`A timeline of one disaster and four recovery plans for a ${fSize(s.size)} database ${drop ? 'in which a table is dropped' : 'whose disks fail'} at the worst moment.`);
         const before = [];
-        before.push(`full backups every ${span(s.base * 3600)} lose up to ${span(P.full.rpoS)}`);
+        before.push(`full backups every ${span(s.base * 3600)} lose up to ${span(P.full.rpoS)}${drop ? " of the table's writes" : ''}`);
         before.push(hid.pitrRpo ? 'point-in-time recovery, the base backup plus the archived log: its loss shows after your answer' : `point-in-time recovery, the base backup plus the log archived every ${span(s.archive)}, ${P.pitr.rpoS ? `loses up to ${span(P.pitr.rpoS)}` : 'loses nothing'}`);
         before.push(hid.standbyWords ? 'the standby: what it can bring back shows after your answer' : `the ${s.sync ? 'synchronous' : 'asynchronous'} standby ${lossWords(P.standby).replace('loses ', P.standby.rpoS ? 'loses up to ' : 'loses ')}`);
         before.push(hid.delayedWords ? 'the delayed replica: what it can bring back shows after your answer' : `the delayed replica, ${span(M.DELAY_H * 3600)} behind, ${P.delayed.rpoS ? `loses up to ${span(P.delayed.rpoS)}` : 'loses nothing'}`);
         parts.push(`Before the disaster, on a log scale: ${before.join('; ')}.`);
-        const after = M.PLANS.map((k) => {
+        const afterIt = M.PLANS.map((k) => {
           const name = { full: 'full backups', pitr: 'point-in-time recovery', standby: 'the standby', delayed: 'the delayed replica' }[k];
           if (rtoHidden(hid, k)) return `${name}: after your answer`;
           return P[k].recovers ? `${name} in ${rtoSpan(P[k].rtoMin)}` : `${name} never`;
         });
-        parts.push(`After it, serving again: ${after.join('; ')}.`);
+        parts.push(`${drop ? 'After it, getting the table back' : 'After it, serving again'}: ${afterIt.join('; ')}.`);
         parts.push('A schematic, worst-case model.');
         return parts.join(' ');
       }
       const MODEL_NOTE =
-        'A schematic model, worst case: the disaster strikes just before the next full backup and the next log archive. Restores copy at a fixed speed; the log replays at a fixed multiple of the speed it was written; the standby runs a fixed 5 s behind and a promotion takes 1 min; the delayed replica receives the log 5 s behind and applies it 1 h behind, and the drop is noticed within that hour. The clocks start when recovery starts: noticing the disaster, checking the data and repointing the application add to them.';
+        'A schematic model, worst case: the disaster strikes just before the next full backup and the next log archive. Restores copy at a fixed speed; the log replays at a fixed multiple of the speed it was written; the standby runs a fixed 5 s behind and a promotion takes 1 min; the delayed replica receives the log 5 s behind and applies it 1 h behind, and the drop is noticed within that hour. After a drop the primary keeps serving: each plan recovers beside it, and copying the table back takes 1 min. Lower RPO and RTO cost more: more frequent full backups read the primary more often, and a sync standby adds a round trip to every commit. The clocks start when recovery starts: noticing the disaster, checking the data and repointing the application add to them.';
       const noteOf = (view) => (hiding(view).locked ? 'A schematic model. Its assumptions show after your answer.' : MODEL_NOTE);
 
       // ---------- The stage.
-      const ROW_GAP = 22;
+      const ROW_GAP = 28;
+      const RING_R = 7;
+      const BOX = { w: 3, h: 7 };
       function rowHeight(noteLines) {
         return 45 + 14 * (noteLines - 1);
       }
-      /** Name left, value right on one line: the longest pair of forms that fits, with the value's form kept whole. */
-      function nameValue(D, x0, x1, y, names, values, nameCls, valueCls, owner, id) {
-        for (const v of values)
-          for (const n of names) {
-            if (tw(n, 'capB') + 10 + tw(v, 'capB') <= x1 - x0) {
-              D.text(x0, y, [[n, 'capB', 'ink']], { owner, id: `${id}-name` });
-              D.text(x1, y, [[v, 'capB', valueCls]], { anchor: 'end', owner, id: `${id}-value` });
-              return;
-            }
+      /** Name left, value right on one line; the value's longest form that fits beside the width's chosen name. */
+      function nameValue(D, x0, x1, y, name, values, valueCls, owner, id) {
+        D.text(x0, y, [[name, 'capB', 'ink']], { owner, id: `${id}-name` });
+        if (!values.length) return;
+        for (const v of values) {
+          if (tw(name, 'capB') + 10 + tw(v, 'capB') <= x1 - x0) {
+            const [now, was] = v.split(' · was ');
+            D.text(x1, y, was === undefined ? [[now, 'capB', valueCls]] : [[now, 'capB', valueCls], [` · was ${was}`, 'capB', 'muted']], { anchor: 'end', owner, id: `${id}-value` });
+            return;
           }
-        D.missing.push(`${names[0]} / ${values[0]}`);
+        }
+        D.missing.push(`${name} / ${values[0]}`);
       }
       const pickFits = (forms, role, w) => forms.find((f) => tw(f, role) <= w) ?? null;
       /** The lines a wrapped text takes, reserved over every setting at this width, so no setting moves the stage. */
@@ -1270,6 +1352,35 @@
         const k = `${key}|${W}`;
         if (!reserveCache.has(k)) reserveCache.set(k, Math.max(...M.ALL_SETTINGS.map((s) => f(M.run(s)))));
         return reserveCache.get(k);
+      }
+      /** Each plan's name form is chosen once per width: the longest that leaves room for its shortest value in both
+       *  blocks at every setting, so a row reads as the same plan in A and B. */
+      const nameCache = new Map();
+      function nameFor(key, s, W, availA, availB) {
+        const k = `${key}|${W}`;
+        if (!nameCache.has(k)) {
+          const n = NAMES[key](M.BASE).length;
+          let pick = n - 1;
+          for (let i = 0; i < n; i++) {
+            const ok = M.ALL_SETTINGS.every((ss) => {
+              const mm = M.run(ss);
+              const nm = NAMES[key](ss)[Math.min(i, NAMES[key](ss).length - 1)];
+              const minA = key === 'primary' ? tw(ss.disaster === DROP ? 'table dropped' : 'disks lost', 'capB') : Math.min(tw(lossWords(mm.plans[key]), 'capB'));
+              if (tw(nm, 'capB') + 10 + minA > availA) return false;
+              if (key === 'primary') return true;
+              const p = mm.plans[key];
+              const minB = Math.max(tw('recovering', 'capB'), tw(p.recovers ? rtoSpan(p.rtoMin) : 'never', 'capB'));
+              return tw(nm, 'capB') + 10 + minB <= availB;
+            });
+            if (ok) {
+              pick = i;
+              break;
+            }
+          }
+          nameCache.set(k, pick);
+        }
+        const forms = NAMES[key](s);
+        return forms[Math.min(nameCache.get(k), forms.length - 1)];
       }
 
       function buildStage(W, m, view) {
@@ -1282,6 +1393,8 @@
         const frac = view.play ? view.play.frac : null;
         const at = (t) => frac === null || frac >= t;
         const challenge = view.phase === 'challenge';
+        const playingPhase = view.phase === 'playing';
+        const struck = at(PLAN.strike);
         let y = PAD;
 
         // Header: the title and Play, the workload, the step.
@@ -1298,24 +1411,21 @@
         const stepW = W - 2 * PAD;
         const step = view.reduced && view.played ? 'Written below the picture.' : stepOf(m, frac, hid);
         const stepLines = wrap(step, 'cap', stepW);
-        const allSteps = [REST_STEP, 'The day before: full backups, the archived log and both replicas copy every write.', 'A table is dropped, and every copy that applies the change loses it too.', "Each plan's recovery point: the newest moment it can bring back.", 'Point-in-time recovery serves last, 21.5 h after the disaster.', 'Recovering: 99 min after the disaster.'];
-        const stLines = Math.max(...allSteps.map((t) => wrap(t, 'cap', stepW).length));
+        const stLines = Math.max(...allSteps().map((t) => wrap(t, 'cap', stepW).length));
         stepLines.forEach((l, i) => D.text(PAD, y + 20 + i * 18, [[l, 'cap', 'ink']], { owner: 'head', id: i === 0 ? 'step' : undefined }));
         y += 20 + (stLines - 1) * 18 + 16;
         D.add('grid', line('rule', PAD, y, W - PAD, y));
         y += 18;
 
-        // ---- Block A: what each plan loses, on a log scale of the time before the disaster.
-        const ax0 = PAD;
+        // ---- Block A: what each plan loses, on a log scale of the time before the disaster. The axis starts a ring's
+        // radius in, so a ring at 24 h stays over the track.
+        const ax0 = PAD + RING_R + 1;
         const xNow = W - PAD - 6;
         const GAP = 14;
+        const ZERO_X = xNow - 10;
         const bx = (sec) => M.beforeX(sec, ax0, xNow, GAP);
-        const blockA0 = y;
-        const headA = 'What each plan loses · RPO';
-        const subA = 'Time before the disaster, log scale';
-        const subA2 = 'Before the disaster, log scale';
-        y = labelRow(D, PAD, W - PAD, y, headA, [subA, subA2], 'a-head');
-        // Ticks: the most that keep 6 px apart.
+        const availA = xNow - 10 - PAD;
+        y = labelRow(D, PAD, W - PAD, y, 'What each plan loses · RPO', ['Time before the disaster, log scale', 'Before the disaster, log scale'], 'a-head');
         const TICKS_A = [
           [86400, '24 h'],
           [6 * 3600, '6 h'],
@@ -1327,24 +1437,21 @@
         ];
         const tickY = y + 10;
         const goalA = challenge ? 60 : null;
+        const disasterLabel = drop ? 'drop' : 'disks fail';
+        const dlW = Math.max(tw('drop', 'label'), tw('disks fail', 'label'));
+        if (struck) D.text(W - PAD, tickY, [[disasterLabel, 'label', 'lost-ink']], { anchor: 'end', owner: 'strike', id: 'strike-label' });
+        // Ticks keep 10 px from the disaster's name, and the same ticks show before it strikes.
         const ticksA = fitTicks(
           TICKS_A.map(([sec, t]) => ({ x: bx(sec), t: sec === goalA ? `${t} goal` : t, sec, goal: sec === goalA })),
           ax0,
-          xNow - 4,
-          [86400, 3600, 60, 1].concat(goalA ? [goalA] : []),
+          W - PAD - dlW - 10,
+          [86400, 3600, 60].concat(goalA ? [goalA] : []),
         );
-        const disasterLabel = drop ? 'drop' : 'disks fail';
-        const dl = D.text(W - PAD, tickY, [[disasterLabel, 'label', 'lost-ink']], { anchor: 'end', owner: 'strike', id: 'strike-label' });
-        for (const t of ticksA) {
-          if (t.x + tw(t.t, 'small') / 2 > dl.x0 - 6) continue;
-          D.text(t.x, tickY, [[t.t, t.goal ? 'smallB' : 'small', t.goal ? 'accent-ink' : 'muted']], { anchor: t.sec === 86400 ? 'start' : 'middle', owner: 'axis-a', data: ` data-xtick="1" data-tick="${r1(t.x)}" data-anchor="${t.sec === 86400 ? 'start' : 'middle'}"` });
-        }
+        for (const t of ticksA) D.text(t.x, tickY, [[t.t, t.goal ? 'smallB' : 'small', t.goal ? 'accent-ink' : 'muted']], { anchor: t.sec === 86400 ? 'start' : 'middle', owner: 'axis-a', data: ` data-xtick="1" data-tick="${r1(t.x)}" data-anchor="${t.sec === 86400 ? 'start' : 'middle'}"` });
         y = tickY + 16;
         const rowsTop = y;
-        const rowsA = ['primary', 'full', 'pitr', 'standby', 'delayed'];
-        const gridXs = ticksA.map((t) => t);
         const rowBoxes = {};
-        for (const key of rowsA) {
+        for (const key of ['primary', 'full', 'pitr', 'standby', 'delayed']) {
           const r0 = y;
           const trackY = y + 17;
           const th = 12;
@@ -1353,13 +1460,16 @@
           const plan = P[key];
           const wordsHidden = key !== 'primary' && rpoHidden(hid, key);
           const marksOff = key !== 'primary' && marksHidden(hid, key);
-          // Grid ticks only across the track, so no grid line runs through a label.
-          for (const t of gridXs) D.add('grid', line(t.goal ? 'goal-line' : 'grid', t.x, trackY - 2, t.x, trackY + th + 2, ' data-grid="a"'));
+          // While a hidden region's answer plays, its mechanism is drawn and its outcome (ring, hatch, cross) held.
+          const outcomeHeld = wordsHidden && playingPhase && hid.outcomesHeld;
+          const valueOn = at(pointOf(key));
+          const rings = [];
           D.add('grid', line('track', ax0, trackY + th + 0.5, xNow, trackY + th + 0.5));
-          const names = NAMES[key](s);
-          let value;
+          const name = nameFor(key, s, W, availA, W - 2 * PAD);
+          let value = [];
           let valueCls = 'ink';
-          if (key === 'primary') {
+          if (!valueOn) value = [];
+          else if (key === 'primary') {
             value = [drop ? 'table dropped' : 'disks lost'];
             valueCls = 'lost-ink';
           } else if (wordsHidden) {
@@ -1368,22 +1478,24 @@
           } else {
             const v = lossWords(plan);
             const ghost = ghostOf(view, hid, key, 'rpoS');
-            value = ghost !== null ? [`${v} · was ${span(ghost)}`, `${v.replace('loses ', '')} · was ${span(ghost)}`, v] : [v];
+            value = ghost === null ? [v] : [`${v} · was ${span(ghost)}`, `${v.replace('loses ', '')} · was ${span(ghost)}`, v];
             valueCls = !plan.recovers || plan.rpoS > 0 ? 'lost-ink' : 'final-ink';
           }
-          nameValue(D, ax0, xNow - 10, y + 11, names, value, 'ink', valueCls, owner, `a-${key}`);
+          nameValue(D, PAD, xNow - 10, y + 11, name, value, valueCls, owner, `a-${key}`);
           // The marks along the track, each at its own moment of the history sweep.
           const cursor = frac === null ? ax0 - 1 : ax0 + Math.min(1, frac / PLAN.historyEnd) * (xNow - GAP - ax0);
           const shown = (x) => frac === null || frac >= PLAN.historyEnd || x <= cursor;
           const clipTo = (x) => (frac === null || frac >= PLAN.historyEnd ? x : Math.min(x, cursor));
-          const strikeOn = at(PLAN.strike);
-          const pointAt = PLAN.points[Math.max(0, M.PLANS.indexOf(key))];
-          const pointOn = at(pointAt);
+          const pointOn = at(pointOf(key)) && !outcomeHeld;
+          const ring = (x) => {
+            rings.push(x);
+            lostAndRing(D, x, xNow, trackY, th, owner, key, plan);
+          };
           if (key === 'primary') {
             const end = clipTo(xNow);
             D.add('marks', rect('primary-band', ax0, trackY, end - ax0, th));
             D.mark({ x0: ax0, x1: end, y0: trackY, y1: trackY + th }, owner);
-            if (strikeOn) {
+            if (struck) {
               if (drop) D.add('marks', rect('drop-tick', xNow - 2, trackY - 3, 4, th + 6));
               else D.add('marks', `<path class="xmark" d="M${xNow - 5} ${cy - 5}l10 10M${xNow + 5} ${cy - 5}l-10 10"/>`);
             }
@@ -1391,75 +1503,79 @@
             const fulls = m.fullsH.map((h) => bx(h * 3600));
             const kept = bx(s.base * 3600);
             D.add('marks', rect('copy', ax0, trackY + 2, clipTo(kept) - ax0, th - 4));
-            // At most 24 boxes: their widths shrink to keep 1 px between them.
+            // At most 24 boxes, drawn above the band: their widths shrink to keep 1 px between them.
             fulls.forEach((x, i) => {
               if (!shown(x)) return;
               const next = i + 1 < fulls.length ? Math.abs(fulls[i + 1] - x) : 8;
-              const w = Math.max(1.5, Math.min(5, next - 1));
-              D.add('marks', rect('full-box', x - w / 2, trackY, w, th, ` data-full="${i}"`));
+              const w = Math.max(1.5, Math.min(BOX.w, next - 1));
+              D.add('marks', rect('full-box', x - w / 2, cy - BOX.h / 2, w, BOX.h, ` data-full="${i}"`));
             });
             D.meta.fulls = fulls.filter(shown).length;
-            if (pointOn) lostAndRing(D, kept, xNow, trackY, th, owner, key, plan);
+            if (pointOn) ring(kept);
           } else if (key === 'pitr') {
             const base = bx(s.base * 3600);
             D.add('marks', rect('copy', ax0, trackY + 2, clipTo(base) - ax0, th - 4));
-            if (shown(base)) D.add('marks', rect('full-box', base - 2.5, trackY, 5, th));
             const lastArchive = drop ? 0 : s.archive;
-            const logEnd = drop ? (strikeOn ? xNow : xNow - GAP) : bx(lastArchive);
+            const logEnd = drop ? (struck ? xNow - 1 : xNow - GAP) : bx(lastArchive);
             if (cursor >= base || frac === null || frac >= PLAN.historyEnd) {
               const e = clipTo(logEnd);
-              D.add('marks', rect('log-band', base + 2.5, trackY + 3, Math.max(0, e - base - 2.5), th - 6));
-              D.add('marks', comb(base, e, s.archive, bx, trackY, th, drop ? 0 : s.archive));
+              const c = comb(base, e, s.archive, bx, trackY, th, drop ? 0 : s.archive);
+              D.add('marks', rect('log-band', base + BOX.w / 2 + 1, trackY + 3, Math.max(0, e - base - BOX.w / 2 - 1), th - 6));
+              // Where the segments would crowd under 2.5 px, the log is one solid band in the ticks' own ink.
+              if (c.crowdX > base + BOX.w / 2 + 1) D.add('marks', rect('comb-solid', base + BOX.w / 2 + 1, trackY + 1, Math.min(c.crowdX, e) - base - BOX.w / 2 - 1, th - 2, ' data-id="comb-solid"'));
+              D.add('marks', c.path);
             }
-            if (drop && strikeOn) D.add('marks', rect('drop-tick', xNow - 2, trackY - 3, 4, th + 6));
-            if (pointOn && !(wordsHidden && !view.play)) lostAndRing(D, bx(lastArchive), xNow, trackY, th, owner, key, plan);
-            else if (pointOn && wordsHidden) lostAndRing(D, bx(lastArchive), xNow, trackY, th, owner, key, plan);
+            if (shown(base)) D.add('marks', rect('full-box', base - BOX.w / 2, cy - BOX.h / 2, BOX.w, BOX.h, ' data-base="1"'));
+            if (drop && struck) D.add('marks', rect('drop-tick', xNow - 2, trackY - 3, 4, th + 6));
+            if (pointOn) ring(drop ? ZERO_X : bx(lastArchive));
           } else if (key === 'standby') {
-            const appliedTo = drop ? xNow : plan.lagS ? bx(plan.lagS) : xNow;
+            const appliedTo = drop ? xNow - 1 : plan.lagS ? bx(plan.lagS) : xNow - 1;
             if (marksOff) {
               const held = plan.lagS ? bx(plan.lagS) : xNow - GAP;
               D.add('marks', rect('copy', ax0, trackY + 2, held - ax0, th - 4));
-              hiddenBox(D, held + 3, xNow + 5, trackY - 1, th + 2, owner, 'standby');
+              hiddenBox(D, held + 3, xNow - 2, trackY - 1, th + 2, owner, 'standby');
             } else {
-              const end = clipTo(drop && !strikeOn ? (plan.lagS ? bx(plan.lagS) : xNow - GAP) : appliedTo);
+              const end = clipTo(drop && !struck ? (plan.lagS ? bx(plan.lagS) : xNow - GAP) : appliedTo);
               D.add('marks', rect('copy', ax0, trackY + 2, end - ax0, th - 4));
-              if (drop && strikeOn) D.add('marks', `<path class="xmark" data-id="standby-x" d="M${xNow - 5} ${cy - 5}l10 10M${xNow + 5} ${cy - 5}l-10 10"/>`);
-              if (!drop && pointOn) lostAndRing(D, appliedTo, xNow, trackY, th, owner, key, plan);
+              if (drop && struck && !outcomeHeld) D.add('marks', `<path class="xmark" data-id="standby-x" d="M${xNow - 5} ${cy - 5}l10 10M${xNow + 5} ${cy - 5}l-10 10"/>`);
+              if (!drop && pointOn) ring(plan.lagS ? appliedTo : ZERO_X);
             }
           } else if (key === 'delayed') {
             const applied = bx(M.DELAY_H * 3600);
-            const received = drop ? xNow : bx(M.LAG_S);
+            const received = drop ? xNow - 1 : bx(M.LAG_S);
             if (marksOff) {
               D.add('marks', rect('copy', ax0, trackY + 2, applied - ax0, th - 4));
               D.add('marks', rect('log-band', applied, trackY + 3, bx(M.LAG_S) - applied, th - 6));
-              hiddenBox(D, bx(M.LAG_S) + 3, xNow + 5, trackY - 1, th + 2, owner, 'delayed');
+              hiddenBox(D, bx(M.LAG_S) + 3, xNow - 2, trackY - 1, th + 2, owner, 'delayed');
             } else {
               D.add('marks', rect('copy', ax0, trackY + 2, clipTo(applied) - ax0, th - 4));
               if (shown(applied) || frac === null) {
-                const recvEnd = clipTo(drop && !strikeOn ? bx(M.LAG_S) : received);
+                const recvEnd = clipTo(drop && !struck ? bx(M.LAG_S) : received);
                 D.add('marks', rect('log-band', applied, trackY + 3, Math.max(0, recvEnd - applied), th - 6));
               }
-              if (drop && strikeOn) D.add('marks', rect('drop-tick', xNow - 2, trackY - 3, 4, th + 6, ' data-id="delayed-drop"'));
-              if (pointOn) lostAndRing(D, drop ? xNow : received, xNow, trackY, th, owner, key, plan);
+              if (drop && struck) D.add('marks', rect('drop-tick', xNow - 2, trackY - 3, 4, th + 6, ' data-id="delayed-drop"'));
+              if (pointOn) ring(drop ? ZERO_X : received);
             }
           }
+          // Grid ticks only across the track, never through a label, and with a gap round a ring.
+          for (const t of ticksA) if (!rings.some((rx) => Math.abs(rx - t.x) < RING_R + 2)) D.add('grid', line(t.goal ? 'goal-line' : 'grid', t.x, trackY - 2, t.x, trackY + th + 2, ' data-grid="a"'));
           // The note under the track.
-          const noteForms = key === 'pitr' && hid.pitrRpo ? ['the base backup, then the log archived'] : aNote(key, m, hid);
-          const note = (marksOff || wordsHidden) && (key === 'standby' || key === 'delayed') ? pickFits([HIDDEN_OUTCOME, 'shows after your answer'], 'small', xNow - 10 - ax0) : pickFits(noteForms, 'small', xNow - 10 - ax0);
-          if (note) D.text(ax0, y + 42, [[note, 'small', 'muted']], { owner, id: `a-${key}-note` });
+          const noteForms = key === 'pitr' && hid.pitrRpo ? ['the base backup, then the log archived'] : aNote(key, m, hid, struck);
+          const note = (marksOff || wordsHidden) && (key === 'standby' || key === 'delayed') ? pickFits([HIDDEN_OUTCOME, 'shows after your answer'], 'small', xNow - 10 - PAD) : pickFits(noteForms, 'small', xNow - 10 - PAD);
+          if (note) D.text(PAD, y + 42, [[note, 'small', 'muted']], { owner, id: `a-${key}-note` });
           else D.missing.push(noteForms[0]);
           const r1y = y + rowHeight(1);
-          rowBoxes[key] = { x: ax0 - 2, y: r0, w: W - 2 * PAD + 4, h: r1y - r0 };
+          rowBoxes[key] = { x: PAD - 2, y: r0, w: W - 2 * PAD + 4, h: r1y - r0 };
           D.region(`a-${key}`, rowBoxes[key]);
           y = r1y + ROW_GAP;
         }
         // The disaster: one line down the rows, at the moment it strikes.
-        if (at(PLAN.strike)) {
-          D.add('marks', line('strike-line', xNow, tickY + 6, xNow, y - ROW_GAP, ' data-id="strike"'));
-        }
-        D.region('a-all', { x: ax0 - 2, y: rowsTop, w: W - 2 * PAD + 4, h: y - ROW_GAP - rowsTop });
+        if (struck) D.add('marks', line('strike-line', xNow, tickY + 6, xNow, y - ROW_GAP, ' data-id="strike"'));
+        D.meta.xNow = xNow;
+        D.meta.ax0 = ax0;
+        D.region('a-all', { x: PAD - 2, y: rowsTop, w: W - 2 * PAD + 4, h: y - ROW_GAP - rowsTop });
         // Its on-stage controls: the full backups, the archive, the standby.
-        y = controlsRow(D, PAD, W - PAD, y - 2, [
+        y = controlsRow(D, PAD, W - PAD, y + 4, [
           { group: 'base', legend: 'Full backup every', items: M.BASE_EVERY_H.map((h) => [h, span(h * 3600)]), cur: s.base },
           { group: 'archive', legend: 'Log archived every', items: M.ARCHIVE_EVERY_S.map((a) => [a, span(a)]), cur: s.archive },
           { group: 'sync', legend: 'Standby', items: [[0, 'Async'], [1, 'Sync']], cur: s.sync },
@@ -1468,39 +1584,57 @@
         D.add('grid', line('rule', PAD, y, W - PAD, y));
         y += 18;
 
-        // ---- Block B: the time until each plan serves again, on the after axis (the first hour 12 times wider).
+        // ---- Block B: the time until each plan serves again (after a drop: until the table is back), on a linear
+        // axis from the disaster, so a bar's steps are drawn to the ledger's minutes. The disaster is its origin line.
         const cx0 = PAD;
         const cx1 = W - PAD;
         const ax = (min) => M.afterX(min, cx0, cx1);
-        y = labelRow(D, PAD, W - PAD, y, 'Time until it serves again · RTO', ['Time after the disaster · first hour 12× wider', 'After the disaster · first hour 12× wider', 'First hour 12× wider'], 'b-head');
+        const passed = passedMin(m, frac);
+        const recovering = frac !== null && frac >= PLAN.recoverStart && frac < PLAN.recoverEnd;
+        const clockMin = recovering ? recoverMinAt(m, frac) : null;
+        const clock = recovering && !anyTimeHidden(hid) ? rtoSpan(Math.round(clockMin)) : null;
+        D.meta.bHeadY = y;
+        const headB = (forms) => forms.find((f) => tw(f, 'label') <= W - 2 * PAD) ?? forms.at(-1);
+        const headsB = [headB(['Time until the table is back · RTO', 'Until the table is back · RTO']), headB(['Time until it serves again · RTO', 'Until it serves again · RTO'])];
+        y = labelRow(D, PAD, W - PAD, y, drop ? headsB[0] : headsB[1], drop ? ['Time after the drop', 'After the drop'] : ['Time after the disaster', 'After the disaster'], 'b-head', {
+          heads: headsB,
+          subs: [
+            ['Time after the drop', 'After the drop'],
+            ['Time after the disaster', 'After the disaster'],
+          ],
+          // While the recovery runs, the block's own head counts its clock, so a phone sees it beside the bars.
+          now: clock ? [`now ${clock} ${after(drop)}`, `now ${clock}`] : null,
+        });
         const TICKS_B = [
-          [0, '0'],
-          [15, '15 min'],
-          [30, '30 min'],
+          [0, drop ? 'drop' : 'disks fail'],
           [60, '1 h'],
+          [3 * 60, '3 h'],
           [6 * 60, '6 h'],
           [12 * 60, '12 h'],
           [18 * 60, '18 h'],
           [24 * 60, '24 h'],
         ];
-        const goalB = challenge ? 60 : null;
         const tickYB = y + 10;
+        const originW = Math.max(tw('drop', 'label'), tw('disks fail', 'label'));
         const ticksB = fitTicks(
-          TICKS_B.map(([min, t]) => ({ x: ax(min), t: min === goalB ? `${t} goal` : t, sec: min, goal: min === goalB })),
+          TICKS_B.map(([min, t]) => ({ x: ax(min), t, sec: min, w: min === 0 ? originW : undefined })),
           cx0,
           cx1,
-          [0, 60, 24 * 60].concat(goalB ? [goalB] : []),
+          [0, 6 * 60, 12 * 60, 24 * 60],
         );
         for (const t of ticksB) {
           const anchor = t.sec === 0 ? 'start' : t.sec === 24 * 60 ? 'end' : 'middle';
-          D.text(t.x, tickYB, [[t.t, t.goal ? 'smallB' : 'small', t.goal ? 'accent-ink' : 'muted']], { anchor, owner: 'axis-b', data: ` data-xtick="1" data-tick="${r1(t.x)}" data-anchor="${anchor}"` });
+          if (t.sec === 0) {
+            if (struck) D.text(t.x, tickYB, [[t.t, 'label', 'lost-ink']], { anchor, owner: 'axis-b strike', id: 'origin-label', data: ` data-xtick="1" data-tick="${r1(t.x)}" data-anchor="start"` });
+          } else D.text(t.x, tickYB, [[t.t, 'small', 'muted']], { anchor, owner: 'axis-b', data: ` data-xtick="1" data-tick="${r1(t.x)}" data-anchor="${anchor}"` });
         }
         y = tickYB + 16;
         const rowsTopB = y;
         const ledgerW = cx1 - cx0;
-        const playX0 = recoverX(frac ?? 1, cx0, cx1, m);
-        const playing = frac !== null && frac >= PLAN.recoverStart;
-        const headAt = frac === null ? Infinity : frac < PLAN.recoverStart ? cx0 - 1 : playX0;
+        const headAt = frac === null ? Infinity : frac < PLAN.recoverStart ? cx0 - 1 : cx0 + recoverFrac(frac) * (ax(m.lastRtoMin) - cx0);
+        const availB = cx1 - cx0;
+        let slack = 0;
+        D.meta.rowsB = [];
         for (const key of M.PLANS) {
           const r0 = y;
           const trackY = y + 17;
@@ -1509,85 +1643,177 @@
           const plan = P[key];
           const timeHidden = rtoHidden(hid, key);
           const marksOff = marksHidden(hid, key) || (key === 'pitr' && hid.pitrRtoMarks);
-          for (const t of ticksB) D.add('grid', line(t.goal ? 'goal-line' : t.sec === 60 ? 'grid kink' : 'grid', t.x, trackY - 2, t.x, trackY + th + 2, ' data-grid="b"'));
+          const outcomeHeld = timeHidden && playingPhase && hid.outcomesHeld;
+          for (const t of ticksB) if (t.sec > 0) D.add('grid', line(t.goal ? 'goal-line' : 'grid', t.x, trackY - 2, t.x, trackY + th + 2, ' data-grid="b"'));
+          if (struck) D.add('marks', line('strike-line', cx0 - 1, trackY - 4, cx0 - 1, trackY + th + 4, ` data-id="origin-${key}"`));
           // The playhead crosses each track, never a label line.
-          if (playing && frac < PLAN.recoverEnd) D.add('top', line('playhead', playX0, trackY - 4, playX0, trackY + th + 4, ` data-id="playhead-${key}"`));
+          if (recovering) D.add('top', line('playhead', headAt, trackY - 4, headAt, trackY + th + 4, ` data-id="playhead-${key}"`));
           D.add('grid', line('track', cx0, trackY + th + 0.5, cx1, trackY + th + 0.5));
-          const names = NAMES[key](s);
-          let value;
+          const name = nameFor(key, s, W, availA, availB);
+          const started = frac === null || frac >= PLAN.recoverStart;
+          const done = frac === null || (plan.recovers && passed >= plan.rtoMin) || (!plan.recovers && started);
+          let value = [];
           let valueCls = 'ink';
-          const done = frac === null || (plan.recovers && headAt >= ax(plan.rtoMin) - 0.01) || (!plan.recovers && frac >= PLAN.recoverEnd);
-          if (timeHidden) {
-            value = ['back in ?', '?'];
+          if (!started) value = [];
+          else if (timeHidden) {
+            value = [`${backIn(drop)} ?`, '?'];
             valueCls = 'muted';
           } else if (!done) {
-            value = plan.recovers ? ['recovering'] : ['…'];
+            value = ['recovering'];
             valueCls = 'muted';
           } else {
-            const v = serveWords(plan);
+            const v = serveWords(plan, drop);
             const ghost = ghostOf(view, hid, key, 'rtoMin');
-            value = ghost !== null ? [`${v} · was ${rtoSpan(ghost)}`, `${v.replace('back in ', '')} · was ${rtoSpan(ghost)}`, v] : [v];
+            value = plan.recovers ? withGhost(v, rtoSpan(plan.rtoMin), ghost === null ? null : rtoSpan(ghost)) : [v];
             valueCls = plan.recovers ? 'final-ink' : 'lost-ink';
           }
-          nameValue(D, cx0, cx1, y + 11, names, value, 'ink', valueCls, owner, `b-${key}`);
+          nameValue(D, cx0, cx1, y + 11, name, value, valueCls, owner, `b-${key}`);
           if (marksOff) {
             hiddenBox(D, cx0, hid.boxFull ? cx1 : ax(plan.rtoMin), trackY - 1, th + 2, owner, `b-${key}`);
           } else if (!plan.recovers) {
             // An empty set is a solid hairline, never a dashed box (prevention 17).
-            if (done) D.add('marks', line('never', cx0, trackY + th / 2, cx1, trackY + th / 2, ` data-id="never-${key}"`));
+            if (done && !outcomeHeld) D.add('marks', line('never', cx0, trackY + th / 2, cx1, trackY + th / 2, ` data-id="never-${key}"`));
           } else {
-            let t0 = 0;
-            plan.steps.forEach((st, i) => {
-              const xa = ax(t0);
-              const xb = ax(t0 + st.min);
-              const end = Math.min(xb, headAt);
-              // A step under a pixel still shows: 1.5 px, its length said in the ledger under it.
-              const w = Math.max(end > xa ? end - xa : 0, end >= xb && xb - xa < 1.5 ? 1.5 : 0);
-              if (w > 0) D.add('marks', rect(`seg-${st.kind}`, xa, trackY, w, th, i === plan.steps.length - 1 ? ` data-id="bar-${key}" data-end="${r1(xb)}"` : ''));
-              t0 += st.min;
-            });
-            const endX = ax(plan.rtoMin);
+            const endX = drawBar(D, plan, ax, cx0, headAt, trackY, th, `bar-${key}`, Infinity);
             D.mark({ x0: cx0, x1: endX, y0: trackY, y1: trackY + th }, owner);
-            if (done) {
-              D.add('dots', `<circle class="serve" cx="${r1(Math.max(endX, cx0 + 4) + 0)}" cy="${trackY + th / 2}" r="4" data-id="serve-${key}" data-owner="${owner}"/>`);
+            if (done && !outcomeHeld) {
+              serveDot(D, plan, ax, cx0, trackY + th / 2, 4, `serve-${key}`, owner);
               const g = ghostOf(view, hid, key, 'rtoMin');
               if (g !== null) D.add('marks', line('ghost-tick', ax(g), trackY - 4, ax(g), trackY + th + 4, ` data-id="ghost-${key}"`));
             }
           }
-          const ledger = timeHidden ? HIDDEN_TIME : bLedger(key, m);
-          const lines = wrap(ledger, 'small', ledgerW);
-          const ledgerLines = reserved(`ledger-${key}`, W, (mm) => wrap(bLedger(key, mm), 'small', ledgerW).length);
+          const ledger = timeHidden ? hiddenTime(drop) : bLedger(key, m, passed);
+          const lines = ledger ? wrap(ledger, 'small', ledgerW) : [];
+          // Each row takes only its own lines; the slack up to the most any setting needs collects at the block's foot.
+          const most = reserved(`ledger-${key}`, W, (mm) => Math.max(wrap(bLedger(key, mm), 'small', ledgerW).length, wrap(hiddenTime(mm.settings.disaster === DROP), 'small', ledgerW).length));
           lines.forEach((l, i) => D.text(cx0, y + 42 + i * 14, [[l, 'small', 'muted']], { owner, id: i === 0 ? `b-${key}-ledger` : undefined }));
-          const rB = y + rowHeight(ledgerLines);
+          const used = Math.max(1, lines.length);
+          slack += most - used;
+          const rB = y + rowHeight(used);
           D.region(`b-${key}`, { x: cx0 - 2, y: r0, w: cx1 - cx0 + 4, h: rB - r0 });
+          D.meta.rowsB.push({ top: r0, bottom: rB });
           y = rB + ROW_GAP;
         }
         D.region('b-all', { x: cx0 - 2, y: rowsTopB, w: cx1 - cx0 + 4, h: y - ROW_GAP - rowsTopB });
-        y = controlsRow(D, PAD, W - PAD, y - 2, [
+
+        // ---- The inset: the first 90 minutes of block B, zoomed and linear, so the 1 min promotion, the delayed
+        // replica's minutes and the challenge's 1 h goal read at their lengths. It redraws only that part of each bar.
+        y = labelRow(D, PAD, W - PAD, y + 4, 'First 90 min, zoomed', [], 'i-head');
+        const nameColW = Math.max(...Object.values(SHORT_NAMES).map((n) => tw(n, 'small'))) + 10;
+        const ix0 = PAD + nameColW;
+        const ix1 = W - PAD - 10;
+        const ixs = (min) => M.insetX(min, ix0, ix1);
+        const TICKS_I = [
+          [0, '0'],
+          [15, '15 min'],
+          [30, '30 min'],
+          [45, '45 min'],
+          [60, '1 h'],
+          [75, '75 min'],
+          [90, '90 min'],
+        ];
+        const goalI = challenge ? 60 : null;
+        const tickYI = y + 10;
+        const ticksI = fitTicks(
+          TICKS_I.map(([min, t]) => ({ x: ixs(min), t: min === goalI ? `${t} goal` : t, sec: min, goal: min === goalI })),
+          ix0,
+          ix1,
+          [0, 60, 90].concat(goalI ? [goalI] : []),
+        );
+        for (const t of ticksI) {
+          const anchor = t.sec === 0 ? 'start' : t.sec === 90 ? 'end' : 'middle';
+          D.text(t.x, tickYI, [[t.t, t.goal ? 'smallB' : 'small', t.goal ? 'accent-ink' : 'muted']], { anchor, owner: 'axis-i', data: ` data-xtick="1" data-tick="${r1(t.x)}" data-anchor="${anchor}"` });
+        }
+        y = tickYI + 10;
+        const insetHead = recovering ? Math.min(clockMin, M.INSET_MIN) : null;
+        for (const key of M.PLANS) {
+          const owner = `i-${key}`;
+          const plan = P[key];
+          const timeHidden = rtoHidden(hid, key);
+          const marksOff = marksHidden(hid, key) || (key === 'pitr' && hid.pitrRtoMarks);
+          const outcomeHeld = timeHidden && playingPhase && hid.outcomesHeld;
+          const trackY = y + 5;
+          const th = 6;
+          D.text(PAD, y + 11, [[SHORT_NAMES[key], 'small', 'muted']], { owner, id: `i-${key}-name` });
+          for (const t of ticksI) if (t.sec > 0) D.add('grid', line(t.goal ? 'goal-line' : 'grid', t.x, trackY - 2, t.x, trackY + th + 2, ' data-grid="i"'));
+          if (struck) D.add('marks', line('strike-line', ix0 - 1, trackY - 3, ix0 - 1, trackY + th + 3, ` data-id="origin-i-${key}"`));
+          if (recovering && insetHead < M.INSET_MIN) D.add('top', line('playhead', ixs(insetHead), trackY - 3, ixs(insetHead), trackY + th + 3, ` data-id="playhead-i-${key}"`));
+          D.add('grid', line('track', ix0, trackY + th + 0.5, ix1, trackY + th + 0.5));
+          const iHead = frac === null ? Infinity : frac < PLAN.recoverStart ? ix0 - 1 : ixs(insetHead ?? M.INSET_MIN);
+          const started = frac === null || frac >= PLAN.recoverStart;
+          const done = frac === null || (plan.recovers && passed >= plan.rtoMin) || (!plan.recovers && started);
+          if (marksOff) hiddenBox(D, ix0, ix1, trackY - 1, th + 2, owner, `i-${key}`);
+          else if (!plan.recovers) {
+            if (done && !outcomeHeld) D.add('marks', line('never', ix0, trackY + th / 2, ix1, trackY + th / 2, ` data-id="never-i-${key}"`));
+          } else {
+            const endX = drawBar(D, plan, ixs, ix0, iHead, trackY, th, `ibar-${key}`, M.INSET_MIN);
+            D.mark({ x0: ix0, x1: endX, y0: trackY, y1: trackY + th }, owner);
+            if (plan.rtoMin > M.INSET_MIN && iHead >= ix1 - 0.01) D.add('marks', `<path class="more" data-id="more-${key}" d="M${r1(ix1 + 3)} ${trackY}l3 ${th / 2}l-3 ${th / 2}"/>`);
+            if (done && !outcomeHeld && plan.rtoMin <= M.INSET_MIN) serveDot(D, plan, ixs, ix0, trackY + th / 2, 3, `iserve-${key}`, owner);
+          }
+          D.region(`i-${key}`, { x: PAD - 2, y: y, w: W - 2 * PAD + 4, h: 16 });
+          y += 20;
+        }
+        // The slack of block B's ledgers, reserved in one place at the block's foot, above its controls.
+        y += slack * 14;
+        D.meta.slack = slack;
+        y = controlsRow(D, PAD, W - PAD, y + 4, [
           { group: 'restore', legend: 'Restore speed', items: M.RESTORE_GB_PER_MIN.map((v) => [v, fSpeed(v)]), cur: s.restore },
           { group: 'replay', legend: 'Log replay', items: M.REPLAY_SPEEDS.map((v) => [v, `${fTimes(v)} the writes`]), shortItems: M.REPLAY_SPEEDS.map((v) => fTimes(v)), cur: s.replay },
         ]);
+        D.meta.bEndY = y;
         const H = y + PAD;
         D.meta.H = H;
         D.label = summary(m, hid);
         return { D, H };
       }
-      function labelRow(D, x0, x1, y, head, subs, owner) {
-        const hw = tw(head, 'label');
-        const sub = subs.find((t) => hw + 16 + tw(t, 'label') <= x1 - x0);
-        D.text(x0, y + 9, [[head, 'label', 'ink']], { owner, id: owner });
-        if (sub) {
-          D.text(x1, y + 9, [[sub, 'label', 'muted']], { anchor: 'end', owner });
+      /** A bar's steps on a linear axis `X`, grown to `head`. Each step is drawn at its own minutes on the one scale; a
+       *  step under 1.5 px is drawn 1.5 px wide from its start (the next step, drawn after, keeps its own length).
+       *  Steps past `maxMin` (the inset's end) take no floor. Returns the bar's end x. */
+      function drawBar(D, plan, X, x0, head, trackY, th, id, maxMin) {
+        let t0 = 0;
+        let x = x0;
+        plan.steps.forEach((st, i) => {
+          const xa = X(t0);
+          const exact = X(t0 + st.min) - xa;
+          const w = exact < 1.5 && t0 < maxMin ? 1.5 : exact;
+          const end = Math.min(xa + w, head);
+          if (end > xa) D.add('marks', rect(`seg-${st.kind}`, xa, trackY, end - xa, th, ` data-step="${st.kind}" data-min="${st.min}" data-exact="${exact}" data-floor="${w > exact ? 1 : 0}"${i === plan.steps.length - 1 ? ` data-id="${id}" data-end="${r1(X(plan.rtoMin))}"` : ''}`));
+          x = Math.max(x, xa + w);
+          t0 += st.min;
+        });
+        return x;
+      }
+      /** A serve dot centres on its bar's end when the bar is at least the dot's diameter long, else sits just right. */
+      function serveDot(D, plan, X, x0, cy, r, id, owner) {
+        const end = Math.max(X(plan.rtoMin), x0 + 1.5);
+        const cx = end - x0 >= 2 * r ? end : end + r + 0.5;
+        D.add('dots', `<circle class="serve" cx="${r1(cx)}" cy="${r1(cy)}" r="${r}" data-id="${id}" data-owner="${owner}"/>`);
+      }
+      /** A head left and a subtitle right on one line when every variant fits, else the subtitle on its own line. The
+       *  choice depends on the width alone, so the stage's height does too. */
+      function labelRow(D, x0, x1, y, head, subs, owner, variants = { heads: [head], subs: [subs] }) {
+        const fits = (h, t) => tw(h, 'label') + 16 + tw(t, 'label') <= x1 - x0;
+        if (!subs.length && !variants.now) {
+          D.text(x0, y + 9, [[head, 'label', 'ink']], { owner, id: owner });
           return y + 14;
         }
-        const s2 = subs.find((t) => tw(t, 'label') <= x1 - x0) ?? subs.at(-1);
-        D.text(x0, y + 25, [[s2, 'label', 'muted']], { owner });
+        const oneLine = variants.heads.every((h) => variants.subs.every((ss) => ss.some((t) => t && fits(h, t))));
+        D.text(x0, y + 9, [[head, 'label', 'ink']], { owner, id: owner });
+        const forms = variants.now ?? subs;
+        if (oneLine) {
+          const sub = forms.find((t) => t && fits(head, t));
+          if (sub) D.text(x1, y + 9, [[sub, 'label', variants.now ? 'ink' : 'muted']], { anchor: 'end', owner, id: `${owner}-sub` });
+          return y + 14;
+        }
+        const s2 = forms.find((t) => t && tw(t, 'label') <= x1 - x0);
+        if (s2) D.text(x0, y + 25, [[s2, 'label', variants.now ? 'ink' : 'muted']], { owner, id: `${owner}-sub` });
         return y + 30;
       }
       /** The ticks that keep 6 px apart, the must-keep ones first. */
       function fitTicks(all, x0, x1, keep) {
         const box = (t, anchor) => {
-          const w = tw(t.t, 'small');
+          const w = t.w ?? tw(t.t, 'small');
           return anchor === 'start' ? [t.x, t.x + w] : anchor === 'end' ? [t.x - w, t.x] : [t.x - w / 2, t.x + w / 2];
         };
         const anchorOf = (t) => (t.x <= x0 + 0.5 ? 'start' : t.x >= x1 - 0.5 ? 'end' : 'middle');
@@ -1601,36 +1827,37 @@
             return a < cb + 6 && b > ca - 6;
           }))
             continue;
-          // A goal replaces the plain tick at its place.
           chosen.push(t);
         }
-        return chosen.filter((t, i, arr) => !(t.goal === false && arr.some((u) => u.goal && u.sec === t.sec))).sort((a, b) => a.x - b.x);
+        return chosen.sort((a, b) => a.x - b.x);
       }
-      /** The archived log: a tick a segment where they stand 2.5 px apart, a solid band where they would crowd. */
+      /** The archived log: a tick a segment where they stand 2.5 px apart; `crowdX` is where they would crowd. */
       function comb(from, to, every, bx, trackY, th, firstAge) {
         let d = '';
         let n = 0;
-        if (every <= 0) return '';
+        let crowdX = from;
         for (let age = Math.max(every, firstAge); age <= 86400; age += every) {
           const x = bx(age);
           if (x < from + 3) break;
           if (x > to + 0.01) continue;
           const prev = bx(age + every);
-          if (x - prev < 2.5) break;
+          if (x - prev < 2.5) {
+            crowdX = x;
+            break;
+          }
           d += `M${r1(x)} ${trackY + 1}v${th - 2}`;
           n++;
           if (n > 400) break;
         }
-        return d ? `<path class="comb" d="${d}" data-ticks="${n}"/>` : '';
+        return { path: d ? `<path class="comb" d="${d}" data-ticks="${n}"/>` : '', crowdX };
       }
+      /** The recovery point: a stroke-only ring round its moment (and round the backup box it may stand on, with 2 px
+       *  clear), and the lost hatch from the ring's outer edge to the disaster. */
       function lostAndRing(D, x, xNow, trackY, th, owner, key, plan) {
         const cy = trackY + th / 2;
-        const rx = plan.rpoS === 0 ? xNow - 6 : x;
-        if (plan.rpoS > 0) {
-          D.add('marks', rect('lost', rx + 5, trackY, xNow - rx - 5, th, ` data-id="lost-${key}" data-from="${r1(rx)}"`));
-        }
-        D.add('dots', `<circle class="ring" cx="${r1(rx)}" cy="${r1(cy)}" r="5" data-id="ring-${key}" data-owner="${owner}"/>`);
-        D.mark({ x0: rx - 5, x1: rx + 5, y0: cy - 5, y1: cy + 5 }, owner);
+        if (plan.rpoS > 0) D.add('marks', rect('lost', x + RING_R + 1, trackY, xNow - x - RING_R - 1, th, ` data-id="lost-${key}" data-from="${r1(x)}"`));
+        D.add('dots', `<circle class="ring" cx="${r1(x)}" cy="${r1(cy)}" r="${RING_R}" data-id="ring-${key}" data-owner="${owner}"/>`);
+        D.mark({ x0: x - RING_R - 1, x1: x + RING_R + 1, y0: cy - RING_R - 1, y1: cy + RING_R + 1 }, owner);
       }
       function hiddenBox(D, x0, x1, y, h, owner, id) {
         D.add('marks', rect('hidden-box', x0, y, x1 - x0, h, ` rx="3" data-id="hidden-${id}" data-w="${r1(x1 - x0)}"`));
@@ -1685,20 +1912,21 @@
             const grow = (a, t, d) => ({ x0: Math.min(a.x0, t.x0 - d), y0: Math.min(a.y0, t.y0 - d), x1: Math.max(a.x1, t.x1 + d), y1: Math.max(a.y1, t.y1 + d) });
             let box = { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h };
             for (const t of inside) box = grow(box, t, GUTTER);
-            box.y1 += 4;
+            box.y1 += 6;
             const x = Math.max(3, box.x0);
             const yy = Math.max(3, box.y0);
             const w = Math.min(D.W - 3, box.x1) - x;
             const h = Math.min(H - 3, box.y1) - yy;
             D.add('top', `<rect class="focus-outline" x="${r1(x)}" y="${r1(yy)}" width="${r1(w)}" height="${r1(h)}" rx="10" data-region="${id}"/>`);
-            const across = [];
-            for (let ax = x + w - TAG.w - 16; ax >= x + 16; ax -= 8) across.push(ax);
-            const xs = [x + w - TAG.w - 12, x + w - TAG.w - 16, x + 16, ...across];
+            // A tag sits on the outline's foot (or top) from its left end toward the middle, never in the column where
+            // the rows' values right-align, and keeps 6 px from every text.
+            const xs = [];
+            for (let ax = x + 16; ax <= x + w / 2 - TAG.w / 2; ax += 8) xs.push(ax);
             let placed = false;
             for (const [tx, ty] of [yy + h - TAG.h / 2, yy - TAG.h / 2].flatMap((t) => xs.map((sx) => [sx, t]))) {
               const tag = { x0: tx, x1: tx + TAG.w, y0: ty, y1: ty + TAG.h };
               if (tx < 3 || tx + TAG.w > D.W - 3 || ty < 3 || ty + TAG.h > H - 3) continue;
-              if (!D.free(tag, '', 1, 6)) continue;
+              if (!D.free(tag, '', 6, 6)) continue;
               D.add('top', `<rect class="tag" x="${r1(tx)}" y="${r1(ty)}" width="${TAG.w}" height="${TAG.h}" rx="8"/>`);
               D.add('top', `<text x="${r1(tx + TAG.w / 2)}" y="${r1(ty + 12)}" text-anchor="middle" data-owner="look"><tspan class="t-look">LOOK HERE</tspan></text>`);
               D.mark(tag, 'look');
@@ -1764,7 +1992,7 @@
         const hid = hiding(view);
         if (view.phase === 'asking' || view.phase === 'playing') return 'Play and every setting wait for your answer.';
         if (view.played) return story(m);
-        if (view.phase === 'revealed' || view.phase === 'challenge' || view.changed) return settingSentence(m, hid);
+        if (view.phase === 'revealed' || view.phase === 'challenge' || view.changed) return settingSentence(m);
         return 'Change the disaster or any setting, or press Play to watch the disaster strike and each plan recover.';
       }
       function controlsHtml(m, view) {
@@ -1792,11 +2020,16 @@
       function goalChecks(m) {
         const b = M.CHALLENGE_BOUNDS;
         const said = (met) => (met ? 'met' : 'not yet');
-        const r = m.plans.pitr.rtoMin < b.pitrRto;
+        const p = m.plans.pitr;
+        const drop = m.settings.disaster === DROP;
+        const l = p.rpoS <= b.pitrRpo;
+        const r = p.rtoMin < b.pitrRto;
         const f = m.settings.base >= b.base;
+        // The goal first, the current value in parentheses, so no line reads as a claim about the current value.
         return [
-          { met: r, text: `point-in-time recovery serves again in ${rtoSpan(m.plans.pitr.rtoMin)}, under ${rtoSpan(b.pitrRto)}: ${said(r)}` },
-          { met: f, text: `a full backup every ${span(m.settings.base * 3600)}, at most one every ${span(b.base * 3600)}: ${said(f)}` },
+          { met: l, text: `point-in-time recovery loses at most ${span(b.pitrRpo)} (now ${p.rpoS ? `up to ${span(p.rpoS)}` : 'nothing'}): ${said(l)}` },
+          { met: r, text: `point-in-time recovery ${drop ? 'gets the table back' : 'serves again'} in under ${rtoSpan(b.pitrRto)} (now ${rtoSpan(p.rtoMin)}): ${said(r)}` },
+          { met: f, text: `no more than one full backup every ${span(b.base * 3600)} (now every ${span(m.settings.base * 3600)}): ${said(f)}` },
         ];
       }
       function dockHtml(m, view) {
@@ -1805,13 +2038,13 @@
         if (view.phase === 'challenge') {
           const checks = goalChecks(m);
           const kept = M.goalKept(view.spec.goal, m.settings);
-          const status = view.met ? 'Goal met:' : kept ? '' : `The goal keeps ${fSize(view.spec.goal.keep.size)} and the log archived every ${span(view.spec.goal.keep.archive)}.`;
+          const status = view.met ? 'Goal met:' : kept ? '' : `The goal keeps ${fSize(view.spec.goal.keep.size)} and the disks lost.`;
           return `<p class="legend">${nb(e.ask)}</p>${status ? `<p class="status-line${view.met ? ' met' : ''}" role="status">${view.met ? ICON_RIGHT : ''}${esc(status)}</p>` : ''}<ul class="status">${checks
             .map((c) => `<li class="${c.met ? 'met' : ''}"><span class="state" aria-hidden="true">${c.met ? '✓' : '·'}</span><span>${nb(c.text)}</span></li>`)
             .join('')}</ul>${view.met ? `<p class="reveal" aria-live="polite" aria-atomic="true">${nb(e.reveal)}</p>` : ''}`;
         }
         if (view.phase === 'asking') {
-          return `<fieldset style="border:0;padding:0;margin:0"><legend class="legend">${nb(e.ask)}</legend><div class="options">${e.choices.map((c) => `<button class="g-choice"><span>${nb(c)}</span></button>`).join('')}</div></fieldset>`;
+          return `<fieldset class="ask"><legend class="legend">${nb(e.ask)}</legend><div class="options">${e.choices.map((c) => `<button class="g-choice"><span>${nb(c)}</span></button>`).join('')}</div></fieldset>`;
         }
         const marked = e.choices
           .map((c, i) => {
@@ -1821,8 +2054,8 @@
             return `<li class="g-choice${right ? ' right' : wrong ? ' wrong' : ''}"${chosen ? ' style="border-color:var(--g-accent);box-shadow:inset 0 0 0 1px var(--g-accent)"' : ''}><span>${nb(c)}${chosen ? ' <small>(your guess)</small>' : ''}</span>${right ? ICON_RIGHT : wrong ? ICON_WRONG : ''}</li>`;
           })
           .join('');
-        if (view.phase === 'playing') return `<p class="legend">${nb(e.ask)}</p><ul class="options">${marked}</ul><p class="held">Watch the picture: the answer plays out on it.</p>`;
-        return `<p class="legend">${nb(e.ask)}</p><ul class="options">${marked}</ul><p class="reveal" aria-live="polite" aria-atomic="true">${nb(e.reveal)}</p>`;
+        if (view.phase === 'playing') return `<fieldset class="ask"><legend class="legend">${nb(e.ask)}</legend><ul class="options">${marked}</ul></fieldset><p class="held">Watch the picture: the answer plays out on it.</p>`;
+        return `<fieldset class="ask"><legend class="legend">${nb(e.ask)}</legend><ul class="options">${marked}</ul></fieldset><p class="reveal" aria-live="polite" aria-atomic="true">${nb(e.reveal)}</p>`;
       }
       function cardsHtml(view) {
         return `<h3 class="heading"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8zM19 14l.9 2.6 2.6.9-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9z"/></svg>Experiments</h3>
@@ -1839,7 +2072,7 @@
           const mm = M.run({ ...s, disaster });
           for (const k of M.PLANS) {
             const p = mm.plans[k];
-            const loses = !p.recovers ? 'cannot' : p.rpoS === 0 ? 'nothing' : span(p.rpoS);
+            const loses = !p.recovers ? 'the table' : p.rpoS === 0 ? 'nothing' : span(p.rpoS);
             const back = p.recovers ? rtoSpan(p.rtoMin) : 'never';
             const dname = disaster === DROP ? 'a dropped table' : 'disks lost';
             rows.push({ now: disaster === s.disaster, cells: compact ? [`${PLAN_ROW_SHORT[k]}, ${disaster === DROP ? 'drop' : 'disk'}`, loses, back] : [PLAN_ROW[k], dname, loses, back] });
@@ -1856,8 +2089,8 @@
         if (!open) return btn;
         const { head, rows, note } = describeRows(m, compact);
         return `${btn}<p class="summary">${nb(summary(m, NOTHING_HIDDEN))}</p><div class="table-box${compact ? ' compact' : ''}" tabindex="0" role="region" aria-label="Each plan against each disaster, for these settings"><table><thead><tr>${head
-          .map((h) => `<th scope="col"><span class="nb">${esc(h)}</span></th>`)
-          .join('')}</tr></thead><tbody>${rows.map((r) => `<tr${r.now ? ' class="now" aria-current="true"' : ''}>${r.cells.map((c, i) => (i === 0 ? `<th scope="row">${nb(c)}</th>` : `<td>${esc(c)}</td>`)).join('')}</tr>`).join('')}</tbody></table></div><p class="muted-note">${nb(note)}</p>`;
+          .map((h, i) => `<th scope="col"${i >= head.length - 2 ? ' class="num"' : ''}><span class="nb">${esc(h)}</span></th>`)
+          .join('')}</tr></thead><tbody>${rows.map((r) => `<tr${r.now ? ' class="now" aria-current="true"' : ''}>${r.cells.map((c, i) => (i === 0 ? `<th scope="row">${nb(c)}</th>` : i >= r.cells.length - 2 ? `<td class="num">${esc(c)}</td>` : `<td>${esc(c)}</td>`)).join('')}</tr>`).join('')}</tbody></table></div><p class="muted-note">${nb(note)}</p>`;
       }
       function overlaysHtml(D, view, m) {
         const locked = hiding(view).locked;
@@ -1866,7 +2099,7 @@
           const at = `left:${r1(h.x)}px;top:${r1(h.y)}px;width:${r1(h.w)}px;height:${r1(h.h)}px`;
           if (h.kind === 'play') {
             const playing = view.phase === 'rest' && view.play;
-            const glyph = playing ? '<rect x="12.5" y="11" width="4" height="14" rx="1"/><rect x="19.5" y="11" width="4" height="14" rx="1"/>' : '<path d="M14 11v14l11-7z"/>';
+            const glyph = playing ? '<rect x="12" y="12" width="12" height="12" rx="2"/>' : '<path d="M14 11v14l11-7z"/>';
             const label = `${playing ? 'Stop' : 'Play'} the disaster and the recovery${locked ? ', after your answer' : ''}`;
             out.push(`<button class="play hit" data-owner="${h.owner}" style="${at}" aria-label="${label}"${locked ? ' disabled' : ''}><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="16"/>${glyph}</svg></button>`);
           } else if (h.kind === 'seg') {
@@ -1900,9 +2133,18 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story
       // The mockup's own Play: one clock, one frame a render, for a reader to watch (the build uses WAAPI).
       function animate(view) {
         const t0 = performance.now();
+        let scrolled = false;
         const tick = (now) => {
           const frac = Math.min(1, (now - t0) / (SECONDS * 1000));
-          render(null, { ...view, play: frac < 1 ? { frac } : null });
+          const r = render(null, { ...view, play: frac < 1 ? { frac } : null });
+          // One column: the recovery is the climax, so block B comes into view as it starts (block: 'nearest').
+          if (!scrolled && frac >= PLAN.recoverStart && window.innerWidth < 1000) {
+            scrolled = true;
+            const top = document.getElementById('well').getBoundingClientRect().top + window.scrollY;
+            const y0 = top + r.D.meta.bHeadY;
+            const y1 = top + r.D.meta.bEndY;
+            if (y0 < window.scrollY || y1 > window.scrollY + window.innerHeight) window.scrollTo({ top: Math.min(y0 - 8, y1 - window.innerHeight + 8), behavior: 'instant' });
+          }
           if (frac < 1) requestAnimationFrame(tick);
         };
         requestAnimationFrame(tick);
@@ -1989,9 +2231,8 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story
           const box = { x0: x, x1: x + w, y0: y, y1: y + h };
           for (const t of texts) {
             if (t.owner.includes('look')) continue;
-            const rowShared = Math.min(box.y1, t.y1) - Math.max(box.y0, t.y0) > 2;
-            const gap = Math.max(box.x0 - t.x1, t.x0 - box.x1);
-            if (rowShared && gap < 6) out.push(`a tag ${gap.toFixed(1)} px from "${t.s}"`);
+            const gap = Math.max(box.x0 - t.x1, t.x0 - box.x1, box.y0 - t.y1, t.y0 - box.y1);
+            if (gap < 6) out.push(`a tag ${gap.toFixed(1)} px from "${t.s}"`);
           }
         }
         const outlines = [...svg.querySelectorAll('rect.focus-outline')].map((o) => {
@@ -2051,7 +2292,12 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story
         const W = Number(svg.getAttribute('width'));
         const PAD = W < 380 ? 12 : 16;
         const xNow = W - PAD - 6;
+        const ax0 = D.meta.ax0;
         const tx = (id) => svg.querySelector(`[data-id="${id}"]`)?.textContent ?? null;
+        const bb = (el) => {
+          const b = el.getBBox();
+          return { x0: b.x, x1: b.x + b.width, y0: b.y, y1: b.y + b.height };
+        };
         for (const k of M.PLANS) {
           const p = m.plans[k];
           // A recovery point's ring sits at its loss on the log scale, and the lost band runs from it to the disaster.
@@ -2059,7 +2305,7 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story
           if (rest && !marksHidden(hid, k)) {
             if (p.recovers && !ring) out.push(`no recovery point for ${k}`);
             if (ring) {
-              const want = p.rpoS === 0 ? xNow - 6 : M.beforeX(p.rpoS, PAD, xNow, 14);
+              const want = p.rpoS === 0 ? xNow - 10 : M.beforeX(p.rpoS, ax0, xNow, 14);
               if (Math.abs(Number(ring.getAttribute('cx')) - want) > 0.11) out.push(`${k}'s ring at ${ring.getAttribute('cx')}, not its loss's ${want.toFixed(1)}`);
               const lost = svg.querySelector(`[data-id="lost-${k}"]`);
               if (p.rpoS > 0 && !lost) out.push(`${k} loses ${p.rpoS} s with no lost band`);
@@ -2083,10 +2329,63 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story
             } else if (bar || !svg.querySelector(`[data-id="never-${k}"]`)) out.push(`${k} never serves but its row says otherwise`);
           }
         }
-        // The ledgers add up as printed: restore and replay minutes sum to the total.
-        const pl = tx('b-pitr-ledger') ?? '';
-        const nums = [...pl.matchAll(/([\d,]+) min/g)].map((x) => Number(x[1].replace(/,/g, '')));
-        if (nums.length === 3 && nums[0] + nums[1] !== nums[2]) out.push(`the PITR ledger does not add up: ${pl}`);
+        // The ledgers add up as printed: the steps' minutes sum to the total.
+        const pl = [...svg.querySelectorAll('text[data-owner="b-pitr"]')].filter((t) => !/value|name/.test(t.dataset.id ?? '')).map((t) => t.textContent).join(' ');
+        if (/in all/.test(pl)) {
+          const nums = [...pl.matchAll(/([\d,]+) min/g)].map((x) => Number(x[1].replace(/,/g, '')));
+          if (nums.slice(0, -1).reduce((a, b) => a + b, 0) !== nums.at(-1)) out.push(`the PITR ledger does not add up: ${pl}`);
+        }
+        // Within any bar of block B, a step's drawn width is its minutes on the one linear scale (a floored step excepted).
+        for (const seg of svg.querySelectorAll('rect[data-step]')) {
+          if (seg.dataset.floor === '1' || !rest || seg.getAttribute('height') !== '12') continue;
+          const per = (W - 2 * PAD) / (24 * 60);
+          const w = Number(seg.getAttribute('width'));
+          if (Math.abs(w - per * Number(seg.dataset.min)) > 0.11) out.push(`a ${seg.dataset.step} step of ${seg.dataset.min} min drawn ${w} px, not ${(per * Number(seg.dataset.min)).toFixed(1)}`);
+        }
+        // Every full backup and base backup box shows: no filled mark covers it, and a ring clears it by 2 px.
+        const fillers = [...svg.querySelectorAll('rect.lost, rect.drop-tick, rect.comb-solid, circle.serve, path.xmark, rect.hidden-box')];
+        for (const b of svg.querySelectorAll('rect.full-box')) {
+          const r = bb(b);
+          for (const f of fillers) {
+            const o = bb(f);
+            if (Math.min(r.x1, o.x1) - Math.max(r.x0, o.x0) > 0.3 && Math.min(r.y1, o.y1) - Math.max(r.y0, o.y0) > 0.3) out.push(`a ${f.getAttribute('class')} covers a backup box`);
+          }
+          for (const c of svg.querySelectorAll('circle.ring')) {
+            const cx = Number(c.getAttribute('cx'));
+            const cy = Number(c.getAttribute('cy'));
+            const R = Number(c.getAttribute('r'));
+            const far = Math.max(...[r.x0, r.x1].flatMap((x) => [r.y0, r.y1].map((y) => Math.hypot(x - cx, y - cy))));
+            const near = Math.hypot(Math.max(r.x0 - cx, 0, cx - r.x1), Math.max(r.y0 - cy, 0, cy - r.y1));
+            if (!(far <= R - 1 - 2 + 0.05 || near >= R + 1)) out.push(`a ring crosses a backup box (${far.toFixed(1)} to ${near.toFixed(1)} px from its centre)`);
+          }
+        }
+        // No grid line runs through a ring.
+        for (const c of svg.querySelectorAll('circle.ring')) {
+          const cx = Number(c.getAttribute('cx'));
+          const cy = Number(c.getAttribute('cy'));
+          for (const g of svg.querySelectorAll('line.grid, line.goal-line')) {
+            const gx = Number(g.getAttribute('x1'));
+            if (Math.abs(gx - cx) < RING_R + 1 && Number(g.getAttribute('y1')) < cy && Number(g.getAttribute('y2')) > cy) out.push('a grid line through a ring');
+          }
+        }
+        // Crowded archive segments are one solid band in the ticks' own ink.
+        const solid = svg.querySelector('rect.comb-solid');
+        const combPath = svg.querySelector('path.comb');
+        if (solid && combPath) {
+          const a = getComputedStyle(solid);
+          const b = getComputedStyle(combPath);
+          if (a.fill !== b.stroke || a.opacity !== b.opacity) out.push(`the crowded log's fill ${a.fill} is not the ticks' ${b.stroke}`);
+        }
+        // A hidden box in block A ends at the disaster line's left edge, never across it.
+        for (const h of svg.querySelectorAll('[data-id="hidden-standby"], [data-id="hidden-delayed"]')) if (Number(h.getAttribute('x')) + Number(h.getAttribute('width')) > xNow - 1 + 0.05) out.push('a hidden box crosses the disaster line');
+        // Block B's rows keep equal gaps: slack lines collect at the block's foot.
+        const gapsB = (D.meta.rowsB ?? []).slice(1).map((r, i) => r.top - D.meta.rowsB[i].bottom);
+        if (new Set(gapsB.map((g) => Math.round(g))).size > 1) out.push(`block B's rows are spaced ${gapsB.join(', ')} px`);
+        // After a drop the primary keeps serving: no stage words say a plan serves again, is promoted, or is back
+        // without the table.
+        if (m.settings.disaster === DROP) {
+          for (const t of text.split(' | ').flatMap((x) => x.split(/(?<=[.?!])\s+|;\s+/))) if (/serve again|serves again|promote|back in/i.test(t) && !/table/i.test(t)) out.push(`a drop word without the table: "${t}"`);
+        }
         // Every full backup in the day is drawn, and no more.
         if (rest && D.meta.fulls !== m.fullsH.length) out.push(`${D.meta.fulls} full backups drawn for ${m.fullsH.length}`);
         // The archive comb's ticks keep 2.5 px apart (a band where they would crowd).
@@ -2199,11 +2498,11 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story
       const afterOf = (k) => M.run(actSettings(M.EXPERIMENTS[k]));
       const setupOf = (k) => M.run(M.EXPERIMENTS[k].setup);
       const GIVEAWAYS = {
-        'replica-drop': { both: ['cannot', 'the drop too', 'applied the drop', 'waits in its log', 'never', `back in ${rtoSpan(setupOf(0).plans.delayed.rtoMin)}`, 'promote it'], asking: [] },
-        'pitr-time': { both: [`back in ${rtoSpan(setupOf(1).plans.pitr.rtoMin)}`, fMin(setupOf(1).plans.pitr.rtoMin), fMin(setupOf(1).replayMin), 'in all', 'serves last'] },
+        'replica-drop': { both: ['cannot', 'the drop too', 'applied the drop', 'waits in its log', 'never', `back in ${rtoSpan(setupOf(0).plans.delayed.rtoMin)}`, 'pause it'], asking: [] },
+        'pitr-time': { both: [`back in ${rtoSpan(setupOf(1).plans.pitr.rtoMin)}`, fMin(setupOf(1).plans.pitr.rtoMin), fMin(setupOf(1).replayMin), 'in all', 'serves last', 'h after the', 'min after the'] },
         archive: { playing: [`back in ${rtoSpan(afterOf(2).plans.pitr.rtoMin)}`, `loses ${span(afterOf(2).plans.pitr.rpoS)}`, 'was ', 'in all', 'serves last'] },
         growth: { playing: [`back in ${rtoSpan(afterOf(3).plans.full.rtoMin)}`, `back in ${rtoSpan(afterOf(3).plans.pitr.rtoMin)}`, `back in ${rtoSpan(afterOf(3).plans.standby.rtoMin)}`, fMin(afterOf(3).restoreMin), 'was ', 'serves last', 'h after the disaster', 'min after the disaster'] },
-        delayed: { both: [`back in ${rtoSpan(setupOf(4).plans.delayed.rtoMin)}`, fMin(setupOf(4).delayedReplayMin), 'waits in its log', 'promote it'] },
+        delayed: { both: [`back in ${rtoSpan(setupOf(4).plans.delayed.rtoMin)}`, fMin(setupOf(4).delayedReplayMin), 'waits in its log', 'pause it', 'back last'] },
       };
       function structural(well, spec, phase, view) {
         const out = [];
@@ -2239,6 +2538,17 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story
           if (/\d/.test(tx('b-pitr-ledger') ?? '') || /\d/.test(tx('a-pitr-note') ?? '')) out.push("PITR's new numbers in its words");
         }
         if (hide.has('rtoAfter') && playing) for (const k of M.PLANS) if (!/\?/.test(tx(`b-${k}-value`) ?? '?') || /\d/.test(tx(`b-${k}-ledger`) ?? '')) out.push(`${k}'s new time shown while the answer plays`);
+        // While a hidden region's answer plays, its mechanism is drawn but its outcome marks wait for the reveal.
+        if (playing) {
+          const held = new Set(replicas);
+          if (hide.has('pitrTime') || hide.has('pitrAfter')) held.add('pitr');
+          if (hide.has('rtoAfter')) M.PLANS.forEach((k) => held.add(k));
+          for (const k of held) {
+            const rpoToo = replicas.includes(k) || hide.has('pitrAfter');
+            const ids = [`serve-${k}`, `iserve-${k}`, `never-${k}`, `never-i-${k}`, ...(rpoToo ? [`ring-${k}`, `lost-${k}`, ...(k === 'standby' ? ['standby-x'] : [])] : [])];
+            for (const id of ids) if (svg.querySelector(`[data-id="${id}"]`)) out.push(`${id} drawn while the answer plays`);
+          }
+        }
         if (/\d/.test(tx('step') ?? '') && (hide.has('pitrTime') || hide.has('rtoAfter') || hide.has('pitrAfter') || hide.has('replicasDrop') || hide.has('delayedOutcome'))) out.push(`the step counts: "${tx('step')}"`);
         return out;
       }
@@ -2306,6 +2616,8 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story
         tryLeak('E3 asked with the ghost of the setting before it', 'archive', 'asking', ['ghost'], 1, { ...B, size: 10000 });
         tryLeak("E1 asked, the settings live and the model's note shown", 'replica-drop', 'asking', ['locked']);
         tryLeak('E4 played, the step counting the clock', 'growth', 'playing', ['allRto', 'pitrRto'], 0.6);
+        tryLeak("E1 played, the replicas' outcomes drawn while their words are held", 'replica-drop', 'playing', ['outcomesHeld'], 0.7);
+        tryLeak("E2 played, PITR's green dot drawn while its time is held", 'pitr-time', 'playing', ['outcomesHeld'], 1);
         well.style.width = '';
         return caught;
       };
@@ -2334,6 +2646,75 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story
         well.style.width = '';
         return { asked, out };
       };
+      // The play's clock in 0.05 steps: no value, disaster name, ledger minute or outcome mark before its moment.
+      window.motionSweep = function (widths, list) {
+        const well = document.getElementById('well');
+        const failures = [];
+        let renders = 0;
+        for (const W of widths) {
+          well.style.width = W + 2 + 'px';
+          for (const s of list) {
+            const m = M.run(s);
+            for (let i = 0; i <= 20; i++) {
+              const frac = i / 20;
+              const view = restView(s, { play: { frac } });
+              drawInto(well, W, m, view);
+              renders++;
+              const svg = well.querySelector('svg.draw');
+              const tx = (id) => svg.querySelector(`[data-id="${id}"]`)?.textContent ?? '';
+              const has = (id) => !!svg.querySelector(`[data-id="${id}"]`);
+              const out = [];
+              if (frac < PLAN.strike) {
+                if (tx('a-primary-value') || has('strike-label') || has('origin-label') || has('strike') || svg.querySelector('.xmark, .drop-tick')) out.push('the disaster shown before it strikes');
+                if (/drop too|waits in its log|table is gone|disks fail/.test(svg.textContent.replace(tx('workload'), '').replace(tx('step'), ''))) out.push('a note tells the disaster before it strikes');
+              }
+              for (const k of M.PLANS) {
+                const p = m.plans[k];
+                if (frac < pointOf(k) && (tx(`a-${k}-value`) || has(`ring-${k}`) || has(`lost-${k}`))) out.push(`${k}'s loss before its ring lands`);
+                if (frac < PLAN.recoverStart && (tx(`b-${k}-value`) || has(`serve-${k}`) || has(`never-${k}`))) out.push(`${k}'s time before the recovery starts`);
+                const passed = passedMin(m, frac);
+                const v = tx(`b-${k}-value`);
+                if (p.recovers && passed < p.rtoMin && v && v !== 'recovering') out.push(`${k} reads "${v}" before it is back`);
+                if (p.recovers && passed < p.rtoMin && (has(`serve-${k}`) || has(`iserve-${k}`))) out.push(`${k}'s green dot before it is back`);
+                const ledger = [...svg.querySelectorAll(`text[data-owner="b-${k}"]`)].filter((t) => !/value|name/.test(t.dataset.id ?? '')).map((t) => t.textContent).join(' ');
+                let t0 = 0;
+                const ended = p.recovers ? p.steps.filter((st) => (t0 += st.min) <= passed).length : 0;
+                const counted = (ledger.match(/[\d,]+ min/g) ?? []).length;
+                const allowed = ended + (k === 'pitr' && passed >= p.rtoMin ? 1 : 0);
+                if (counted > allowed) out.push(`${k}'s ledger counts ${counted} figures with ${ended} steps done: "${ledger}"`);
+                if (!p.recovers && frac < PLAN.recoverStart && /applied the drop/.test(ledger)) out.push(`${k}'s ledger tells its outcome before the recovery`);
+              }
+              if (out.length) failures.push({ W, s: `${show(s)} at ${frac.toFixed(2)}`, out });
+            }
+          }
+        }
+        well.style.width = '';
+        return { renders, failures };
+      };
+      // The question keeps one box through asking, its play and the reveal: no rewrap under the learner's finger.
+      window.dockShift = function () {
+        const out = [];
+        for (const spec of M.EXPERIMENTS.filter((e) => !e.goal)) {
+          const boxes = ['asking', 'playing', 'revealed'].map((phase) => {
+            render(null, expView(spec, phase));
+            const r = document.querySelector('.dock .legend').getBoundingClientRect();
+            return `${Math.round(r.width)}x${Math.round(r.height)}`;
+          });
+          if (new Set(boxes).size > 1) out.push(`${spec.id}: the question's box moves ${boxes.join(' / ')}`);
+        }
+        render(stateName);
+        return out;
+      };
+      // Tabular digits only on aligned figures: no prose inherits them.
+      window.proseDigits = function () {
+        const out = [];
+        for (const name of ['challenge', 'describe']) {
+          render(name, name === 'challenge' ? expView(M.EXPERIMENTS.at(-1), 'met') : undefined);
+          for (const el of document.querySelectorAll('.status li, .legend, .reveal, .notice, .model-note, .describe p, tbody th, thead th:not(.num)')) if (/tabular/.test(getComputedStyle(el).fontVariantNumeric)) out.push(`${name}: tabular digits on "${el.textContent.slice(0, 40)}"`);
+        }
+        render(stateName);
+        return out;
+      };
       window.heights = function (widths) {
         const out = {};
         for (const W of widths) {
@@ -2360,6 +2741,9 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story
           const tables = [true, false].map((c) => JSON.stringify(describeRows(m, c)));
           const words = [...sentences, ...tables].join(' | ');
           for (const g of FALSE_CLAIMS) if (g.test(words)) out.push(`${show(s)}: ${g} in "${words.match(g)[0]}"`);
+          if (s.disaster === DROP) for (const t of sentences.flatMap((x) => x.split(/(?<=[.?!])\s+|;\s+/))) if (/serve again|serves again|promote|back in/i.test(t) && !/table/i.test(t)) out.push(`${show(s)}: a drop sentence without the table: "${t}"`);
+          // A checklist line names its goal first, the current value in parentheses.
+          for (const g of goalChecks(m)) if (!/\(now [^)]+\): (met|not yet)$/.test(g.text)) out.push(`${show(s)}: a checklist line without its goal first: "${g.text}"`);
           for (const t of [...sentences, describeRows(m, false).note]) {
             for (const g of PROSE) if (g.test(t)) out.push(`${show(s)}: ${g} in "${t.slice(Math.max(0, t.search(g) - 20), t.search(g) + 30)}"`);
             if (!/[.!?:]$/.test(t) && !/: (met|not yet)$/.test(t)) out.push(`${show(s)}: not a sentence: "${t.slice(-40)}"`);
