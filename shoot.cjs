@@ -89,6 +89,21 @@ const server = http.createServer((req, res) => {
     for (const [k, n] of [...agg].sort((a, b) => b[1] - a[1]).slice(0, 25)) console.log(`  ${n} × ${k}`);
   }
   if (!args.includes('--no-sweep')) {
+    // HTML line breaks at phone widths, and the travel fill's contrast in both themes.
+    const lineIssues = [];
+    for (const w of [320, 360, 390, 412, 1280])
+      for (const q of ['state=default', 'state=challenge', 'state=challenge&start=1', ...[1, 2, 3, 4, 5].flatMap((k) => [`state=ask&exp=${k}`, `state=reveal&exp=${k}`]), 'state=reduced']) {
+        const p = await open(w, q);
+        for (const i of await p.evaluate(() => window.htmlLines())) lineIssues.push(`${w} ${q}: ${i}`);
+        await p.close();
+      }
+    console.log(`html lines: ${lineIssues.length} issues`);
+    [...new Set(lineIssues)].slice(0, 30).forEach((i) => console.log('  ' + i));
+    for (const theme of THEMES) {
+      const p = await open(1280, `state=shield&theme=${theme}`);
+      console.log(`travel fill contrast (${theme}): ${(await p.evaluate(() => window.travelContrast())).toFixed(2)}:1`);
+      await p.close();
+    }
     const page = await open(1280, 'state=default');
     const stageWidths = [248, 254, 288, 296, 310, 324, 346, 360, 420, 480, 560, 620, 700, 760];
     const s1 = await page.evaluate((w) => window.sweep(w, [null, 0.35, 0.8]), stageWidths);

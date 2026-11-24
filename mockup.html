@@ -797,6 +797,9 @@
       .caption {
         color: var(--g-text);
       }
+      .model-note.guide {
+        color: var(--g-text);
+      }
       .model-note {
         margin: 0;
         font-size: var(--g-text-body-s);
@@ -855,9 +858,35 @@
       .fill-origin {
         fill: var(--g-viz-critical);
       }
+      /* 0.78 keeps the travelling misses at 3:1 or more against the stage in both themes (theme-contrast.spec). */
       .fill-travel {
         fill: var(--g-viz-current);
-        fill-opacity: 0.42;
+        fill-opacity: 0.78;
+      }
+      .cell-sep {
+        stroke: var(--g-viz-stage);
+        stroke-width: 1;
+      }
+      .band-sep {
+        fill: none;
+        stroke: var(--g-viz-stage);
+        stroke-width: 1;
+      }
+      .path-bar.edge {
+        fill: var(--g-viz-final);
+      }
+      .path-bar.shield {
+        fill: var(--g-viz-considering);
+      }
+      .path-bar.origin {
+        fill: var(--g-viz-critical);
+      }
+      .mean-tick {
+        stroke: var(--g-text);
+        stroke-width: 1.5;
+      }
+      .playhead-cap {
+        fill: var(--g-accent);
       }
       .tier {
         fill: var(--g-raised);
@@ -932,11 +961,12 @@
         stroke: var(--g-line);
       }
       .tickmark {
-        stroke: var(--g-line-strong);
+        stroke: var(--g-stroke);
       }
+      /* The playhead is the accent hairline, thinner than a miss tick and never ink, so it never reads as a miss. */
       .playhead {
-        stroke: var(--g-text);
-        stroke-width: 1.5;
+        stroke: var(--g-accent);
+        stroke-width: 1;
       }
       .band-edge {
         fill: var(--g-viz-final);
@@ -952,9 +982,16 @@
         stroke: var(--g-text);
         stroke-width: 1.5;
       }
+      .knee.shield {
+        stroke: var(--g-warn-ink);
+        stroke-width: 2;
+      }
       .knee-line {
         stroke: var(--g-text);
         stroke-width: 1;
+      }
+      .knee-line.shield {
+        stroke: var(--g-warn-ink);
       }
       .bracket {
         fill: none;
@@ -1095,11 +1132,13 @@ function tw(text, role) {
 }
 // A number never parts from its unit, nor a percentile from its value: they wrap as one word (stage-text.ts's keep
 // rule, the same one g-code-text applies to HTML).
-const KEEP = /(\d[\d,.]*\+?%?|\?%?) (ms|s|min|h|minutes?|seconds?|hours?|locations?|requests|URLs|times|a second|a minute|of requests)\b/g;
+// Only a number with its unit is kept together, never the words before it ("of 20 locations" would strand "Each"); a
+// ghost sentence ("It was 18.8 ms.") is one group.
+const KEEP = /(\d[\d,.]*%?|\?%?) (ms|s|min|h|minutes?|seconds?|hours?|locations?|requests|URLs|times|a second|a minute|a location)\b/g;
 const glue = (t) =>
   t
     .replace(KEEP, '$1⁠$2')
-    .replace(/(about|of|at|under|in|was|the) (\d|\?)/g, '$1⁠$2')
+    .replace(/It was /g, 'It⁠was⁠')
     .replace(/(\d[\d,.]*%?) (×) (\d)/g, '$1⁠$2⁠$3');
 const unglue = (t) => t.replace(/⁠/g, ' ');
 /** Lines of `text` in `role` within `width`, with the measurement's 1 px slack and the keep rule. */
@@ -1129,7 +1168,7 @@ const pick = (forms, fits) => forms.find(fits) ?? forms[forms.length - 1];
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const r1 = (v) => Math.round(v * 10) / 10;
 // HTML learner text keeps a number with its unit on one line (g-code-text's rule), without a non-breaking space.
-const KEEP_HTML = /((?:about |under |at most |was )?\d[\d,.]*\+?%?(?: (?:ms|s|min|h|minutes?|seconds?|hours?|locations?|requests|URLs|times|a second|a minute))?|\?\/s|\? ms)/g;
+const KEEP_HTML = /(\(\?utm_source=…\)|\d[\d,.]*%?(?: (?:ms|s|min|h|minutes?|seconds?|hours?|locations?|requests|URLs|times|a second|a minute|a location))?|\?\/s|\? ms|\?%)/g;
 const nb = (s) =>
   esc(s)
     .split(KEEP_HTML)
@@ -1146,6 +1185,7 @@ class Draw {
     this.hits = [];
     this.regions = {};
     this.missing = [];
+    this.orphans = [];
     this.meta = {};
   }
   add(layer, s) {
@@ -1169,6 +1209,7 @@ class Draw {
   para(x, y, text, width, o = {}) {
     const role = o.role ?? 'cap';
     const lines = wrap(text, role, width);
+    if (lines.length > 1) for (const l of lines) if (!l.includes(' ')) this.orphans.push(`${l} (in "${text.slice(0, 40)}")`);
     for (const l of lines) {
       this.text(x, y, [[l, role, o.cls ?? 'muted']], o);
       y += LH[role];
@@ -1191,18 +1232,27 @@ class Draw {
 <g>${L.back.join('')}</g><g>${L.grid.join('')}</g><g>${L.links.join('')}</g><g>${L.marks.join('')}</g><g>${L.dots.join('')}</g><g>${L.text.join('')}</g><g>${L.top.join('')}</g></svg>`;
   }
 }
-/** Axis labels: the first and last always; a middle one only where it keeps 6 px from its kept neighbours. */
-function placeTicks(D, ticks, y, owner) {
+/**
+ * Axis labels, evenly spaced: all of them when every pair keeps 6 px; otherwise every other one, counted from `from`
+ * ('start' or 'end'), plus the label at the other end only where it keeps 6 px. Labels in `fixed` (already placed, such
+ * as a ring's rank) are kept first, and any tick label within 6 px of one is dropped.
+ */
+function placeTicks(D, ticks, y, owner, { from = 'start', fixed = [] } = {}) {
   const box = (t) => {
-    const w = tw(t.text, 'small');
+    const w = tw(t.text, t.role ?? 'small');
     const x0 = t.anchor === 'middle' ? t.x - w / 2 : t.anchor === 'end' ? t.x - w : t.x;
     return { x0, x1: x0 + w };
   };
-  const kept = [ticks[0], ticks.at(-1)];
-  for (const t of ticks.slice(1, -1)) {
-    const b = box(t);
-    if (kept.every((k) => { const c = box(k); return b.x1 + 6 <= c.x0 || c.x1 + 6 <= b.x0; })) kept.push(t);
+  const clear = (a, b) => { const p = box(a); const q = box(b); return p.x1 + 6 <= q.x0 || q.x1 + 6 <= p.x0; };
+  const fits = (set) => set.every((a, i) => set.every((b, j) => j <= i || clear(a, b)));
+  let kept = ticks;
+  if (!fits(kept)) {
+    const n = ticks.length - 1;
+    kept = ticks.filter((_, i) => (from === 'start' ? i : n - i) % 2 === 0);
+    const other = from === 'start' ? ticks[n] : ticks[0];
+    if (!kept.includes(other) && kept.every((k) => clear(k, other))) kept.push(other);
   }
+  kept = kept.filter((t) => fixed.every((f) => clear(t, f)));
   for (const t of kept) D.text(t.x, y, [[t.text, 'small', 'muted']], { anchor: t.anchor, xtick: true, owner });
 }
 function dot(D, cx, cy, r, cls, owner, id) {
@@ -1255,43 +1305,48 @@ function titleOf(s) {
 function subOf(s) {
   return `The site serves 100,000 images, popularity on a Zipf curve. Each location keeps a copy for ${F.ttlWords(s.ttl)} after a miss.${urls(s)}`;
 }
-function tierWords(sc, hid, ghost, cols = sc.s.pops) {
+/** The tiers' words; `narrow` (a stage under 420 px) gives each body its short form. */
+function tierWords(sc, hid, ghost, narrow = false) {
   const s = sc.s;
-  const q = (v) => (hid.tierNumbers ? '?' : v);
-  const was = (now, then) => (ghost && !hid.ghost && then !== now ? ` (was ${then})` : '');
+  const q = (v) => (hid.tierNumbers ? '?%' : v);
+  const ghostWords = !hid.tierNumbers && ghost && !hid.ghost && F.rate(ghost.originRps) !== F.rate(sc.originRps) ? ` It was ${F.rate(ghost.originRps)}.` : '';
+  const hop = s.shield ? 'the edge, the shield, then a round trip to the origin' : 'the edge, then a round trip to the origin';
   return {
-    users: { fig: F.rate(s.rps), head: 'requests', body: 'from users, each sent to its nearest location (anycast or DNS).' },
+    users: { fig: F.rate(s.rps), head: 'requests', body: narrow ? 'Each to its nearest location.' : 'From users, each sent to its nearest location (anycast or DNS).' },
     edge: {
       fig: hid.tierNumbers ? '?/s' : F.rate(sc.edgeRps),
       head: 'answered at the edge',
-      body: `In ${F.ms(sc.paths.edge)}, for ${q(F.pct(sc.edgeShare))} of requests. ${s.pops === 1 ? 'The one location takes' : `Each of ${locs(s.pops)}${cols < s.pops ? `, drawn as ${cols} columns of ${s.pops / cols},` : ''} takes`} ${F.rate(sc.perPopRps)} and keeps its own copies.`,
+      body: narrow
+        ? `In ${F.ms(sc.paths.edge)}, ${q(F.pct(sc.edgeShare))} of requests, ${s.pops === 1 ? 'at one location' : `at ${F.rate(sc.perPopRps)} a location`}.`
+        : `In ${F.ms(sc.paths.edge)}, for ${q(F.pct(sc.edgeShare))} of requests. ${s.pops === 1 ? 'The one location takes' : `Each of ${locs(s.pops)}, one cell each, takes`} ${F.rate(sc.perPopRps)} and keeps its own copies.`,
     },
     shield: s.shield && s.pops === 1
-      ? { fig: null, head: null, body: 'With 1 location the shield never hits: its copy expires with the edge’s. It adds 30 ms to every miss.' }
+      ? { fig: null, head: null, body: narrow ? 'With 1 location the shield never hits; it adds 30 ms to a miss.' : 'With 1 location the shield never hits: its copy expires with the edge’s. It adds 30 ms to every miss.' }
       : s.shield
       ? {
           fig: hid.tierNumbers ? '?/s' : F.rate(sc.shieldRps),
           head: 'answered by the shield',
-          body: `In ${F.ms(sc.paths.shield)}, for ${q(F.pct(sc.shieldShare))} of requests. It sees every location’s misses.`,
+          body: narrow ? `In ${F.ms(sc.paths.shield)}, ${q(F.pct(sc.shieldShare))} of requests.` : `In ${F.ms(sc.paths.shield)}, for ${q(F.pct(sc.shieldShare))} of requests. It sees every location’s misses.`,
         }
-      : { fig: null, head: null, body: 'No shield: every miss goes on to the origin.' },
+      : { fig: null, head: null, body: narrow ? 'No shield: misses go on to the origin.' : 'No shield: every miss goes on to the origin.' },
     origin: {
       fig: hid.tierNumbers ? '?/s' : F.rate(sc.originRps),
       head: 'reach the origin',
-      body: `In ${F.ms(sc.paths.origin)}, for ${q(F.pct(sc.originShare))} of ${F.rate(s.rps)}.${hid.tierNumbers ? '' : was(F.rate(sc.originRps), ghost && F.rate(ghost.originRps)).replace(' (', ' (').replace(/^ \(was (.*)\)$/, ' It was $1.')}`,
+      body: (narrow ? `In ${F.ms(sc.paths.origin)}, ${q(F.pct(sc.originShare))} of ${F.rate(s.rps)}.` : `In ${F.ms(sc.paths.origin)} (${hop}), for ${q(F.pct(sc.originShare))} of ${F.rate(s.rps)}.`) + ghostWords,
     },
     mean: hid.mean
       ? 'Mean response: shows after your answer.'
-      : `Mean response ${F.ms(sc.meanMs)} = ${[
+      : `Mean response ${F.mean(sc.meanMs)} = ${[
           [sc.edgeShare, sc.paths.edge],
           [sc.shieldShare, sc.paths.shield],
           [sc.originShare, sc.paths.origin],
         ]
           .filter(([sh], i) => i !== 1 || s.shield)
           .map(([sh, p]) => `${F.pct(sh)} × ${F.ms(p)}`)
-          .join(' + ')}.${ghost && !hid.ghost && F.ms(ghost.meanMs) !== F.ms(sc.meanMs) ? ` It was ${F.ms(ghost.meanMs)}.` : ''}`,
+          .join(' + ')}.${ghost && !hid.ghost && F.mean(ghost.meanMs) !== F.mean(sc.meanMs) ? ` It was ${F.mean(ghost.meanMs)}.` : ''}`,
   };
 }
+const restStep = (sc) => `Play runs these ${windowWords(sc.s)} at the outlined location in 6 seconds.`;
 function laneWords(sc, i, hid) {
   const l = sc.lanes[i];
   const s = sc.s;
@@ -1308,10 +1363,13 @@ function legendItems(sc, hid) {
   items.push({ cls: 'origin', t: `${q(F.pct(sc.originShare))} at the origin` });
   return items;
 }
+// A rank past the last object is said as a fact about every object, and one before the first about none.
 function kneeWords(sc, hid) {
-  const k = (v) => (hid.curveNumbers ? '?' : v < 1 ? 'none' : v > M.OBJECTS ? 'beyond the 100,000th' : `the ${F.ord(v)}`);
-  const edge = `Half of its requests hit at the edge: ${k(sc.edgeKnee)}`;
-  const shield = sc.s.shield ? (sc.shieldKnee > 0 ? `Half of its edge misses hit the shield: ${k(sc.shieldKnee)}` : 'With 1 location the shield never hits: its copy expires with the edge’s.') : '';
+  const q = hid.curveNumbers;
+  const e = sc.edgeKnee;
+  const edge = q ? 'Half of its requests hit at the edge: ?' : e < 1 ? 'No object hits at the edge half the time' : e > M.OBJECTS ? 'Every object hits at the edge at least half the time' : `Half of its requests hit at the edge: the ${F.ord(e)}`;
+  const k = sc.shieldKnee;
+  const shield = !sc.s.shield ? '' : k <= 0 ? 'With 1 location the shield never hits: its copy expires with the edge’s.' : q ? 'Half of its edge misses hit the shield: ?' : k > M.OBJECTS ? 'Every object’s edge misses hit the shield at least half the time' : `Half of its edge misses hit the shield: the ${F.ord(k)}`;
   return { edge, shield };
 }
 /** The stage's summary: obeys hiding(), and says which numbers are the model's and which marks are a sample. */
@@ -1321,20 +1379,31 @@ function summary(sc, hid) {
   const parts = [`A CDN with ${locs(s.pops)} serves ${F.group(s.rps)} requests a second for 100,000 images with Zipf popularity; each location keeps a copy for ${F.ttlWords(s.ttl)} after a miss${s.shield ? ', and an origin shield sits between the locations and the origin' : ''}.${urls(s)}`];
   if (hid.tierNumbers) parts.push('Where the requests are answered shows after your answer.');
   else {
-    parts.push(`By the model, ${F.pct(sc.edgeShare)} are answered at the edge in ${F.ms(sc.paths.edge)}${s.shield ? `, ${F.pct(sc.shieldShare)} by the shield in ${F.ms(sc.paths.shield)}` : ''}, and ${F.rate(sc.originRps)} reach the origin, in ${F.ms(sc.paths.origin)}: a mean response of ${F.ms(sc.meanMs)}.`);
+    parts.push(`By the model, ${F.pct(sc.edgeShare)} are answered at the edge in ${F.ms(sc.paths.edge)}${s.shield ? `, ${F.pct(sc.shieldShare)} by the shield in ${F.ms(sc.paths.shield)}` : ''}, and ${F.rate(sc.originRps)} reach the origin, in ${F.ms(sc.paths.origin)}: a mean response of ${F.mean(sc.meanMs)}.`);
   }
   if (hid.curveNumbers) parts.push('Which objects hit shows after your answer.');
-  else parts.push(`Popular objects hit and the long tail misses: an object hits half the time at the edge from ${kneeWords(sc, hid).edge.split(': ')[1]} down.`);
+  else {
+    const e = sc.edgeKnee;
+    parts.push(e < 1 ? 'No object hits at the edge half the time.' : e > M.OBJECTS ? 'Every object hits at the edge at least half the time.' : `Popular objects hit and the long tail misses: objects more popular than the ${F.ord(e)} hit at the edge more than half the time, and the rest less.`);
+  }
   parts.push('The timeline is one random sample of the outlined location’s requests.');
   return parts.join(' ');
 }
 function settingSentence(sc) {
   const s = sc.s;
-  return `With ${locs(s.pops)}, a ${F.ttlAdj(s.ttl)} TTL${s.shield ? ' and the shield' : ' and no shield'}${s.variants > 1 ? `, ${s.variants} URLs an image` : ''}, ${F.pct(sc.edgeShare)} of ${F.group(s.rps)} requests a second hit at the edge, ${F.rate(sc.originRps)} reach the origin, and the mean response is ${F.ms(sc.meanMs)}.`;
+  return `With ${locs(s.pops)}, a ${F.ttlAdj(s.ttl)} TTL${s.shield ? ' and the shield' : ' and no shield'}${s.variants > 1 ? `, ${s.variants} URLs an image` : ''}, ${F.pct(sc.edgeShare)} of ${F.group(s.rps)} requests a second hit at the edge, ${F.rate(sc.originRps)} reach the origin, and the mean response is ${F.mean(sc.meanMs)}.`;
 }
 function noteOf(view) {
   if (hiding(view).note) return 'An analytic model with a random sample beside it. Its assumptions show after your answer.';
-  return `An analytic model: requests are independent Poisson arrivals, spread evenly over the locations; an object never changes during its TTL; caches have no size limit; a miss is fetched at once (request collapsing keeps it to one fetch). A copy asked for at rate r hits with probability rT ÷ (1 + rT). Users reach the nearest of n locations in 10 ms × √(20 ÷ n); the shield adds 30 ms and the origin 120 ms. The timeline is one random sample; the hit shares beside it are the model's.`;
+  return `An analytic model: requests are independent Poisson arrivals, spread evenly over the locations; an object never changes during its TTL; caches have no size limit; a miss is fetched at once (request collapsing keeps it to one fetch). A copy asked for at rate r hits with probability rT ÷ (1 + rT). A copy fetched from the shield lives a full TTL at the edge (the Age header is ignored), so with a shield an image can be up to two TTLs old. Users reach the nearest of n locations in 10 ms × √(20 ÷ n); the shield adds 30 ms and the origin 120 ms. Times are one request on a warm connection; a new connection also pays its TCP and TLS round trips, which end at the nearest location, so a CDN saves several long round trips, not one. The timeline is one random sample; the hit shares beside it are the model's.`;
+}
+/** How to read the timeline and the square (under the stage, so the stage keeps only a one-line key); obeys hiding(). */
+function guideOf(view) {
+  const hid = hiding(view);
+  const lanes = hid.laneMarks
+    ? 'The timeline is one random sample of the outlined location: each tick is a request, and what hit shows after your answer.'
+    : `The timeline is one random sample of the outlined location. A bar is a copy, alive for the TTL after the miss that fetched it. A short tick is a hit; a tall tick is a miss${view.s.shield ? ', ending in a square on the shield track if the shield answered and running below it to a dot if the origin did' : ', running below the track to a dot: the origin answered'}.`;
+  return `${lanes} In the square, objects are ordered by popularity rank, each as wide as its share of requests, and a column’s height is where its requests are answered.`;
 }
 
 // ---------- Play: one monotone clock over the timeline's window. Marks land when the clock reaches them.
@@ -1357,8 +1426,9 @@ function events(sample, s) {
 function stepWords(sc, sample, t, hid) {
   const ev = events(sample, sc.s).filter((e) => !e.hit && e.at <= t);
   const last = ev.at(-1);
-  const clock = F.clock(t);
+  const clock = `${F.clock(t)} of ${windowWords(sc.s)}`;
   if (!last || t - last.at > M.WINDOW_TTLS * sc.s.ttl * 0.08) return `${clock}: requests arrive at the outlined location; a short tick found its copy there.`;
+  if (last.lane === 0 && last.dense) return `${clock}: #1’s copy expired; the next request misses, and the requests that arrive during its fetch wait for it (request collapsing), so one fetch goes on, not a herd.`;
   const rank = `#${F.group(sc.lanes[last.lane].rank)}`;
   const where = { shield: `the shield had a copy, ${F.ms(sc.paths.shield)}`, origin: `fetched from the origin, ${F.ms(sc.paths.origin)}` }[last.where];
   return `${clock}: ${rank} has no live copy here, a miss: ${hid.laneHits && false ? '' : where}; a new copy lives ${F.ttlWords(sc.s.ttl)}.`;
@@ -1397,27 +1467,43 @@ function geometry(W) {
   const wide = iw >= 480;
   const labelW = wide ? 232 : Math.max(120, Math.round(iw * 0.56));
   const artW = iw - labelW - (wide ? 20 : 10);
-  return { pad, x0, x1, iw, wide, labelW, artW, labelX: x1 - labelW };
+  return { pad, x0, x1, iw, wide, labelW, artW, labelX: x1 - labelW, narrow: W < 420 };
 }
-/** Columns drawn for `pops` locations: the most that divide them evenly, up to 20, each at least 15 px. */
+/** Columns for `pops` locations: the most that divide them evenly, up to 20, each slot at least 8 px. Every location is
+ * its own cell: a column holds pops / cols cells stacked, so 100 locations draw 100 cells at every width. */
 function colsFor(g, pops) {
-  const maxCols = Math.max(1, Math.floor(g.artW / 15));
+  const maxCols = Math.max(1, Math.floor(g.artW / 8));
   return [100, 50, 25, 20, 10, 5, 4, 2, 1].find((d) => pops % d === 0 && d <= Math.min(20, maxCols)) ?? 1;
 }
+/** The edge grid's art height: 18 px for one row of cells, else at least 40 px (rows of at least 4 px). */
+const EDGE_ART = (k) => (k === 1 ? 18 : Math.max(40, 4 * k));
+function edgeArtMax(g) {
+  return Math.max(...M.POPS.map((p) => EDGE_ART(p / colsFor(g, p))));
+}
+/** Users sit as far above the locations as the nearest location is from them: 44 px for one location, × √(1 / n). */
+const USER_GAP = (pops) => 44 / Math.sqrt(pops);
 function linesOf(text, role, width) {
   return wrap(text, role, width).length;
 }
+function keyForms(s, hid) {
+  if (hid.laneMarks) return ['One random sample: each tick is a request; what hit shows after your answer.', 'Each tick is a request; what hit shows after your answer.'];
+  return s.shield
+    ? ['One sample. Bar: a copy · short tick: a hit · tall tick: a miss, ending at the shield track if the shield answered, below it if the origin did.', 'Bar: copy · short tick: hit · tall tick: miss, to the shield or below it']
+    : ['One sample. Bar: a copy · short tick: a hit · tall tick: a miss, its dot below the track: the origin answered.', 'Bar: copy · short tick: hit · tall tick: miss'];
+}
+const keyOf = (s, hid, width) => pick(keyForms(s, hid), (f) => linesOf(f, 'small', width) <= 2);
+const AXIS_TITLES = ['Objects by popularity, each as wide as its share of requests', 'Objects by popularity, each as wide as its requests', 'Objects by popularity'];
 function reserve(W) {
   if (reserveCache.has(W)) return reserveCache.get(W);
   const g = geometry(W);
-  const r = { title: 1, sub: 1, users: 1, edge: 1, shield: 1, origin: 1, mean: 1, lane: [1, 1, 1], step: 1, legend: 1, knee: 1, kneeS: 1, cap: 1 };
+  const r = { title: 1, sub: 1, users: 1, edge: 1, shield: 1, origin: 1, mean: 1, lane: [1, 1, 1], step: 1, legend: 1, knee: 1, kneeS: 1, key: 1 };
   const hids = [NOTHING, { ...NOTHING, tierNumbers: true, mean: true, curveNumbers: true, laneHits: true }];
   for (const s of M.SETTINGS) {
     const sc = M.scenario(s);
     r.title = Math.max(r.title, linesOf(titleOf(s), 'title', g.iw));
     r.sub = Math.max(r.sub, linesOf(subOf(s), 'cap', g.iw));
     for (const hid of hids) {
-      const t = tierWords(sc, hid, M.scenario({ ...s, pops: s.pops === 20 ? 100 : 20 }), colsFor(g, s.pops));
+      const t = tierWords(sc, hid, M.scenario({ ...s, pops: s.pops === 20 ? 100 : 20 }), g.narrow);
       for (const k of ['users', 'edge', 'shield', 'origin']) r[k] = Math.max(r[k], tierLines(t[k], g.labelW));
       r.mean = Math.max(r.mean, linesOf(t.mean, 'cap', g.iw));
       for (let i = 0; i < 3; i++) r.lane[i] = Math.max(r.lane[i], laneLines(laneWords(sc, i, hid), g.iw));
@@ -1427,18 +1513,17 @@ function reserve(W) {
       r.kneeS = Math.max(r.kneeS, kw.shield ? linesOf(kw.shield, 'small', g.iw - 14) : 1);
     }
   }
-  for (const s of M.SETTINGS.filter((x) => x.rps === 10000)) {
+  for (const s of M.SETTINGS.filter((x) => x.rps === 10000 || x.pops === 100)) {
     const sc = M.scenario(s);
     const sm = M.sample(sc);
-    for (const frac of [0.05, 0.3, 0.55, 0.8, 1]) r.step = Math.max(r.step, linesOf(stepWords(sc, sm, frac * M.WINDOW_TTLS * s.ttl, NOTHING), 'cap', g.iw));
+    for (const frac of [0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.55, 0.7, 0.8, 0.9, 1]) r.step = Math.max(r.step, linesOf(stepWords(sc, sm, frac * M.WINDOW_TTLS * s.ttl, NOTHING), 'cap', g.iw));
+    r.step = Math.max(r.step, linesOf(restStep(sc), 'cap', g.iw));
   }
-  r.step = Math.max(r.step, linesOf(restStep(M.scenario(M.BASE)), 'cap', g.iw), linesOf('Played below the picture: motion is reduced.', 'cap', g.iw));
-  r.cap = linesOf(CAPTION, 'small', g.iw);
+  r.step = Math.max(r.step, linesOf('Played below the picture: motion is reduced.', 'cap', g.iw));
+  for (const shield of [0, 1]) for (const laneMarks of [false, true]) r.key = Math.max(r.key, linesOf(keyOf({ shield }, { laneMarks }, g.iw), 'small', g.iw));
   reserveCache.set(W, r);
   return r;
 }
-const CAPTION = 'One random sample. A bar is a copy, alive for the TTL after the miss that fetched it. A short tick is a hit; a tall tick is a miss, its dot amber if the shield answered and red if the origin did.';
-const restStep = (sc) => `Play runs these ${windowWords(sc.s)} at the outlined location.`;
 function tierLines(t, width) {
   let n = 0;
   if (t.fig) n += wrap(`${t.fig} ${t.head}`, 'capB', width - Math.max(0, tw(t.fig, 'num') - tw(t.fig, 'capB'))).length;
@@ -1464,9 +1549,16 @@ function legendRows(items, width) {
   }
   return rows;
 }
+const PATH_MS_MAX = 200;
+const PATH_ROWS = [
+  ['edge', 'edge hit'],
+  ['shield', 'shield hit'],
+  ['origin', 'origin fetch'],
+];
 
-// The users row, the locations (drawn as columns when there are more than fit), the shield and the origin. Widths are
-// shares of all requests: a column's box is its share, its green part the hits, what leaves its foot the misses.
+// The users row, every location as its own cell (stacked in columns where they are many), the shield and the origin,
+// then each path's latency on one ms scale. Widths are shares of all requests: a column's box is its locations' share,
+// its green part their hits, what leaves its foot their misses.
 function tiers(D, y, sc, view, hid) {
   const g = geometry(D.W);
   const r = reserve(D.W);
@@ -1478,10 +1570,11 @@ function tiers(D, y, sc, view, hid) {
   const artX1 = g.x0 + g.artW;
   const cx = (artX0 + artX1) / 2;
   const cols = colsFor(g, s.pops);
+  const k = s.pops / cols;
   const slot = g.artW / cols;
-  const band = Math.min(g.artW * 0.72, 150, (slot - 5) * cols);
+  const band = Math.min(g.artW * 0.72, 150, (slot - 3) * cols);
   const bw = band / cols;
-  const t = tierWords(sc, hid, view.ghost, cols);
+  const t = tierWords(sc, hid, view.ghost, g.narrow);
   const lab = (row, yy) => {
     let b = yy + 12;
     if (row.fig) {
@@ -1494,16 +1587,17 @@ function tiers(D, y, sc, view, hid) {
     }
     return D.para(g.labelX, b, row.body, g.labelW, { owner: row.owner, id: `body-${row.owner}` });
   };
-  // Users.
-  const usersH = Math.max(16, r.users * 17);
-  const nUsers = Math.max(2, Math.floor(g.artW / 9));
-  const uy = y + 7;
-  for (let i = 0; i < nUsers; i++) dot(D, artX0 + 4 + ((g.artW - 8) * i) / (nUsers - 1), uy, 2.5, 'user', 'users');
+  // Users, as far above the locations as the nearest location is from them.
   lab({ ...t.users, owner: 'users', cls: '' }, y);
-  y += usersH + 22;
-  // Edge locations.
-  const ey = y;
-  const boxH = 18;
+  const ey = y + Math.max(r.users * 17 + 10, 54);
+  const gap = USER_GAP(s.pops);
+  const uy = ey - 4 - gap;
+  const nUsers = Math.max(2, Math.floor(g.artW / 9));
+  for (let i = 0; i < nUsers; i++) dot(D, artX0 + 4 + ((g.artW - 8) * i) / (nUsers - 1), uy, 2.5, 'user', 'users');
+  D.meta.userGap = ey - 1 - (uy + 3);
+  // Edge locations: one cell each.
+  const artH = EDGE_ART(k);
+  const rowH = artH / k;
   const colX = (j) => artX0 + slot * (j + 0.5);
   for (let i = 0; i < nUsers; i++) {
     const ux = artX0 + 4 + ((g.artW - 8) * i) / (nUsers - 1);
@@ -1511,74 +1605,101 @@ function tiers(D, y, sc, view, hid) {
     D.add('links', line('anycast', ux, uy + 3, colX(j), ey - 1));
   }
   const h = sc.edgeShare;
+  D.add('marks', `<g data-cells="${cols * k}">`);
   for (let j = 0; j < cols; j++) {
     const x = colX(j) - bw / 2;
-    D.add('marks', rect(`pop${j === 0 ? ' watched' : ''}`, x - 2, ey, bw + 4, boxH, 2, ` data-id="pop-${j}"`));
+    D.add('marks', rect('pop', x - 2, ey, bw + 4, artH, 2, ` data-id="pop-${j}"`));
     if (!hid.tierFlows) {
-      D.add('marks', rect('fill-edge', x, ey + 2, bw * h, boxH - 4, 0, ' data-band="edge"'));
-      D.add('marks', rect('fill-travel', x + bw * h, ey + 2, bw * (1 - h), boxH - 4));
+      D.add('marks', rect('fill-edge', x, ey + 2, bw * h, artH - 4, 0, ' data-band="edge"'));
+      D.add('marks', rect('fill-travel', x + bw * h, ey + 2, bw * (1 - h), artH - 4));
     }
   }
-  D.region('pop0', { x0: colX(0) - bw / 2 - 2, x1: colX(0) + bw / 2 + 2, y0: ey, y1: ey + boxH });
-  const edgeTextEnd = lab({ ...t.edge, owner: 'edge', cls: 'edge-ink' }, ey - 2);
+  for (let i = 1; i < k; i++) D.add('marks', line('cell-sep', artX0, ey + i * rowH, artX1, ey + i * rowH));
+  D.add('marks', '</g>');
+  D.add('marks', rect('pop watched', colX(0) - bw / 2 - 2, ey, bw + 4, rowH, 2, ' data-id="watched"'));
+  D.meta.cell = { w: bw, h: rowH };
+  D.region('pop0', { x0: colX(0) - bw / 2 - 2, x1: colX(0) + bw / 2 + 2, y0: ey, y1: ey + rowH });
+  lab({ ...t.edge, owner: 'edge', cls: 'edge-ink' }, ey - 2);
   D.meta.cols = cols;
   D.meta.band = band;
-  const edgeH = Math.max(boxH, r.edge * 17 + 2);
+  const edgeH = Math.max(edgeArtMax(g), r.edge * 17 + 2);
   y = ey + edgeH + 8;
   // Fan-in to the shield row, then the origin.
   const shieldRowH = Math.max(44 + 6 + r.shield * 17, 64);
-  const sy = y + 34; // the shield box's top
-  const shieldBox = { y: sy, h: 20 };
-  const oy = y + shieldRowH + 26; // the origin box's top
+  const sy = y + 34;
+  const shH = 20;
+  const oy = y + shieldRowH + 26;
   const originH = 24;
   const missW = band * (1 - h);
   const originW = band * sc.originShare;
   const shieldW = band * sc.shieldShare;
-  const bx0 = cx - missW / 2; // the merged band's left edge at the shield
+  const bx0 = cx - missW / 2;
+  const ya = ey + artH;
   if (!hid.tierFlows) {
     for (let j = 0; j < cols; j++) {
       const sx0 = colX(j) - bw / 2 + bw * h;
       const sx1 = colX(j) + bw / 2;
       const tx0 = bx0 + j * (bw * (1 - h));
       const tx1 = tx0 + bw * (1 - h);
-      const ya = ey + boxH;
-      const yb = s.shield ? sy : sy + shieldBox.h / 2;
+      const yb = s.shield ? sy : sy + shH / 2;
       const m = (ya + yb) / 2;
       D.add('links', `<path class="fill-travel" d="M${r1(sx0)},${r1(ya)} C${r1(sx0)},${r1(m)} ${r1(tx0)},${r1(m)} ${r1(tx0)},${r1(yb)} L${r1(tx1)},${r1(yb)} C${r1(tx1)},${r1(m)} ${r1(sx1)},${r1(m)} ${r1(sx1)},${r1(ya)} Z" data-stream="${j}"/>`);
+      if (j === 0) D.meta.stream0 = { a: [(sx0 + sx1) / 2, ya], c1: [(sx0 + sx1) / 2, m], c2: [(tx0 + tx1) / 2, m], b: [(tx0 + tx1) / 2, yb] };
     }
     if (s.shield) {
-      D.add('marks', rect('tier', bx0 - 2, sy, Math.max(missW + 4, 8), shieldBox.h, 3, ' data-id="shield-box"'));
-      D.add('marks', rect('fill-shield', bx0, sy + 2, shieldW, shieldBox.h - 4, 0, ' data-band="shield"'));
-      D.add('marks', rect('fill-travel', bx0 + shieldW, sy + 2, originW, shieldBox.h - 4));
-      D.add('links', rect('fill-travel', bx0 + shieldW, sy + shieldBox.h, originW, oy - sy - shieldBox.h));
+      D.add('marks', rect('tier', bx0 - 2, sy, Math.max(missW + 4, 8), shH, 3, ' data-id="shield-box"'));
+      D.add('marks', rect('fill-shield', bx0, sy + 2, shieldW, shH - 4, 0, ' data-band="shield"'));
+      D.add('marks', rect('fill-travel', bx0 + shieldW, sy + 2, originW, shH - 4));
+      D.add('links', rect('fill-travel', bx0 + shieldW, sy + shH, originW, oy - sy - shH, 0, ' data-id="trunk"'));
     } else {
-      D.add('links', rect('fill-travel', bx0, sy + shieldBox.h / 2, missW, oy - sy - shieldBox.h / 2));
+      D.add('links', rect('fill-travel', bx0, sy + shH / 2, missW, oy - sy - shH / 2, 0, ' data-id="trunk"'));
     }
     const ox0 = s.shield ? bx0 + shieldW : bx0;
     D.add('marks', rect('tier', ox0 - 2, oy, Math.max(originW + 4, 8), originH, 3, ' data-id="origin-box"'));
-    D.meta.path = { x0: colX(0) + bw / 2 - (bw * (1 - h)) / 2, y0: ey + boxH, xs: bx0 + missW / 2, ys: sy + shieldBox.h / 2, xo: ox0 + originW / 2, yo: oy + originH / 2 };
     D.add('marks', rect('fill-origin', ox0, oy + 2, originW, originH - 4, 0, ' data-band="origin"'));
+    D.meta.route = { stream: D.meta.stream0, shieldY: sy + shH / 2, originX: ox0 + originW / 2, originY: oy + originH / 2, shield: !!s.shield };
     D.meta.flows = { missW, shieldW, originW };
   } else {
-    // Hidden until the reveal: the shield and the origin as plain outlines, the flows between a dashed box.
-    D.add('marks', rect('hidden-box', artX0 + 2, ey + boxH + 6, g.artW - 4, oy + originH - (ey + boxH + 6), 4, ' data-id="flows-hidden"'));
-    D.text(cx, (ey + boxH + sy) / 2 + 4, [[pick(['shows after your answer', 'after your answer', 'after answering'], (f) => tw(f, 'small') <= g.artW - 16), 'small', 'muted']], { anchor: 'middle', owner: 'flows' });
-    if (s.shield) D.add('marks', rect('tier', cx - 14, sy, 28, shieldBox.h, 3, ' data-id="shield-box"'));
+    D.add('marks', rect('hidden-box', artX0 + 2, ya + 6, g.artW - 4, oy + originH - (ya + 6), 4, ' data-id="flows-hidden"'));
+    D.text(cx, (ya + sy) / 2 + 4, [[pick(['shows after your answer', 'after your answer', 'after answering'], (f) => tw(f, 'small') <= g.artW - 16), 'small', 'muted']], { anchor: 'middle', owner: 'flows' });
+    if (s.shield) D.add('marks', rect('tier', cx - 14, sy, 28, shH, 3, ' data-id="shield-box"'));
     D.add('marks', rect('tier', cx - 20, oy, 40, originH, 3, ' data-id="origin-box"'));
   }
-  D.region('shield', { x0: cx - 14, x1: cx + 14, y0: sy, y1: sy + shieldBox.h });
+  D.region('shield', { x0: cx - 14, x1: cx + 14, y0: sy, y1: sy + shH });
   D.region('origin', { x0: cx - 20, x1: cx + 20, y0: oy, y1: oy + originH });
-  // The shield's switch sits in the label column on the shield row; its words follow under it.
   D.hits.push({ kind: 'shield', x: g.labelX, y: y + 2, w: Math.min(g.labelW, 168), h: 44 });
   lab({ ...t.shield, owner: 'shield', cls: 'shield-ink' }, y + 2 + 44 + 4);
   lab({ ...t.origin, owner: 'origin', cls: 'origin-ink' }, oy - 2);
   const originRowH = Math.max(originH, r.origin * 17 + 2);
-  y = oy + originRowH + 10;
+  y = oy + originRowH + 14;
+  // Each path's latency on one ms scale, the mean as a tick between them.
+  const nameW = Math.max(...PATH_ROWS.map(([, n]) => tw(n, 'small'))) + 8;
+  const valW = tw('194.7 ms', 'small') + 8;
+  const bx = g.x0 + nameW;
+  const bx1 = g.x1 - valW;
+  const S = (v) => bx + ((bx1 - bx) * v) / PATH_MS_MAX;
+  PATH_ROWS.forEach(([key, name], i) => {
+    const ry = y + i * 16;
+    const on = key !== 'shield' || s.shield;
+    D.text(g.x0, ry + 10, [[name, 'small', on ? '' : 'muted']], { owner: 'paths' });
+    if (on) {
+      D.add('marks', rect(`path-bar ${key}`, bx, ry + 4, S(sc.paths[key]) - bx, 7, 1, ` data-path="${key}"`));
+      D.text(g.x1, ry + 10, [[F.ms(sc.paths[key]), 'small', '']], { anchor: 'end', owner: 'paths' });
+    } else D.text(bx, ry + 10, [['no shield', 'small', 'muted']], { owner: 'paths' });
+  });
+  const my = y + 3 * 16 + 11;
+  if (!hid.mean) {
+    const mx = S(sc.meanMs);
+    D.add('marks', line('mean-tick', mx, y + 1, mx, y + 3 * 16 - 1, ' data-id="mean-tick"'));
+    const mt = `mean ${F.mean(sc.meanMs)}`;
+    const w = tw(mt, 'smallB');
+    D.text(Math.min(bx1 - w, Math.max(bx, mx - w / 2)), my, [[mt, 'smallB', '']], { owner: 'paths', id: 'mean-label' });
+  } else D.text(bx, my, [['mean: after your answer', 'small', 'muted']], { owner: 'paths' });
+  y += 3 * 16 + 18;
   D.para(g.x0, y + 12, t.mean, g.iw, { owner: 'mean', cls: '', id: 'mean' });
   y += r.mean * 17 + 6;
-  D.meta.tierRows = { ey, sy, oy, colX: colX(0), bw, h, cx, bx0 };
   D.region('tiers', { x0: g.x0 - 8, x1: g.x1 + 8, y0: top - 6, y1: y });
-  return y + 26;
+  return y + 34;
 }
 
 // The outlined location over five TTLs: three objects' requests, their copies, and with a shield what the shield held.
@@ -1588,8 +1709,11 @@ function timeline(D, y, sc, view, hid, sample) {
   const s = sc.s;
   const top = y;
   const W = M.WINDOW_TTLS * s.ttl;
-  const label = pick([`The outlined location, ${windowWords(s)} · one sample`, `Outlined location, ${windowWords(s)} · sample`, `${windowWords(s)} · a sample`], (f) => tw(f, 'label') <= g.iw - 56);
-  D.text(g.x0, y + 26, [[label, 'label', 'muted']], { owner: 'timeline' });
+  // One line where a form fits beside Play, else two lines (both fit in Play's 44 px row).
+  const forms = [`The outlined location, ${windowWords(s)} · one sample`, `Outlined location, ${windowWords(s)} · sample`, 'Outlined location · sample'];
+  const one = forms.find((f) => tw(f, 'label') <= g.iw - 56);
+  const labelLines = one ? [one] : wrap(forms.find((f) => linesOf(f, 'label', g.iw - 56) <= 2) ?? forms[2], 'label', g.iw - 56);
+  labelLines.forEach((l, i) => D.text(g.x0, y + (labelLines.length === 1 ? 26 : 19 + i * 15), [[l, 'label', 'muted']], { owner: 'timeline' }));
   D.hits.push({ kind: 'play', x: g.x1 - 44, y, w: 44, h: 44 });
   y += 48;
   const frac = view.frac ?? (view.reduced && view.played ? 1 : null);
@@ -1608,7 +1732,6 @@ function timeline(D, y, sc, view, hid, sample) {
     let b = y + 12;
     if (tw(one, 'cap') <= g.iw) {
       D.text(g.x0, b, [[w.who, 'capB', ''], [` ${w.asked} · `, 'cap', 'muted'], [w.hits, 'capB', hid.laneHits ? 'muted' : '']], { owner: `lane-${i}`, id: `lane-words-${i}` });
-      b += 17;
     } else {
       const a = wrap(`${w.who} ${w.asked}`, 'cap', g.iw);
       a.forEach((l, k) => {
@@ -1621,9 +1744,8 @@ function timeline(D, y, sc, view, hid, sample) {
         b += 14;
       });
     }
-    const lanesUsed = Math.max(1, (b - (y + 12)) / 17);
     y += r.lane[i] * 17 + 2;
-    const ty = y; // the edge track's top
+    const ty = y;
     laneTop.push(ty);
     const L = sample.lanes[i];
     D.add('grid', line('track', g.x0, ty + 13, g.x1, ty + 13));
@@ -1638,8 +1760,9 @@ function timeline(D, y, sc, view, hid, sample) {
         if (L.dense) D.add('marks', rect('dense', x0 + 1, ty + 4, Math.max(0, x1 - x0 - 2), 8, 0, ` data-dense="${i}"`));
       }
     }
-    // While E1 asks, a dense lane's arrivals are one grey hatch across the window: requests, with no outcome.
-    if (hid.laneMarks && L.dense) D.add('marks', rect('dense-other', g.x0, ty + 4, (tNow == null ? W : tNow) / W * g.iw, 9));
+    if (hid.laneMarks && L.dense) D.add('marks', rect('dense-other', g.x0, ty + 4, ((tNow == null ? W : tNow) / W) * g.iw, 9));
+    const shY = ty + 24;
+    const originY = ty + 31;
     for (const e of ev.filter((q) => q.lane === i)) {
       if (!show(e.at)) continue;
       const x = xOf(e.at);
@@ -1648,30 +1771,32 @@ function timeline(D, y, sc, view, hid, sample) {
         continue;
       }
       if (e.hit) D.add('marks', line('tick-hit', x, ty + 4, x, ty + 13, ` data-req="${i}"`));
-      else {
-        D.add('marks', line('tick-miss', x, ty + 1, x, ty + 13, ` data-req="${i}"`));
-        dot(D, x, ty + 1, 2.5, `ans-${e.where}`, `lane-${i}`, `miss-${i}-${e.at.toFixed(3)}`);
+      else if (e.where === 'shield') {
+        // A miss the shield answered stops at the shield track, in a square there.
+        D.add('marks', line('tick-miss', x, ty + 1, x, shY, ` data-req="${i}"`));
+        D.add('dots', `<rect class="dot ans-shield" x="${r1(x - 3)}" y="${r1(shY - 3)}" width="6" height="6" data-cx="${r1(x)}" data-cy="${r1(shY)}" data-r="3" data-owner="lane-${i}"/>`);
+      } else {
+        // A miss the origin answered runs past the shield track to a dot below it.
+        D.add('marks', line('tick-miss', x, ty + 1, x, originY, ` data-req="${i}"`));
+        dot(D, x, originY, 2.5, 'ans-origin', `lane-${i}`, `miss-${i}-${e.at.toFixed(3)}`);
       }
     }
     if (s.shield) {
-      const sy = ty + 18;
-      D.add('grid', line('track', g.x0, sy + 6, g.x1, sy + 6));
+      D.add('grid', line('track', g.x0, shY, g.x1, shY));
       if (!hid.laneMarks && L.shield) {
         for (const c of L.shield.copies) {
           if (!show(Math.max(0, c.from))) continue;
           const to = tNow == null ? c.to : Math.min(c.to, tNow);
           if (xOf(to) - xOf(c.from) < 0.5) continue;
-          D.add('marks', rect('copy shield', xOf(c.from), sy + 1, xOf(to) - xOf(c.from), 5, 1, ` data-scopy="${i}"`));
+          D.add('marks', rect('copy shield', xOf(c.from), shY - 5, xOf(to) - xOf(c.from), 5, 1, ` data-scopy="${i}"`));
         }
         if (L.shield.dense) {
           const to = tNow == null ? W : tNow;
-          D.add('marks', rect('dense-other', g.x0, sy + 6, xOf(to) - g.x0, 4));
-        } else for (const a of L.shield.arrivals) if (!a.own && show(a.at)) D.add('marks', line('tick-other', xOf(a.at), sy + 6, xOf(a.at), sy + 10));
+          D.add('marks', rect('dense-other', g.x0, shY, xOf(to) - g.x0, 4));
+        } else for (const a of L.shield.arrivals) if (!a.own && show(a.at)) D.add('marks', line('tick-other', xOf(a.at), shY, xOf(a.at), shY + 4));
       }
-      if (i === 0) D.text(g.x1, sy - 2 + 30, [['', 'small', 'muted']]);
     }
     y = ty + 38;
-    void lanesUsed;
   }
   // The axis: TTL marks across the window.
   D.add('grid', line('axis', g.x0, y, g.x1, y));
@@ -1681,17 +1806,19 @@ function timeline(D, y, sc, view, hid, sample) {
     D.add('grid', line('tickmark', x, y, x, y + 4));
     tt.push({ x, text: F.clock(k * s.ttl), anchor: k === 0 ? 'start' : k === M.WINDOW_TTLS ? 'end' : 'middle' });
   }
-  placeTicks(D, tt, y + 16, 'taxis');
-  if (tNow != null && frac < 1) {
+  placeTicks(D, tt, y + 16, 'taxis', { from: 'start' });
+  if (playing) {
+    // One accent hairline across each lane's tracks (never through the lane words) and a cap on the axis.
     const x = xOf(tNow);
-    for (const ty of laneTop) D.add('top', line('playhead', x, ty - 2, x, ty + (s.shield ? 30 : 16)));
-    D.add('top', line('playhead', x, y - 4, x, y + 2));
+    for (const ty of laneTop) D.add('top', line('playhead', x, ty - 1, x, ty + 35));
+    D.add('top', line('playhead', x, y - 3, x, y));
+    D.add('top', `<path class="playhead-cap" d="M${r1(x - 3.5)},${r1(y + 5)} L${r1(x + 3.5)},${r1(y + 5)} L${r1(x)},${r1(y)} Z"/>`);
   }
   y += 24;
-  D.para(g.x0, y + 10, CAPTION, g.iw, { role: 'small', owner: 'caption' });
-  y += r.cap * 14 + 4;
+  D.para(g.x0, y + 10, keyOf(s, hid, g.iw), g.iw, { role: 'small', owner: 'key' });
+  y += r.key * 14 + 4;
   D.region('timeline', { x0: g.x0 - 8, x1: g.x1 + 8, y0: top - 6, y1: y });
-  return y + 26;
+  return y + 34;
 }
 
 // The square: every request, objects ordered by popularity, each as wide as its share of requests; the height of a
@@ -1716,15 +1843,11 @@ function square(D, y, sc, view, hid) {
   const px1 = g.x1;
   const pw = px1 - px0;
   const X = (share) => px0 + pw * share;
-  // The tail bracket and the lanes' objects, above the plot.
   const tailX0 = X(M.cumShare(10000));
-  const tailText = `the 90,000 least popular: ${F.pct(1 - M.cumShare(10000))} of requests`;
-  const tailForms = [tailText, `90,000 least popular: ${F.pct(1 - M.cumShare(10000))}`, `the tail: ${F.pct(1 - M.cumShare(10000))}`];
-  const tailT = pick(tailForms, (f) => tw(f, 'small') <= g.iw - 4);
-  D.text(px1, y + 9, [[tailT, 'small', 'muted']], { anchor: 'end', owner: 'tail' });
+  const tailForms = [`the 90,000 least popular: ${F.pct(1 - M.cumShare(10000))} of requests`, `90,000 least popular: ${F.pct(1 - M.cumShare(10000))}`, `the tail: ${F.pct(1 - M.cumShare(10000))}`];
+  D.text(px1, y + 9, [[pick(tailForms, (f) => tw(f, 'small') <= g.iw - 4), 'small', 'muted']], { anchor: 'end', owner: 'tail' });
   D.add('grid', `<path class="bracket" d="M${r1(tailX0)},${r1(y + 18)} V${r1(y + 14)} H${r1(px1)} V${r1(y + 18)}"/>`);
   y += 22;
-  // Lane markers: three small labels with ticks, nudged apart to keep 6 px.
   const marks = sc.lanes.map((l) => ({ rank: l.rank, x: X((M.cumShare(l.rank - 1) + M.cumShare(l.rank)) / 2), t: `#${F.group(l.rank)}` }));
   let prevEnd = -Infinity;
   const placed = marks.map((m) => {
@@ -1741,11 +1864,11 @@ function square(D, y, sc, view, hid) {
     D.add('grid', `<path class="lane-mark" d="M${r1(m.x - 3)},${r1(y + 12)} L${r1(m.x + 3)},${r1(y + 12)} L${r1(m.x)},${r1(y + 16)} Z"/>`);
   }
   y += 18;
-  // The plot.
   const ph = D.W < 420 ? 112 : 140;
   const py0 = y;
   const py1 = y + ph;
   const Y = (v) => py1 - ph * v;
+  const rings = [];
   if (!hid.curveBands) {
     const n = Math.max(40, Math.round(pw));
     const cols = M.columns(sc, n);
@@ -1753,21 +1876,24 @@ function square(D, y, sc, view, hid) {
     const ptsS = cols.map((c, i) => [X((i + 0.5) / n), Y(c.edge + c.shield)]);
     const path = (pts) => pts.map(([x, yy]) => `${r1(x)},${r1(yy)}`).join(' L');
     D.add('marks', `<path class="band-origin" d="M${r1(px0)},${r1(py0)} H${r1(px1)} V${r1(py1)} H${r1(px0)} Z"/>`);
-    if (s.shield) D.add('marks', `<path class="band-shield" data-band="sq-shield" d="M${r1(px0)},${r1(py1)} L${r1(px0)},${r1(ptsS[0][1])} L${path(ptsS)} L${r1(px1)},${r1(ptsS.at(-1)[1])} V${r1(py1)} Z"/>`);
+    if (s.shield) {
+      D.add('marks', `<path class="band-shield" data-band="sq-shield" d="M${r1(px0)},${r1(py1)} L${r1(px0)},${r1(ptsS[0][1])} L${path(ptsS)} L${r1(px1)},${r1(ptsS.at(-1)[1])} V${r1(py1)} Z"/>`);
+      // A stage-coloured hairline parts the shield's band from the origin's (their colours alone are too close).
+      D.add('marks', `<path class="band-sep" d="M${r1(px0)},${r1(ptsS[0][1])} L${path(ptsS)} L${r1(px1)},${r1(ptsS.at(-1)[1])}"/>`);
+    }
     D.add('marks', `<path class="band-edge" data-band="sq-edge" d="M${r1(px0)},${r1(py1)} L${r1(px0)},${r1(ptsE[0][1])} L${path(ptsE)} L${r1(px1)},${r1(ptsE.at(-1)[1])} V${r1(py1)} Z"/>`);
     D.add('grid', line('gridline', px0, Y(0.5), px1, Y(0.5)));
-    // The half-hit ranks: a ring around the point where a band's edge crosses one half.
-    const ring = (rank, yv, id) => {
-      if (!(rank >= 1 && rank <= M.OBJECTS)) return null;
+    const ring = (rank, yv, kind) => {
+      if (!(rank >= 1 && rank <= M.OBJECTS)) return;
       const x = X(M.xOfRank(rank));
-      D.add('top', line('knee-line', x, Y(yv) + 4, x, py1 + 5));
-      D.add('top', `<circle class="knee" cx="${r1(x)}" cy="${r1(Y(yv))}" r="4" data-id="${id}"/>`);
-      return x;
+      D.add('top', line(`knee-line${kind === 'shield' ? ' shield' : ''}`, x, Y(yv) + 4, x, py1 + 4, ` data-ring="${kind}"`));
+      D.add('top', `<circle class="knee${kind === 'shield' ? ' shield' : ''}" cx="${r1(x)}" cy="${r1(Y(yv))}" r="4" data-id="knee-${kind}"/>`);
+      rings.push({ kind, x, text: F.ord(rank) });
     };
-    D.meta.kneeX = ring(sc.edgeKnee, 0.5, 'knee-edge');
+    ring(sc.edgeKnee, 0.5, 'edge');
     if (s.shield && sc.shieldKnee > 0) {
-      const k = M.key(s, Math.round(sc.shieldKnee));
-      D.meta.kneeSX = ring(sc.shieldKnee, k.edge + (1 - k.edge) * 0.5, 'knee-shield');
+      const q = M.key(s, Math.round(sc.shieldKnee));
+      ring(sc.shieldKnee, q.edge + (1 - q.edge) * 0.5, 'shield');
     }
   } else {
     D.add('marks', rect('hidden-box', px0, py0, pw, ph, 3, ' data-id="square-hidden"'));
@@ -1775,50 +1901,87 @@ function square(D, y, sc, view, hid) {
   }
   D.add('grid', line('axis', px0, py1, px1, py1));
   D.add('grid', line('axis', px0, py0, px0, py1));
-  for (const [v, t] of [[1, '100%'], [0.5, '50%'], [0, '0']]) D.text(px0 - 5, Y(v) + 4, [[t, 'small', 'muted']], { anchor: 'end', owner: 'yaxis' });
-  y = py1;
-  const xt = [{ x: px0 + 2, text: '1', anchor: 'start' }];
+  for (const [v, t] of [[1, '100%'], [0.5, '50%'], [0, '0%']]) D.text(px0 - 5, Y(v) + 4, [[t, 'small', 'muted']], { anchor: 'end', owner: 'yaxis' });
+  // The axis row: each ring's rank centred on its hairline (nudged apart to keep 6 px while each still spans its
+  // hairline), then the rank boundaries centred on their ticks, evenly dropped where they crowd.
+  const ringLabels = rings.map((rg) => {
+    const w = tw(rg.text, 'smallB');
+    return { ...rg, w, x0: Math.min(g.x1 - w, Math.max(g.x0, rg.x - w / 2)) };
+  });
+  if (ringLabels.length === 2) {
+    const [a, b] = ringLabels[0].x <= ringLabels[1].x ? ringLabels : [ringLabels[1], ringLabels[0]];
+    const short = a.x0 + a.w + 6 - b.x0;
+    if (short > 0) {
+      a.x0 -= short / 2;
+      b.x0 += short / 2;
+      a.x0 = Math.max(g.x0, a.x0);
+      b.x0 = Math.min(g.x1 - b.w, Math.max(b.x0, a.x0 + a.w + 6));
+      a.x0 = Math.min(a.x0, b.x0 - 6 - a.w);
+    }
+  }
+  for (const rl of ringLabels) D.text(rl.x0, py1 + 16, [[rl.text, 'smallB', rl.kind === 'shield' ? 'shield-ink' : '']], { owner: 'xaxis', id: `ring-label-${rl.kind}`, data: ` data-ring-x="${r1(rl.x)}"` });
+  const xt = [];
   for (const rank of [10, 100, 1000, 10000, 100000]) {
     const x = X(M.cumShare(rank));
     D.add('grid', line('tickmark', x, py1, x, py1 + 4));
-    xt.push({ x: rank === 100000 ? x : x - 2, text: F.group(rank), anchor: 'end' });
+    xt.push({ x, text: F.group(rank), anchor: rank === 100000 ? 'end' : 'middle' });
   }
-  placeTicks(D, xt, py1 + 16, 'xaxis');
-  y += 20;
-  y = D.para(g.x0, y + 10, 'Objects by popularity rank, each as wide as its share of requests: a column’s height is where its requests are answered.', g.iw, { role: 'small', owner: 'xtitle' }) - 10;
-  y = Math.max(y, 0) + 8;
-  y = py1 + 20 + linesOf('Objects by popularity rank, each as wide as its share of requests: a column’s height is where its requests are answered.', 'small', g.iw) * 14 + 4;
+  placeTicks(D, xt, py1 + 16, 'xaxis', { from: 'end', fixed: ringLabels.map((rl) => ({ x: rl.x0, text: rl.text, anchor: 'start', role: 'smallB' })) });
+  y = py1 + 20;
+  D.text(g.x0, y + 10, [[pick(AXIS_TITLES, (f) => tw(f, 'small') <= g.iw), 'small', 'muted']], { owner: 'xtitle' });
+  y += 18;
   const kw = kneeWords(sc, hid);
-  const kneeRow = (text, id, owner) => {
-    D.add('top', `<circle class="knee knee-key" cx="${r1(g.x0 + 4)}" cy="${r1(y + 6)}" r="4" data-id="${id}-key"/>`);
-    D.para(g.x0 + 14, y + 10, text, g.iw - 14, { role: 'small', owner, cls: '', id });
+  const kneeRow = (text, kind, owner) => {
+    D.add('top', `<circle class="knee knee-key${kind === 'shield' ? ' shield' : ''}" cx="${r1(g.x0 + 4)}" cy="${r1(y + 6)}" r="4" data-id="knee-${kind}-key"/>`);
+    D.para(g.x0 + 14, y + 10, text, g.iw - 14, { role: 'small', owner, cls: '', id: `knee-${kind}-words` });
   };
-  kneeRow(kw.edge, 'knee-words', 'knee');
+  kneeRow(kw.edge, 'edge', 'knee');
   y += r.knee * 14 + 2;
-  if (kw.shield) kneeRow(kw.shield, 'knee-shield-words', 'kneeS');
+  if (kw.shield) kneeRow(kw.shield, 'shield', 'kneeS');
   y += r.kneeS * 14 + 4;
   D.region('square', { x0: g.x0 - 8, x1: g.x1 + 8, y0: top - 6, y1: y });
   return y + 26;
 }
 
-// While a play runs, the newest miss at the outlined location travels its path: on to the shield, and on to the
-// origin if the shield had no copy. It is the play's one moving particle (a pooled dot), drawn on the streams only.
+// While a play runs, the newest miss at the outlined location rides its own drawn stream: column 0's centre line into
+// the merged band, then (if the shield had no copy) across the shield box to the trunk and down it to the origin. It
+// is the play's one moving particle and moves only along drawn marks.
+function routePoints(route, where) {
+  const { a, c1, c2, b } = route.stream;
+  const pts = [];
+  for (let i = 0; i <= 24; i++) {
+    const t = i / 24;
+    const u = 1 - t;
+    pts.push([u * u * u * a[0] + 3 * u * u * t * c1[0] + 3 * u * t * t * c2[0] + t * t * t * b[0], u * u * u * a[1] + 3 * u * u * t * c1[1] + 3 * u * t * t * c2[1] + t * t * t * b[1]]);
+  }
+  if (route.shield) {
+    pts.push([b[0], route.shieldY]);
+    if (where === 'origin') pts.push([route.originX, route.shieldY], [route.originX, route.originY]);
+  } else pts.push([b[0], route.originY]);
+  return pts;
+}
+function alongRoute(pts, f) {
+  const seg = pts.slice(1).map((p, i) => Math.hypot(p[0] - pts[i][0], p[1] - pts[i][1]));
+  let d = f * seg.reduce((x, y) => x + y, 0);
+  for (let i = 0; i < seg.length; i++) {
+    if (d <= seg[i] || i === seg.length - 1) {
+      const k = seg[i] ? Math.min(1, d / seg[i]) : 0;
+      return [pts[i][0] + (pts[i + 1][0] - pts[i][0]) * k, pts[i][1] + (pts[i + 1][1] - pts[i][1]) * k];
+    }
+    d -= seg[i];
+  }
+  return pts.at(-1);
+}
 function pulse(D, sc, view, sample) {
-  const p = D.meta.path;
-  if (!p || view.frac == null || view.frac >= 1 || view.reduced) return;
+  const route = D.meta.route;
+  if (!route || view.frac == null || view.frac >= 1 || view.reduced) return;
   const W = M.WINDOW_TTLS * sc.s.ttl;
   const t = view.frac * W;
   const span = W * 0.06;
   const last = events(sample, sc.s).filter((e) => !e.hit && e.at <= t && t - e.at < span).at(-1);
   if (!last) return;
-  const k = (t - last.at) / span;
-  const legs = [[p.x0, p.y0, p.xs, p.ys]];
-  if (last.where === 'origin') legs.push([p.xs, p.ys, p.xo, p.yo]);
-  const u = Math.min(1, k * legs.length * (last.where === 'origin' ? 1 : 2));
-  const i = Math.min(legs.length - 1, Math.floor(u * legs.length * 0.999));
-  const f = u * legs.length - i;
-  const [a, b, c, d] = legs[i];
-  dot(D, a + (c - a) * Math.min(1, f), b + (d - b) * Math.min(1, f), 3.5, 'key', 'pulse', 'pulse');
+  const [x, y] = alongRoute(routePoints(route, last.where), (t - last.at) / span);
+  dot(D, x, y, 3.5, 'key', 'pulse', 'pulse');
 }
 function buildStage(W, view) {
   const D = new Draw(W);
@@ -1835,17 +1998,17 @@ function buildStage(W, view) {
   y += r.sub * 17 + 14;
   D.add('grid', line('rule', g.x0, y - 7, g.x1, y - 7));
   y = tiers(D, y, sc, view, hid);
-  D.add('grid', line('rule', g.x0, y - 13, g.x1, y - 13));
+  D.add('grid', line('rule', g.x0, y - 9, g.x1, y - 9));
   y = timeline(D, y, sc, view, hid, sample);
-  D.add('grid', line('rule', g.x0, y - 13, g.x1, y - 13));
+  D.add('grid', line('rule', g.x0, y - 9, g.x1, y - 9));
   y = square(D, y, sc, view, hid);
   pulse(D, sc, view, sample);
   const H = Math.round(y - 2);
   D.label = summary(sc, hid);
   return { D, H, sc, hid, sample };
 }
-// A reveal's regions get an outline (stroke only, around the whole region) and the house "Look here" tag at the
-// region's foot, in the 18 px every block reserves there.
+// A reveal's regions get an outline (stroke only, around the whole region) and the house "Look here" tag on the
+// outline's foot, in the space every block keeps there (6 px clear of the next block's outline).
 function focusOutlines(D, ids) {
   for (const id of ids) {
     const b = D.regions[id]?.[0];
@@ -1927,13 +2090,15 @@ function controlsHtml(view, sc) {
 }
 function goalChecks(s) {
   const g = M.goalParts(s);
-  const sc = M.scenario(s);
-  const lines = [
-    { met: g.parts[0].met, t: `the origin takes ${F.rate(sc.originRps)}, under 500/s` },
-    { met: g.parts[1].met, t: `the mean response is ${F.ms(sc.meanMs)}, under 18 ms` },
-    { met: g.parts[2].met, t: `the TTL is ${F.ttlWords(s.ttl)}, at most 5 minutes` },
-  ];
+  const v = M.challengeSlots(s);
+  const lines = M.CHALLENGE.checks.map((c, i) => ({ met: g.parts[i].met, t: M.fill(c, v) }));
   return { met: g.met, kept: g.kept, lines };
+}
+/** A checklist line: its verdict stays on one line with the word before it ("18 ms: met"). */
+function checkLine(t, met) {
+  const m = t.match(/(?:[\d,.]+ (?:ms|minutes?|seconds?|hours?)|\S+)$/);
+  const cut = m.index - 1;
+  return `${nb(t.slice(0, cut))} <span class="nb">${esc(t.slice(cut + 1))}: ${met ? 'met' : 'not yet'}</span>`;
 }
 function dockHtml(view, sc) {
   const e = view.exp;
@@ -1943,7 +2108,7 @@ function dockHtml(view, sc) {
     const gc = goalChecks(view.s);
     const head = gc.met ? 'Goal met:' : view.ghost ? 'Not yet:' : 'Your goal:';
     return `<p class="legend">${nb(M.fill(M.CHALLENGE.ask, M.challengeSlots(M.CHALLENGE.setup)))}</p>
-<p class="status-line${gc.met ? ' met' : ''}">${head}</p><ul class="status">${gc.lines.map((l) => `<li class="${l.met ? 'met' : ''}"><span class="state" aria-hidden="true">${l.met ? '✓' : '·'}</span><span>${nb(l.t)}: ${l.met ? 'met' : 'not yet'}</span></li>`).join('')}</ul>
+<p class="status-line${gc.met ? ' met' : ''}">${head}</p><ul class="status">${gc.lines.map((l) => `<li class="${l.met ? 'met' : ''}"><span class="state" aria-hidden="true">${l.met ? '✓' : '·'}</span><span>${checkLine(l.t, l.met)}</span></li>`).join('')}</ul>
 ${gc.met ? `<p class="reveal">${nb(M.fill(M.CHALLENGE.reveal, v))}</p>` : ''}`;
   }
   const s2 = M.afterAct(e);
@@ -1973,7 +2138,7 @@ function describeRows(view, compact) {
     const a = M.scenario({ ...view.s, pops: p, shield: 0 });
     const b = M.scenario({ ...view.s, pops: p, shield: 1 });
     const now = p === view.s.pops;
-    const cells = compact ? [F.pct(a.edgeShare), F.sig3(a.originRps), F.sig3(b.originRps), r1(view.s.shield ? b.meanMs : a.meanMs)] : [F.ms(a.paths.edge), F.pct(a.edgeShare), F.rate(a.originRps), F.rate(b.originRps), F.ms(a.meanMs), F.ms(b.meanMs)];
+    const cells = compact ? [F.pct(a.edgeShare), F.sig3(a.originRps), F.sig3(b.originRps), (view.s.shield ? b.meanMs : a.meanMs).toPrecision(3)] : [F.ms(a.paths.edge), F.pct(a.edgeShare), F.rate(a.originRps), F.rate(b.originRps), F.mean(a.meanMs), F.mean(b.meanMs)];
     return `<tr class="${now ? 'now' : ''}"${now ? ' aria-current="true"' : ''}><th scope="row">${compact ? p : locs(p)}</th>${cells.map((c) => `<td>${nb(String(c))}</td>`).join('')}</tr>`;
   }).join('');
 }
@@ -2010,7 +2175,7 @@ function render(view) {
   const sc = M.scenario(view.s);
   root.innerHTML = `<div class="controls">${controlsHtml(view, sc)}</div>
 <div class="main"><div class="stage" role="group" aria-roledescription="visualization" aria-label="CDNs and edge: where requests are answered, one location's copies, and every request by popularity"><div class="well" id="well"></div></div>
-${view.reduced && view.played && !hiding(view).open ? `<p class="caption" role="status" aria-atomic="true">${nb(story(sc, M.sample(sc), hiding(view)))}</p>` : ''}<p class="model-note">${nb(noteOf(view))}</p><div class="describe" id="describe"></div></div>
+${view.reduced && view.played && !hiding(view).open ? `<p class="caption" role="status" aria-atomic="true">${nb(story(sc, M.sample(sc), hiding(view)))}</p>` : ''}<p class="model-note guide">${nb(guideOf(view))}</p><p class="model-note">${nb(noteOf(view))}</p><div class="describe" id="describe"></div></div>
 <div class="experiments"><section class="dock" aria-label="Experiment">${dockHtml(view, sc)}</section>${cardsHtml(view)}</div>`;
   const well = document.getElementById('well');
   const W = well.clientWidth;
@@ -2064,7 +2229,7 @@ function collisions(well) {
     }
   }
   // Dots never sit on dots.
-  const dots = [...svg.querySelectorAll('circle.dot:not(.user), circle.knee')].map((c) => ({ id: c.dataset.id ?? c.getAttribute('class'), x: +c.getAttribute('cx'), y: +c.getAttribute('cy'), r: +c.getAttribute('r') }));
+  const dots = [...svg.querySelectorAll('circle.dot:not(.user), circle.knee, rect.dot')].map((c) => ({ id: c.dataset.id ?? c.getAttribute('class'), x: +(c.getAttribute('cx') ?? c.dataset.cx), y: +(c.getAttribute('cy') ?? c.dataset.cy), r: +(c.getAttribute('r') ?? c.dataset.r) }));
   let dd = 0;
   for (let i = 0; i < dots.length; i++) for (let j = i + 1; j < dots.length; j++) if (Math.hypot(dots[i].x - dots[j].x, dots[i].y - dots[j].y) < dots[i].r + dots[j].r - 1.5) dd++;
   if (dd) out.push(`${dd} dots on dots`);
@@ -2081,6 +2246,24 @@ function collisions(well) {
       const inner = t.x0 >= x + 5.5 && t.x1 <= x + w - 5.5 && t.y0 >= y + 5.5 && t.y1 <= y + h - 5.5;
       const clear = t.x1 <= x - 3 || t.x0 >= x + w + 3 || t.y1 <= y - 3 || t.y0 >= y + h + 3;
       if (!inner && !clear) out.push(`text at an outline's stroke: "${t.s}"`);
+    }
+  }
+  // A tag keeps 6 px from every other block's outline.
+  for (const tg of svg.querySelectorAll('rect.tag')) {
+    const [x, y, w, h] = ['x', 'y', 'width', 'height'].map((a) => +tg.getAttribute(a));
+    for (const o of svg.querySelectorAll('rect.focus-outline')) {
+      if (o.dataset.focus === tg.dataset.tag) continue;
+      const [ox, oy, ow, oh] = ['x', 'y', 'width', 'height'].map((a) => +o.getAttribute(a));
+      const gap = Math.max(ox - (x + w), x - (ox + ow), oy - (y + h), y - (oy + oh));
+      if (gap < 6) out.push(`a tag ${gap.toFixed(1)} px from another outline`);
+    }
+  }
+  // A ring's hairline never lands under another axis label (a learner would read that label as the ring's rank).
+  for (const kl of svg.querySelectorAll('line.knee-line')) {
+    const x = +kl.getAttribute('x1');
+    for (const t of texts.filter((t) => t.owner === 'xaxis')) {
+      const own = t.el.dataset.id === `ring-label-${kl.dataset.ring}`;
+      if (own ? !(t.x0 - 0.5 <= x && x <= t.x1 + 0.5) : t.x0 - 3 < x && x < t.x1 + 3) out.push(`ring ${kl.dataset.ring} at ${x.toFixed(0)} ${own ? 'outside its own label' : `under "${t.s}"`}`);
     }
   }
   for (const tg of svg.querySelectorAll('rect.tag')) {
@@ -2105,7 +2288,7 @@ function collisions(well) {
   return out;
 }
 // What must hold beyond collisions: no false claims, areas as numbers, dashes only while hidden, counts bounded.
-const FALSE_CLAIMS = [/NaN|undefined|Infinity|null/, /(^|[^\d.,])1 (locations|requests|URLs|times|minutes)\b/, /\b([2-9]|\d{2,}) (location|minute|second|hour)\b(?!s)/, /(^|[^\d.,])0\/s/, /\?\?/, /\u2014|\u00a0/, /\d{4,}(?![\d,])/];
+const FALSE_CLAIMS = [/from the [\d,]+(st|nd|rd|th) down/, /beyond the 100,000th/, /\? of /, /99\.9%\+/, /NaN|undefined|Infinity|null/, /(^|[^\d.,])1 (locations|requests|URLs|times|minutes)\b/, /\b([2-9]|\d{2,}) (location|minute|second|hour)\b(?!s)/, /(^|[^\d.,])0\/s/, /\?\?/, /\u2014|\u00a0/, /\d{4,}(?![\d,])/];
 function assertions(r) {
   const { well, D, sc, hid, view } = r;
   const out = [];
@@ -2133,6 +2316,30 @@ function assertions(r) {
     for (const el of svg.querySelectorAll('[data-req]')) if (+el.getAttribute('x1') > x + 0.11) out.push('a request drawn before its moment');
     for (const el of svg.querySelectorAll('[data-copy]')) if (+el.getAttribute('x') + +el.getAttribute('width') > x + 0.2) out.push('a copy drawn past the playhead');
   }
+  // Every location is its own cell, and the outlined one is exactly one cell.
+  const cells = svg.querySelector('[data-cells]');
+  if (+cells?.dataset.cells !== sc.s.pops) out.push(`${cells?.dataset.cells} cells for ${sc.s.pops} locations`);
+  const wt = svg.querySelector('.pop.watched');
+  if (Math.abs(+wt.getAttribute('width') - r1(D.meta.cell.w + 4)) > 0.11 || Math.abs(+wt.getAttribute('height') - r1(D.meta.cell.h)) > 0.11) out.push('the outlined box is not one cell');
+  // Users stand as far from the locations as the nearest location is: shorter hairlines with more locations.
+  if (Math.abs(D.meta.userGap - (USER_GAP(sc.s.pops) - 0)) > 0.6) out.push(`users ${D.meta.userGap.toFixed(1)} px away for ${USER_GAP(sc.s.pops).toFixed(1)}`);
+  // The playhead never looks like a miss tick: not ink, thinner.
+  for (const ph of svg.querySelectorAll('.playhead')) {
+    const cs = getComputedStyle(ph);
+    if (cs.stroke === getComputedStyle(document.body).color || parseFloat(cs.strokeWidth) >= 1.5) out.push('the playhead is drawn like a miss tick');
+  }
+  // The particle rides a drawn mark: its own stream, the shield box, the trunk or the origin box.
+  const pd = svg.querySelector('[data-id="pulse"]');
+  if (pd) {
+    const p = new DOMPoint(+pd.getAttribute('cx'), +pd.getAttribute('cy'));
+    const on = [...svg.querySelectorAll('[data-stream="0"], [data-id="shield-box"], [data-id="trunk"], [data-id="origin-box"]')].some((el) => {
+      if (el.tagName === 'path') return el.isPointInFill(p) || el.isPointInStroke(p);
+      const b = el.getBBox();
+      return p.x >= b.x - 0.6 && p.x <= b.x + b.width + 0.6 && p.y >= b.y - 0.6 && p.y <= b.y + b.height + 0.6;
+    });
+    if (!on) out.push(`the particle at ${p.x.toFixed(1)},${p.y.toFixed(1)} is off its path`);
+  }
+  for (const o of D.orphans) out.push(`a one-word line: ${o}`);
   // Element counts are bounded by the stage, never by the data.
   const count = svg.querySelectorAll('*').length;
   window.__maxElements = Math.max(window.__maxElements ?? 0, count);
@@ -2217,7 +2424,7 @@ function answerTokens(spec) {
   }
   const a = M.scenario(spec.setup);
   const b = M.scenario(s2);
-  const forms = (x) => [F.rate(x.originRps), `${F.sig2(x.originRps)}/s`, F.pct(x.edgeShare), F.pct(x.originShare), F.ms(x.meanMs), F.ord(x.edgeKnee), ...(x.s.shield ? [F.pct(x.shieldShare)] : [])];
+  const forms = (x) => [F.rate(x.originRps), `${F.sig2(x.originRps)}/s`, F.pct(x.edgeShare), F.pct(x.originShare), F.mean(x.meanMs), F.ord(x.edgeKnee), ...(x.s.shield ? [F.pct(x.shieldShare)] : [])];
   const before = new Set(forms(a));
   return forms(b).filter((t) => !before.has(t));
 }
@@ -2271,7 +2478,7 @@ window.restLeaks = function (W) {
   const r = renderStageOnly(W, { s: { ...M.BASE }, phase: 'free' });
   const text = surfaces(r);
   const out = [];
-  for (const spec of M.EXPERIMENTS) for (const t of answerTokens(spec)) if (text.includes(t) && !(spec.id === 1 && t === '99.9%+')) out.push(`E${spec.id}'s "${t}" on the load-time stage`);
+  for (const spec of M.EXPERIMENTS) for (const t of answerTokens(spec)) if (text.includes(t) && !(spec.id === 1 && t === 'over 99.9%')) out.push(`E${spec.id}'s "${t}" on the load-time stage`);
   return out;
 };
 window.heights = function (widths) {
@@ -2283,14 +2490,65 @@ window.heights = function (widths) {
   }
   return res;
 };
+// HTML learner text as the browser breaks it: no line ends on "(?", "can take" or holds a lone "Each", and no line but
+// the last holds one word.
+window.htmlLines = function () {
+  const out = [];
+  for (const el of root.querySelectorAll('.legend, .reveal, .status li > span:last-child, .model-note, .caption, .held, .g-choice > span:first-child')) {
+    const words = [];
+    const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    for (let n = walk.nextNode(); n; n = walk.nextNode()) {
+      const re = /\S+/g;
+      let m;
+      while ((m = re.exec(n.data))) {
+        const rg = document.createRange();
+        rg.setStart(n, m.index);
+        rg.setEnd(n, m.index + m[0].length);
+        const b = rg.getClientRects()[0];
+        if (b) words.push({ w: m[0], top: Math.round(b.top) });
+      }
+    }
+    const lines = [];
+    for (const w of words) {
+      if (!lines.length || Math.abs(w.top - lines.at(-1).top) > 4) lines.push({ top: w.top, words: [] });
+      lines.at(-1).words.push(w.w);
+    }
+    lines.forEach((l, i) => {
+      const t = l.words.join(' ');
+      if (/\(\?$/.test(t) || /can take$/.test(t) || t === 'Each') out.push(`"${t}" in "${el.textContent.slice(0, 40)}"`);
+      if (i < lines.length - 1 && l.words.length === 1) out.push(`one-word line "${t}" in "${el.textContent.slice(0, 40)}"`);
+    });
+  }
+  return out;
+};
+/** The travelling misses' fill composited over the stage, against the stage (3:1 for graphics). */
+window.travelContrast = function () {
+  const el = document.querySelector('.fill-travel');
+  if (!el) return null;
+  const cs = getComputedStyle(el);
+  const rgb = (c) => c.match(/[\d.]+/g).slice(0, 3).map(Number);
+  const a = parseFloat(cs.fillOpacity);
+  const f = rgb(cs.fill);
+  const st = rgb(getComputedStyle(document.querySelector('.well')).backgroundColor);
+  const mix = f.map((v, i) => a * v + (1 - a) * st[i]);
+  const L = (c) => c.map((v) => v / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)).reduce((s, v, i) => s + v * [0.2126, 0.7152, 0.0722][i], 0);
+  const [hi, lo] = [L(mix), L(st)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+};
 window.pageWords = function () {
   const out = [];
   const texts = [];
   for (const s of M.SETTINGS) {
     const sc = M.scenario(s);
     texts.push(summary(sc, NOTHING), settingSentence(sc), story(sc, M.sample(sc), NOTHING), subOf(s), titleOf(s));
-    const t = tierWords(sc, NOTHING, null);
-    texts.push(t.edge.body, t.shield.body, t.origin.body, t.mean);
+    for (const narrow of [false, true]) {
+      const t = tierWords(sc, NOTHING, null, narrow);
+      texts.push(t.users.body, t.edge.body, t.shield.body, t.origin.body, t.mean);
+    }
+    const kw = kneeWords(sc, NOTHING);
+    texts.push(kw.edge, kw.shield, ...keyForms(s, NOTHING), guideOf({ s, phase: 'free' }), noteOf({ s, phase: 'free' }));
+    const sm = M.sample(sc);
+    for (const frac of [0.05, 0.3, 0.6, 0.9]) texts.push(stepWords(sc, sm, frac * M.WINDOW_TTLS * s.ttl, NOTHING));
   }
   for (const t of new Set(texts)) {
     for (const g of FALSE_CLAIMS) if (g.test(t)) out.push(`${g}: ${t.slice(0, 80)}`);

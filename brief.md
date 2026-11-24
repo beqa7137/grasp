@@ -61,7 +61,14 @@ key (one URL of one object):
 - Latency: users reach the nearest of n locations in 10 ms × √(20 / n) (users spread evenly over a plane, so the nearest
   of n evenly spread locations is about 1 / √n away; 44.7 ms at 1, 20 at 5, 10 at 20, 4.5 at 100); the shield adds
   30 ms; the origin adds 120 ms. Paths: an edge hit, the edge's; a shield hit, + 30 ms; an origin fetch, + 120 ms (and
-  + 30 with a shield in the way). Mean = Σ share × path.
+  + 30 with a shield in the way). Mean = Σ share × path. Times are one request on a warm connection; a new connection
+  also pays its TCP and TLS round trips, which end at the nearest location, so a CDN saves several long round trips,
+  not one (the note says so).
+- Freshness: a copy fetched from the shield lives a full TTL at the edge (the Age header is ignored), so with a shield
+  an image can be up to two TTLs old (enum.cjs simulates it: 1.98 TTLs at most with a shield, 1.00 without). Real
+  shields pass Age and the edge keeps only the shield copy's remaining life; the model's simpler rule keeps every
+  checked number, and the note and the lesson say what it assumes. The challenge's cap is therefore "each cache may
+  keep an image at most 5 minutes", never "at most 5 minutes stale".
 - The half-hit rank (where a band of the square crosses one half): at the edge x = 1, rank = rps · T / (H_N · variants ·
   pops); at the shield y = 1, rank = rps · T (pops − 2) / (H_N · variants · pops) (a shield with fewer than 3 locations
   never reaches one half for any object).
@@ -81,21 +88,23 @@ values. 192 settings, all numbers as `ExperimentSettings` requires: `rps`, `pops
 
 | Idea | Weight | Where |
 | ---- | ------ | ----- |
-| Hit rate is per location; more locations split the traffic | core | The tiers (one box a location, its green part its hits), the square's curve moving left, the lanes thinning; E2 |
+| Hit rate is per location; more locations split the traffic | core | The tiers (one cell a location, at every width, its green part its hits), the square's curve moving left, the lanes thinning; E2 |
 | A copy lives for the TTL after its miss; r·T decides a hit | core | The lanes: copies as bars from their miss, hits inside them, misses after them; the half-hit rank; E1 |
 | Zipf popularity and the long tail | core | The square: every request, objects by rank, each as wide as its share; the tail bracket ("the 90,000 least popular: 19.0% of requests"); E1, E4 |
 | The origin shield catches what no one location can | core | The fan-in of every location's misses into the shield, its amber band, the shield track under each lane, its half-hit rank; E3, the challenge |
 | Origin load = the misses that get through | core | The narrowing stream, the origin's red fill as its share, "30.8% of 10,000/s" (the conversion said where the share is drawn); E2 to E5 |
-| Latency per path and its mean | core | Each tier's "in 10 ms", the ledger "Mean response 46.9 ms = 69.2% × 10 ms + 30.8% × 130 ms"; E2's and E3's reveals; the challenge |
-| Nearer edges against colder caches | high | The edge's distance changes with the locations ("in 4.5 ms"); E2's reveal; the challenge's trade |
+| Latency per path and its mean | core | The path strip (each path a bar on one ms scale, the mean a tick between them), the ledger "Mean response 46.9 ms = 69.2% × 10 ms + 30.8% × 130 ms"; E2's and E3's reveals; the challenge |
+| Nearer edges against colder caches | high | The users row stands as far above the locations as the nearest one is (44 px × √(1 / n)), so the hairlines shorten as cells multiply and go colder; the edge bar shortens; E2's reveal; the challenge's trade |
+| Handshakes end at the edge | high | The note (a new connection's TCP and TLS round trips end at the nearest location) and the lesson |
 | Traffic raises the hit rate | high | E4; the square's curve moving right |
 | Cache keys: query strings and Vary fragment the cache | high | The Cache key control; E5 (10 URLs an image act like ten times the locations, at the shield too) |
-| Request collapsing | medium | The model's note (a miss is fetched at once, one fetch); the lesson's concept and purge example |
+| Request collapsing and the herd on expiry | medium | The step line on each #1 miss ("the requests that arrive during its fetch wait for it (request collapsing), so one fetch goes on, not a herd"); the note; the lesson |
+| Egress cost, edge compute, immutable versioned URLs | medium | Lesson text (section 7) |
 | Anycast and DNS steering | medium | The users row's words ("each sent to its nearest location (anycast or DNS)"); the lesson |
 | Stale-while-revalidate, purges, versioned URLs | medium | Lesson text: they change freshness and latency on expiry, not the hit rule drawn here; drawing them would need a second clock |
 | Private responses, cookies, dynamic content at the edge | medium | Lesson text and pitfalls (they are what may not be cached at all) |
 
-**Checks** (`node enum.cjs`, 4,945 pass).
+**Checks** (`node enum.cjs`, 6,873 pass with `--quick`; the full run adds the long simulations).
 
 1. The old `cdnOutcome` re-implemented: edge hit rate equal at all 96 normalized settings; origin share, rate and mean
    (at 20) equal at every one without a shield; with a shield the old and new origin shares printed side by side. Ten
@@ -104,26 +113,30 @@ values. 192 settings, all numbers as `ExperimentSettings` requires: `rps`, `pops
 3. A discrete-event simulation: Poisson arrivals, a Zipf object, a uniform location and URL each, a TTL cache at every
    location and at the shield, 2 TTLs of warm-up then 4 to 10 measured (0.5 to 60 million requests a setting), at 11
    settings including every experiment's and the challenge's: the edge within 0.06 points, the origin with a shield
-   within 0.16, the mean within 3%.
+   within 0.16, the mean within 3%. A one-object simulation of the stated freshness rule: at most one TTL old without a
+   shield, up to two with one (the Age header ignored).
 4. The square's three areas equal the model's shares to 1e−9 at every setting and three widths; every column's height
    lies in [0, 1] and the edge band never rises with rank (so a band crosses one half once).
 5. The sample: a seed at all 192 settings (the largest 174), requests in time order, every miss starts a copy of
    exactly the TTL, every hit lies inside a copy, at most 249 marks a lane; the sampler itself is unbiased (the middle
    lane's long-run hit share within 1 point of the model at three settings).
-6. The experiments: no digit outside a slot (but "?utm_source=…"), one right choice each, answers in positions 3, 1,
-   3, 2, 1, every sentence free of em dashes and non-breaking spaces, no sentence opening on a numeral, thousands
-   separated; the word claims ("from about the 12,400th" hits half; the 41st once a second and the 2,500th once a
-   minute at a location; E2 rises while the edge falls and nears; E3's edge does not move, the shield's rank over 50
-   times the edge's, the mean falls; E4 more but under five times; E5 between the shield's old load and no shield,
-   equal to 200 locations at the edge); every asked number differs from the load-time stage's same number; the
-   challenge passes at exactly one of 192 settings.
+6. The experiments: no digit outside a slot (but "?utm_source=…"), one right choice each, answers in positions 2, 1,
+   3, 2, 1, every sentence free of em dashes and non-breaking spaces, no sentence opening on a numeral (the challenge's
+   ask, reveal and checklist lines too, at all 192 settings), thousands separated; the word claims ("from about the
+   12,400th" hits half; the 2,500th once a minute at a location; across the CDN the 100,000th is asked for 2.5 times
+   per TTL; E2 rises while the edge falls and nears; E3's edge does not move, the shield's rank over 50 times the
+   edge's, the mean falls; E4 more but under five times; E5 between the shield's old load and no shield, equal to 200
+   locations at the edge but not behind the shield (10 URLs send 2,520 a second where 200 locations send 913), the
+   shield winning back far less than the edge lost); every asked number differs from the load-time stage's same
+   number; the challenge passes at exactly one of 192 settings.
 
 **Honesty rule.** Every number on the stage is a slot of the analytic model, and the stage says so where each is read:
 "Where the requests go · the model" over the tiers, "Every request, most popular objects first · the model" over the
 square, the note under the stage that states the assumptions (independent Poisson requests spread evenly over the
 locations, objects unchanged during their TTL, caches with no size limit, a miss fetched at once with request
 collapsing keeping it to one fetch, the hit rule, the latency rule). The timeline is the one sample, and it says so in
-its label ("The outlined location, 5 minutes · one sample"), its caption ("One random sample. …") and the summary. Its
+its label ("The outlined location, 5 minutes · one sample"), its key ("One sample. …"), the guide under the stage and
+the summary. Its
 marks are never counted as the model's: the hit shares beside each lane are the model's ("edge hit 49.8%"), and a lane's
 drawn hits are never totalled on the stage. A lane may show no request at all (the 25,000th is asked for once every 10
 minutes at a location): that is the sample, and its words ("asked for once every 10 minutes here") make it expected.
@@ -157,63 +170,100 @@ images, popularity on a Zipf curve. Each location keeps a copy for 1 minute afte
 each cached on its own." with 10 URLs). Lines reserved for the longest setting at this width.
 
 **The tiers (the model).** An art column on the left and a label column on the right (232 px from a 480 px stage;
-56% of the stage below it, at least 120 px). Widths in the art are shares of all requests on one fixed band (at most
-150 px, 72% of the art), so the picture's widths always add up:
+56% of the stage below it, at least 120 px). Under a 420 px stage every body takes its short form (`narrow`), so the
+label column wraps to few lines. Widths in the art are shares of all requests on one fixed band (at most 150 px, 72% of
+the art), so the picture's widths always add up:
 
-- Users: a row of small dots across the art, each joined by a hairline to its nearest location (anycast or DNS:
-  "each sent to its nearest location"). The label: "10,000/s requests".
-- Locations: one box per location, as many as fit at 15 px each up to 20, and when there are more, the most columns
-  that divide the locations evenly, said in words ("Each of 100 locations, drawn as 20 columns of 5, takes 100/s";
-  "drawn as 5 columns of 4" for 20 locations on a 320 phone). A box's inner width is its share of requests; its
-  green part, from the left, is its hits; the rest, blue, leaves its foot as that box's misses. The leftmost box is
-  outlined in ink: the timeline below follows it. Label: "6,920/s answered at the edge", "In 10 ms, for 69.2% of requests.
-  Each of 20 locations takes 500/s and keeps its own copies."
-- The fan-in: every box's misses curve into one merged band, side by side in order, so the shield (or with no shield the
-  origin) visibly receives every location's misses combined. The band's width is the miss share.
+- Users: a row of small dots across the art, each joined by a hairline to its nearest location (anycast or DNS). The
+  row stands as far above the locations as the nearest location is from users: 44 px × √(1 / n) (44 at 1 location, 20
+  at 5, 9.8 at 20, 4.4 at 100), the same law as the latency, so the hairlines visibly shorten as locations are added.
+  Label: "10,000/s requests", "From users, each sent to its nearest location (anycast or DNS)." (narrow: "Each to its
+  nearest location.").
+- Locations: **every location is its own cell, at every width.** Cells sit in columns (the most columns that divide
+  the locations evenly, up to 20, each slot at least 8 px); a column holds pops / cols cells stacked, parted by 1 px
+  stage-coloured lines (rows at least 4 px; the grid's art is 18 px for one row of cells, else 40 px or more). So 100
+  locations draw 100 cells (20 columns of 5 at 1280, 10 of 10 on a phone), 20 draw 20, and a change in the number of
+  locations always changes what is drawn (asserted: the drawn cells equal the locations at every setting and width). A
+  column's inner width is its locations' share of requests (a cell's area is its location's share); its green part,
+  from the left, is its hits, the same fraction in every cell; the rest, blue, leaves its foot as that column's misses.
+  The top-left cell is outlined in ink, exactly one cell (asserted): the timeline below follows that one location.
+  Label: "6,920/s answered at the edge", "In 10 ms, for 69.2% of requests. Each of 20 locations, one cell each, takes
+  500/s and keeps its own copies." (narrow: "In 10 ms, 69.2% of requests, at 500/s a location.").
+- The fan-in: every column's misses curve into one merged band, side by side in order, so the shield (or with no
+  shield the origin) visibly receives every location's misses combined. The band's width is the miss share. The
+  travelling fill is `--g-viz-current` at 0.78 opacity: 3:1 or more against the stage in both themes (shoot.cjs
+  prints it; it joins theme-contrast.spec's graphics list).
 - The shield (on): a box that hugs the merged band; its amber part is the shield's share, the rest travels on. Its
   label column holds the Origin shield switch (a native checkbox drawn as the house switch, 44 px, "Shield" under a
-  150 px column) and "2,160/s answered by the shield · In 40 ms, for 21.6% of requests. It sees every location's misses."
-  Off: no box, the band passes straight down, and "No shield: every miss goes on to the origin." With 1 location and the
-  shield on: "With 1 location the shield never hits: its copy expires with the edge's. It adds 30 ms to every miss."
-- The origin: a box that hugs its red fill, the origin's share. "913/s reach the origin · In 160 ms, for 9.1% of
-  10,000/s." The share and its conversion to a rate are said together where the width is drawn.
-- Under the art, full width, the ledger: "Mean response 30.2 ms = 69.2% × 10 ms + 21.6% × 40 ms + 9.1% × 160 ms."
+  150 px column) and "2,160/s answered by the shield · In 40 ms, for 21.6% of requests. It sees every location's
+  misses." Off: no box, the band passes straight down, and "No shield: every miss goes on to the origin." With 1
+  location and the shield on: "With 1 location the shield never hits: its copy expires with the edge's. It adds 30 ms
+  to every miss."
+- The origin: a box that hugs its red fill, the origin's share. "913/s reach the origin · In 160 ms (the edge, the
+  shield, then a round trip to the origin), for 9.1% of 10,000/s." (narrow: "In 160 ms, 9.1% of 10,000/s."). The share
+  and its conversion to a rate are said together where the width is drawn; a hidden share is "?%".
+- The path strip (fixed height): one row per path, "edge hit", "shield hit", "origin fetch", each a bar in the path's
+  colour on one 0 to 200 ms scale, as long as its path, its time at the row's right ("10 ms", "40 ms", "130 ms"); the
+  shield row reads "no shield" without one. The mean is an ink tick across the three rows with "mean 46.9 ms" under it
+  (hidden while `mean` hides: "mean: after your answer"). Fewer locations visibly lengthen every bar.
+- Under the strip, full width, the ledger, which reads off the bars: "Mean response 30.2 ms = 69.2% × 10 ms + 21.6% ×
+  40 ms + 9.1% × 160 ms." Means are three significant figures everywhere ("26.0 ms").
 
 **The timeline (one sample).** "The outlined location, 5 minutes · one sample" (then "Outlined location, 5 minutes ·
-sample", "5 minutes · a sample") with Play at the row's right (36 px disc in a 44 px box). Under it the step line
-(at rest "Play runs these 5 minutes at the outlined location."). Then a lane for each of three objects, fixed by rank so
-a setting's change shows: the 1st (8.3% of all requests), the 2,500th (near the default's half-hit rank) and the
+sample"; where neither fits beside Play, the second form on two lines, both inside Play's 44 px row, so the words
+that tie it to the outlined cell never drop) with Play at the row's right (36 px disc in a 44 px box). Under it the
+step line (at rest "Play runs these 5 minutes at the outlined location in 6 seconds.", so a 1-hour TTL's five hours
+and a 5-second TTL's 25 seconds both say their speed). Then a lane for each of three objects, fixed by rank so a
+setting's change shows: the 1st (8.3% of all requests), the 2,500th (near the default's half-hit rank) and the
 25,000th (deep in the tail). A lane is its words, "#2,500 asked for about once a minute here · edge hit 49.8% · shield
 hit 90.4%" (the rate at one location in words; the hit shares the model's), on one line where it fits and as two
-lines (who and how often, then the shares in bold small type) where not; then its edge track over five TTLs:
+lines where not; then its edge track over five TTLs:
 
 - a copy is a soft green bar from the miss that fetched it, exactly one TTL long (a copy alive at the window's start
   began earlier and runs in from the left edge);
-- a hit is a short green tick inside a copy; a miss is a tall ink tick with a dot at its top, amber when the shield
-  answered and red when the origin did;
+- a hit is a short green tick inside a copy; a miss is a tall ink tick whose end says who answered, in shape as well
+  as colour: a miss the shield answered stops at the shield track in an amber square; a miss the origin answered runs
+  past the shield track to a red dot below it (the request visibly went further). Without a shield the same red dot
+  sits below the empty shield track;
 - a dense lane (the 1st, asked for 41 times a second here) draws its hits as fine green hatching inside the copies,
   its misses one by one (one each time its copy expires);
 - with the shield on, a thin shield track under each lane: the shield's copies (amber bars) and the other locations'
-  misses for the same object arriving (small grey ticks, a hatched band where they are too many to draw). The shield
-  copy that is alive when the outlined location misses is why its dot is amber.
+  misses for the same object arriving (small grey ticks, a hatched band where they are too many to draw). A shield
+  copy that is alive when the outlined location misses is why its tick stops at a square. The sample's shield starts
+  with a copy with probability hit(toShield, T), the stationary share of time the shield holds one.
 
-The axis marks every TTL ("0", "1 min" … "5 min"; labels that would come within 6 px of a kept neighbour are dropped,
-the first and last always kept), and the caption says how to read it: "One random sample. A bar is a copy, alive for
-the TTL after the miss that fetched it. A short tick is a hit; a tall tick is a miss, its dot amber if the shield
-answered and red if the origin did."
+The axis marks every TTL ("0", "1 min" … "5 min"); when any labels would come within 6 px, every other one is kept
+from the start (0, 2, 4 TTLs) plus the last where it clears 6 px, so kept labels stay evenly spaced. Under the axis a
+one-line key (two where the long form fits in two): "One sample. Bar: a copy · short tick: a hit · tall tick: a miss,
+ending at the shield track if the shield answered, below it if the origin did." (short: "Bar: copy · short tick: hit ·
+tall tick: miss, to the shield or below it"); while E1 asks, "One random sample: each tick is a request; what hit shows
+after your answer." The full reading guide is HTML under the stage (below).
 
 **The square (the model).** "Every request, most popular objects first · the model", a legend whose swatches carry
 the three shares ("69.2% at the edge", "21.6% by the shield", "9.1% at the origin"), then the plot: the x axis is
 every request, objects ordered by popularity, each object as wide as its share of requests; a column's height is where
-its requests are answered: green from the foot by the edge hit share, amber above it by the shield's, red to the top.
-So **each band's area is exactly its share** (`columns()` takes each pixel column's exact mean over the objects in it;
-enum.cjs check 4), and the drawn areas never disagree with the legend. The axis labels rank boundaries (1, 10, 100,
-1,000, 10,000, 100,000), each label ending at its tick; on a 320 phone the crowded ones drop (6 px rule). Above the
-plot, the tail bracket over ranks 10,001 to 100,000, "the 90,000 least popular: 19.0% of requests", and three small
-marks with the lanes' ranks (#1, #2,500, #25,000), nudged apart to keep 6 px, which tie the timeline to the curve. A
-50% hairline; the half-hit points as rings (stroke only, around the point) with a hairline to the axis, named under the
-axis title: "Half of its requests hit at the edge: the 2,481st", and with the shield "Half of its edge misses hit the
-shield: the 44,664th" (or "With 1 location the shield never hits: its copy expires with the edge's.").
+its requests are answered: green from the foot by the edge hit share, amber above it by the shield's, red to the top,
+a 1 px stage-coloured line parting the amber from the red (their colours alone meet at 1.2:1). So **each band's area
+is exactly its share** (`columns()` takes each pixel column's exact mean over the objects in it; enum.cjs check 4).
+The y axis reads "0%", "50%", "100%". Above the plot, the tail bracket over ranks 10,001 to 100,000, "the 90,000 least
+popular: 19.0% of requests", and three small marks with the lanes' ranks (#1, #2,500, #25,000), nudged apart to keep
+6 px, which tie the timeline to the curve. A 50% hairline; the half-hit points as rings (stroke only, around the
+point; the edge's ink, the shield's a 2 px amber-ink stroke) with a hairline down to the axis, and each ring's rank
+named in the axis row, centred on its hairline ("2,481st", "44,664th" in the shield's ink). Ring labels are placed
+first (nudged apart to keep 6 px while each still spans its own hairline); then the rank boundaries 10, 100, 1,000,
+10,000 and 100,000, each centred on a 4 px `--g-stroke` tick (the last end-anchored; the left edge unlabelled), every
+other one kept from the end where they crowd, and any within 6 px of a ring label dropped (asserted: no hairline lands
+under another label). One line of axis title ("Objects by popularity, each as wide as its share of requests", shorter
+where it must be), then the key rows: "Half of its requests hit at the edge: the 2,481st", "Half of its edge misses
+hit the shield: the 44,664th", a rank past the last object said of every object ("Every object's edge misses hit the
+shield at least half the time"), one before the first of none.
+
+**Under the stage** (HTML): Play's story when motion is reduced, the reading guide ("The timeline is one random sample
+of the outlined location. A bar is a copy, alive for the TTL after the miss that fetched it. A short tick is a hit; a
+tall tick is a miss, ending in a square on the shield track if the shield answered and running below it to a dot if
+the origin did. In the square, objects are ordered by popularity rank, each as wide as its share of requests, and a
+column's height is where its requests are answered."; while E1 asks, its first sentence is "… each tick is a request,
+and what hit shows after your answer."), the model's note, Describe.
 
 **Ghosts** keep the setting before a change in words only: "It was 3,080/s." after the origin's line, "It was 46.9
 ms." after the mean ledger. No tick, no outline. None while a question is open.
