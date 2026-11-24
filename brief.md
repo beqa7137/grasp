@@ -287,34 +287,42 @@ and both plays at 14 stage widths (one height per width, every setting and phase
 
 | Stage width (px) | 248 | 254 | 288 | 310 | 324 | 346 | 360 | 420 | 480 | 560 | 620 | 700 | 760 |
 | ---------------- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Stage height     | 1,868 | 1,797 | 1,647 | 1,612 | 1,595 | 1,547 | 1,547 | 1,397 | 1,309 | 1,277 | 1,260 | 1,178 | 1,161 |
+| Stage height     | 1,719 | 1,682 | 1,597 | 1,566 | 1,549 | 1,490 | 1,473 | 1,477 | 1,372 | 1,371 | 1,337 | 1,286 | 1,255 |
 
-So a 320 phone's stage (254 px) is 1,797, a 390 phone's (324) 1,595, and 1280's (620) 1,260. The mockup's whole widget
-at rest, only a guide for `widget-heights.ts` (the build's measuring spec measures the built widget): 2,991 at 320,
-2,748 at 360, 2,712 at 375, 2,677 at 390, 2,626 at 412, 2,595 at 430 and 1,460 at 1280. After a Play under reduced
-motion the story adds a few lines under the stage, a layout change below it that the e2e layout-shift expectations
-include.
+So a 320 phone's stage (254 px) is 1,682 (round 0: 1,797), a 390 phone's (324) 1,549, and 1280's (620) 1,337 (the path
+strip adds 66 px at every width; the short forms, the moved caption and axis title take more off on phones). The
+mockup's whole widget at rest, only a guide for `widget-heights.ts` (the build's measuring spec measures the built
+widget): 3,222 at 320, 3,022 at 360, 2,952 at 375, 2,935 at 390, 2,818 at 412, 2,781 at 430 and 1,705 at 1280 (the
+guide paragraph under the stage now holds what the caption and axis title held). After a Play under reduced motion
+the story adds a few lines under the stage, a layout change below it that the e2e layout-shift expectations include.
 
-The largest SVG over every setting and phase has 733 elements.
+The largest SVG over every setting and phase has 752 elements.
 
 **Motion** (3.5's grammar; WAAPI on transform and opacity; one pooled particle).
 
-- **One clock.** Play runs the timeline's five TTLs in 6 s on one monotone clock (the window maps linearly; a 5-second
-  TTL and a 1-hour TTL play alike, the axis says which). A playhead crosses the three lanes (drawn on the tracks only,
-  never through their words). A request's tick lands when the clock reaches it; a copy grows from its miss with the
-  playhead and stops at its TTL; a shield copy and the other locations' misses land the same way. Nothing is drawn for
-  an event before its moment (asserted: no request or copy right of the playhead).
-- **The particle.** At each miss at the outlined location one ink dot (3.5 px) leaves that box's foot, rides the fan-in
-  to the shield and, if the shield had no copy, on to the origin, over 6% of the clock. It moves only on the streams,
-  never across a label (the label column is separate).
-- **The step, in words.** "2.1 min: requests arrive at the outlined location; a short tick found its copy there." and on a
-  miss "3 min: #2,500 has no live copy here, a miss: the shield had a copy, 40 ms; a new copy lives 1 minute." It obeys
+- **One clock.** Play runs the timeline's five TTLs in 6 s on one monotone clock (the window maps linearly; the step
+  line says the speed: "Play runs these 5 hours at the outlined location in 6 seconds.", and while playing "3.5 min of
+  5 minutes: …"). The playhead is one accent hairline (1 px, `--g-accent`, never ink and thinner than a miss tick, so
+  it never reads as a miss; asserted) across each lane's tracks, never through the lane words, with a small accent cap
+  triangle on the axis. A request's tick lands when the clock reaches it; a copy grows from its miss with the playhead
+  and stops at its TTL; a shield copy and the other locations' misses land the same way. Nothing is drawn for an event
+  before its moment (asserted: no request or copy right of the playhead).
+- **The particle.** At each miss at the outlined location one ink dot (3.5 px) rides that location's own drawn stream:
+  the centre line of column 0's fan-in curve (the same cubic the stream is drawn with) into the merged band, then, if
+  the shield had no copy, across the shield box to the travelling part and down the trunk to the origin box, over 6%
+  of the clock, at even speed along the route's length. It moves only along drawn marks (asserted at every play moment
+  of the sweep: its centre lies in its stream's fill, the shield box, the trunk or the origin box).
+- **The step, in words.** "2.1 min of 5 minutes: requests arrive at the outlined location; a short tick found its copy
+  there." and on a miss "3 min of 5 minutes: #2,500 has no live copy here, a miss: the shield had a copy, 40 ms; a new
+  copy lives 1 minute." On a miss of the dense #1 lane: "…: #1's copy expired; the next request misses, and the
+  requests that arrive during its fetch wait for it (request collapsing), so one fetch goes on, not a herd." It obeys
   `hiding()`.
 - **The climax** is the tail lane: its one request in five minutes arriving to an empty track, a tall tick, and the dot
-  travelling all the way down (with the shield, often stopping amber at the shield because another location kept it
-  warm).
+  travelling all the way down (with the shield, often stopping in an amber square at the shield because another
+  location kept it warm).
 - **An answer's play** applies the act (a control changes; the tiers re-space over 240 ms, columns sliding in or out),
-  then plays the timeline at the new setting; hidden numbers stay "?" through it. At the reveal the flows grow from the
+  then plays the timeline at the new setting (columns of cells re-stack, the users row moves to its new distance);
+  hidden numbers stay "?" through it. At the reveal the flows grow from the
   edge row down (400 ms), the square's bands rise, and the focus outlines appear.
 - **Stop.** During a free play Play is Stop ("Stop the timeline"); Stop or any setting change ends the play and draws the
   new rest state at once. Only an answer's play locks the controls.
@@ -329,7 +337,7 @@ The largest SVG over every setting and phase has 733 elements.
 
 ## 3. The experiments
 
-Every number is a slot from the model (`node enum.cjs` prints them all); answer positions 3, 1, 3, 2, 1. Choices are
+Every number is a slot from the model (`node enum.cjs` prints them all); answer positions 2, 1, 3, 2, 1. Choices are
 ordered by value, ascending or descending, so position never hints, and in no question is the answer the largest or
 the smallest every time: E2's answer is the largest, E3's the smallest, E4's the middle, E5's the smallest of three
 that all rise. A card sets the widget up with complete settings, as a new start: whatever the learner had before leaves
@@ -340,11 +348,12 @@ regions get a solid focus outline with the house "Look here" tag.
 **E1 "Which objects hit".** Setup: the default with a 5-minute TTL, so the load-time stage's half-hit rank (the
 2,481st) is not the answer. Act `run: 'timeline'`. Ask: "At 20 locations with a 5-minute TTL, the object at popularity
 rank k is asked for about 827 ÷ k times a second, spread evenly over the locations. Each location keeps a copy for the
-TTL after a miss. From about which rank down do most of an object's requests miss at the edge?" Choices (ascending):
-"From about the 41st: below it, an object is asked for less than once a second at a location" / "From about the
-2,500th: … less than once a minute …" / **"From about the 12,400th: … less than once per TTL …"**. Each wrong choice is
-a real mistake (forgetting the TTL; using the default's TTL); all three state a rule, so the right one is the rule the
-learner must know. Reveal: "From about the 12,400th. A copy lives for the TTL after the miss that fetched it, so what
+TTL after a miss. From about which rank down do most of an object's requests miss at the edge?" Choices (by
+value): "From about the 2,500th: below it, an object is asked for less than once a minute at a location" / **"From about
+the 12,400th: below it, an object is asked for less than once per TTL at a location"** / "Almost none: across the CDN,
+even the 100,000th is asked for about 2.5 times per TTL". The two "From about" choices have the same rule shape, so
+only the arithmetic separates them (once a minute is the default's TTL, not this one's), and the third is the
+forgot-the-split mistake (2.5 = 827 × 300 ÷ 100,000, the whole CDN's rate, not one location's). Reveal: "From about the 12,400th. A copy lives for the TTL after the miss that fetched it, so what
 decides a hit is how often its object is asked for at one location within one TTL. Split over 20 locations, the
 12,400th most popular object is asked for about once every 5 minutes at each: one miss, then on average one hit, half
 its requests. More popular objects hit more often; the 25,000th hits 33.2% of the time, and the 90,000 least popular
@@ -366,13 +375,11 @@ Focus: the tiers, the square.
 locations, 4,390 requests a second reach the origin. Add an origin shield: one mid tier that every location asks on a
 miss, before the origin, keeping copies for the same 1 minute. How many requests a second reach the origin now?"
 Choices (descending): "About 4,400: the shield passes on what the locations miss" / "About 3,100: back where 20
-locations left it" / **"About 910: fewer than with 20 locations and no shield"**. Reveal: "About 910: 913 a second. The
-edge hit rate does not move (56.1%), but the shield's one cache sees the misses of all 100 locations combined, 4,390 a
-second, so it keeps warm objects that no single location is asked for often enough: it answers 34.8% of all requests,
-and its half-hit rank is the 48,635th, against the edge's 496th. That is what a single cache seeing all the traffic
-would send: with a shield the origin's load no longer depends on the number of locations (913 a second at 20 too),
-since an object leaves the shield once per TTL however many locations ask. A shield hit costs 30 ms more than an edge
-hit, but the mean response falls from 57.2 ms to 28.6 ms, because far fewer requests cross to the origin." Hides
+locations left it" / **"About 910: fewer than with 20 locations and no shield"**. Reveal (six dock lines at 1280; the identity that the origin's load with a shield no longer depends on the locations
+moves to the lesson, section 7): "About 910: 913 a second. The edge still hits 56.1%, but the shield sees the misses
+of all 100 locations combined, 4,390 a second, so it keeps warm what no one location can: it answers 34.8% of all
+requests, and its half-hit rank is the 48,635th, against the edge's 496th. The mean response falls from 57.2 ms to
+28.6 ms." ("Still hits" holds under the model's stated rule that an edge copy from the shield lives a full TTL.) Hides
 `outcome`. Focus: the tiers, the square.
 
 **E4 "Ten times the traffic".** Setup: the default. Act `set: { rps: 100000 }`. Ask: "At 10,000 requests a second,
@@ -390,26 +397,30 @@ ten times the traffic leaves most of their copies cold." Hides `outcome`. Focus:
 values (?utm_source=…), spread evenly, and the CDN keys its cache on the full URL. The image served is the same. How
 many requests a second reach the origin now?" Choices (ascending): **"About 2,500: the shield still helps, but each copy
 is asked for a tenth as often"** / "About 5,000: the shield stops helping, as if it were off" / "About 9,100: ten URLs
-an image, ten times the misses". Reveal: "About 2,500: 2,520 a second, up from 913. Each image is now 10 keys, each
-asked for a tenth as often, at the edge and at the shield alike: to a cache that is the same as ten times the
-locations. The edge hit rate falls from 69.2% to 50.4%; the shield still answers 24.4%, but of far colder keys. The fix
-is the cache key, not the CDN: drop tracking parameters from it (and sort the rest), and the hit rate comes back."
-Hides `outcome`. Focus: the tiers, the square.
+an image, ten times the misses". Reveal: "About 2,500: 2,520 a second, up from 913. Each image is now 10 keys, each asked for a tenth as often. At the
+edge that is the same as ten times the locations (the edge hit rate falls from 69.2% to 50.4%), but unlike more
+locations the shield cannot undo it: the shield too sees ten keys an image, each a tenth as often, so it answers 24.4%
+of all requests, against 21.6% before, far less than the edge lost. The fix is the cache key, not the CDN: drop
+tracking parameters from it (and sort the rest), and the hit rate comes back." (enum.cjs: 200 locations behind the
+shield send 913 a second, 10 URLs 2,520.) Hides `outcome`. Focus: the tiers, the square.
 
 **E6 Challenge "Fit the origin".** Setup: the default (3,080 a second, 46.9 ms). Ask: "Your origin serves 10,000
-requests a second of images and can take at most 500 a second. Product wants a mean response under 18 ms, and images
-may be at most 5 minutes stale. Choose the locations, the TTL and the shield." Goal `all`: `originRps` below 500,
-`meanMs` below 18, `ttl` at most 300; keep `rps` 10,000 and `variants` 1. Exactly one of the 192 settings passes: 100
-locations, 5 minutes, the shield (280 a second, 17.1 ms). Its near misses each teach one lever: 20 locations with the
-same TTL and shield take the same 280 a second but 18.8 ms (the edge too far); 100 locations without the shield 3,080
-a second (the split); a 1-hour TTL is too stale; 5 locations 26.1 ms. The status is the house checklist under "Your
-goal:" at the start, "Goal met:" only while the goal holds and "Not yet:" otherwise, each line its value in words and
-its state: "the origin takes 3,080/s, under 500/s: not yet" / "the mean response is 46.9 ms, under 18 ms: not yet" /
-"the TTL is 1 minute, at most 5 minutes: met". Reveal (once met): "100 locations, a 5-minute TTL and the shield: 280 a
-second reach the origin and the mean response is 17.1 ms. The TTL is as long as freshness allows; the 100 locations
-bring the edge to 4.5 ms from users but split the traffic, so the edge hits only 69.2%; the shield, seeing every
-location's misses, gives the origin its load back. With 20 locations the origin takes 280 a second, but users wait
-18.8 ms on average." No hides; Describe waits until the goal is met. When the challenge opens, the notice says the
+requests a second of images and can take at most 500 a second. Product wants a mean response under 18 ms, and each
+cache may keep an image at most 5 minutes. Choose the locations, the TTL and the shield." (A cap on each cache's TTL,
+not on staleness: behind a shield an image can be up to two TTLs old under the model's rule, section 1.) Goal `all`:
+`originRps` below 500, `meanMs` below 18, `ttl` at most 300; keep `rps` 10,000 and `variants` 1. Exactly one of the
+192 settings passes: 100 locations, 5 minutes, the shield (280 a second, 17.1 ms). Its near misses each teach one
+lever: 20 locations with the same TTL and shield take the same 280 a second but 18.8 ms (the edge too far); 100
+locations without the shield 3,080 a second (the split); a 1-hour TTL keeps copies too long; 5 locations 26.1 ms. The
+status is the house checklist under "Your goal:" at the start, "Goal met:" only while the goal holds and "Not yet:"
+otherwise, each line from the spec's `checks` templates, its last number and unit kept on one line with its verdict:
+"the origin takes 3,080/s, under 500/s: not yet" / "the mean response is 46.9 ms, under 18 ms: not yet" / "each cache
+keeps a copy for 1 minute, at most 5 minutes: met". Reveal (once met): "The one setting that fits is 100 locations, a
+5-minute TTL and the shield. It sends 280 a second to the origin, and the mean response is 17.1 ms. The TTL is as long
+as the cap allows; the 100 locations bring the edge to 4.5 ms from users but split the traffic, so the edge hits only
+69.2%; the shield, seeing every location's misses, gives the origin its load back. With 20 locations the origin takes
+280 a second too, but users wait 18.8 ms on average." enum.cjs holds the ask, the reveal and the checklist lines to
+the numeral rule at all 192 settings. No hides; Describe waits until the goal is met. When the challenge opens, the notice says the
 setting's sentence.
 
 **One `hiding()` map** (prevention 1) from a question's regions to every surface; each region is named in the spec's
@@ -419,8 +430,8 @@ own `hide` list:
 | ------------- | ---- | ------------ | --------- |
 | `curve` → `curveNumbers`, `curveBands` | asking and playing (E1) | the square's bands and half-hit rings (a dashed box, "Which objects hit shows after your answer"), the legend's shares ("?% at the edge"), the half-hit ranks ("the edge: ?") | summary ("Which objects hit shows after your answer."), notice, Describe |
 | `curve` → `laneHits` | asking and playing (E1) | each lane's "edge hit ?%" and "shield hit ?%" | the step and story ("The model's hit shares show after your answer.") |
-| `curve` → `laneMarks` | asking (E1) | every sampled request drawn as a plain grey tick, all of one height; no copies, no dots, no shield copies | none |
-| `outcome` → `tierNumbers`, `tierFlows`, `mean` | playing (E2 to E5) | every share and rate below the users ("?/s answered at the edge", "?% of requests"), the boxes' green parts, the streams, the shield's and origin's fills (one dashed box over the flows, "shows after your answer"), the mean ledger | summary, notice, Describe |
+| `curve` → `laneMarks` | asking (E1) | every sampled request drawn as a plain grey tick, all of one height; no copies, no dots, no shield copies; the timeline's key reads "One random sample: each tick is a request; what hit shows after your answer." | the guide under the stage says the same |
+| `outcome` → `tierNumbers`, `tierFlows`, `mean` | playing (E2 to E5) | every share and rate below the users ("?/s answered at the edge", "for ?% of requests", "?% of 10,000/s": a hidden share keeps its unit), the cells' green parts, the streams, the shield's and origin's fills (one dashed box over the flows, "shows after your answer"), the path strip's mean tick ("mean: after your answer"), the mean ledger | summary, notice, Describe |
 | `outcome` → `curveNumbers`, `curveBands`, `laneHits` | playing (E2 to E5) | as for `curve` | as above |
 | `ghost` | open (every question) | no "It was" | none |
 
@@ -437,8 +448,8 @@ the tiers say "each keeps its own copies" (true of every setting) and never "mor
   answered, one location's copies, and every request by popularity"; its SVG has a summary that obeys `hiding()`: "A
   CDN with 20 locations serves 10,000 requests a second for 100,000 images with Zipf popularity; each location keeps a
   copy for 1 minute after a miss. By the model, 69.2% are answered at the edge in 10 ms, and 3,080/s reach the origin,
-  in 130 ms: a mean response of 46.9 ms. Popular objects hit and the long tail misses: an object hits half the time at
-  the edge from the 2,481st down. The timeline is one random sample of the outlined location's requests."
+  in 130 ms: a mean response of 46.9 ms. Popular objects hit and the long tail misses: objects more popular than the
+  2,481st hit at the edge more than half the time, and the rest less. The timeline is one random sample of the outlined location's requests."
 - Play is a button named for what it plays ("Play 5 minutes at the outlined location"; "Stop the timeline" while
   playing; "Play the timeline, after your answer" and disabled while a question waits). The shield is a native
   checkbox named "Origin shield" (the visible "Shield" on narrow stages is in its name). The four controls are native
@@ -451,8 +462,10 @@ the tiers say "each keeps its own copies" (true of every setting) and never "mor
   reduced motion, where the story is read; after a reveal and when the challenge opens, the setting's sentence; while
   a question is open, that the settings wait. Never blank (the no-answer sweep asserts it in every phase).
 - Colour is never alone: who answered is said in words on every row ("answered at the edge", "by the shield", "reach
-  the origin"), a hit tick is short and a miss tall with a dot, a copy is a bar with a stroke, the shield track is
-  thinner; hidden is dashed and "?". Tokens are the app's `--g-viz-*` (final, considering, critical, current); small
+  the origin"), a hit tick is short and a miss tall, a miss the shield answered ends in a square on the shield track
+  and one the origin answered runs below it to a dot, a copy is a bar with a stroke, the shield track is thinner, the
+  square's shield and origin bands are parted by a stage-coloured line, the shield's ring is a heavier amber-ink
+  stroke; hidden is dashed and "?". The travelling fill composites to 3:1 or more over the stage in both themes. Tokens are the app's `--g-viz-*` (final, considering, critical, current); small
   text uses ink tokens that pass 4.5:1 (`--g-found-ink`, `--g-warn-ink`, `--g-danger-ink`); boxes and tracks use
   `--g-stroke` (3:1), and the copy bars' strokes and the band fills join `theme-contrast.spec`'s 3:1 graphics list.
 - 44 px targets: Play, the shield switch, every segment (the checker fails a target under 44 px or one on another, or on
@@ -488,7 +501,9 @@ the tiers say "each keeps its own copies" (true of every setting) and never "mor
    playhead is drawn on the tracks only; rank labels end at their ticks and drop under the 6 px rule; lane marks are
    nudged apart; half-hit rings are stroke only around the point, with the hairline starting at the ring; the checker
    fails text on text, labels within 6 px on a row, any mark under text, x ticks within 6 px, dots on dots, anything
-   off the stage.
+   off the stage, a tag within 6 px of another block's outline, a ring's hairline under any axis label but its own,
+   a playhead drawn like a miss tick (ink, or 1.5 px), the particle off its own drawn path, the outlined mark other than
+   one cell, drawn cells other than the locations, and a stage line holding one word in a wrapped paragraph.
 5. **Look-here tags.** Every block reserves its foot; a tag sits on its outline's foot at the right; `sweepExperiments`
    asserts each reveal draws as many tags as regions, none on text, none off the stage, at 14 widths.
 6. **Marks before their moment.** One monotone clock; requests, copies and shield marks are drawn only up to it, the
@@ -509,8 +524,11 @@ the tiers say "each keeps its own copies" (true of every setting) and never "mor
 13. **Text measurement.** All stage text is measured through one module (here `tw`, in the app `stage-text.ts`) with
    the shipped fonts loaded before the first measure (the mockup awaits each face: an early canvas measure fell back
    to another font and pushed a lane label off the stage in the first round), proportional digits as drawn, 1 px slack.
-14. **g-code-text.** HTML learner text keeps a number with its unit and an ordinal with its value (`nb()` in the
-   mockup); every live region holding it is `aria-atomic`.
+14. **g-code-text.** HTML learner text keeps a number with its unit (`nb()` in the mockup), never the words before it
+   ("at most", "of", "about"), so no line strands "Each" or ends on "can take"; "(?utm_source=…)" is one token; a
+   checklist verdict stays with its last number and unit ("18 ms: met"). `shoot.cjs` measures the browser's own line
+   breaks at 320, 360, 390, 412 and 1280 px (no line ends on "(?" or "can take", no lone "Each", no one-word line but
+   a paragraph's last). Every live region holding it is `aria-atomic`.
 15. **Element counts.** Users, columns, ticks and band points are bounded by the stage's width: at most 20 columns, a
    dot per 9 px, one path point per pixel column, at most 160 drawn requests a lane (denser lanes draw a band); the
    largest SVG measured is printed by `shoot.cjs` and capped at 900 elements. The heaviest setting for the build's
@@ -526,7 +544,8 @@ the tiers say "each keeps its own copies" (true of every setting) and never "mor
    paths.
 20. **Layout.** Reserved lines collect at a block's foot (the knee rows last); a checked segment keeps its weight; in
    one column, answering scrolls the timeline into view first.
-21. **Wrap that heights depend on** goes through the measured `wrap()` with the keep rule, never the browser's.
+21. **Wrap that heights depend on** goes through the measured `wrap()` with the keep rule (a number with its unit; a
+   ghost sentence "It was 18.8 ms." as one group), never the browser's.
 22. **One current state** feeds the stage, the dock, the notice, the summary and Describe (each reads the same
    scenario object); the challenge's "Goal met" and the stage are computed from the same setting. No NaN, Infinity or
    empty cell can appear: every figure is a formatted model value or "?", asserted in every render.
@@ -558,4 +577,15 @@ locations there are: about 900 a second here, a tenth of the traffic, at the cos
   "about 910"; the problem statement's "about 3,100" and "about 4,400" stand.
 - The tryThis figure "with the shield the origin serves about 26 requests a second" at one hour, if any copy of it is
   kept elsewhere, becomes 27.
+- Concept "Origin shields and request collapsing": add "A real shield passes the Age header, so an edge copy fetched from
+  the shield expires with the shield's copy; without Age, an image can be up to two TTLs old behind a shield." And:
+  "The shield cuts origin egress about as much as origin requests: bytes leave the origin once per object per TTL."
+- Concept on cost: "A CDN is paid per GB served from the edge, usually well under what the origin's own egress costs, so
+  the hit rate is also the bill: every miss is origin egress and origin work."
+- Concept on edge compute: "Edge functions run small code at the location: redirects, auth checks on signed URLs,
+  A/B assignment, header rewrites. They cut round trips, but a response that depends on the user (a cart, a feed)
+  still cannot be cached; the edge only decides faster."
+- Purges: pair "purge on change" with versioned, immutable asset URLs ("app.3f9c.js" with `Cache-Control: immutable`
+  and a year's max-age): a new version is a new key, so nothing needs purging and every copy can live as long as it
+  likes; purges stay for the few URLs that must keep their name.
 - Every other number in the lesson stands (enum.cjs check 2 holds them).

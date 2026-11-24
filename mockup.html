@@ -1134,10 +1134,10 @@ function tw(text, role) {
 // rule, the same one g-code-text applies to HTML).
 // Only a number with its unit is kept together, never the words before it ("of 20 locations" would strand "Each"); a
 // ghost sentence ("It was 18.8 ms.") is one group.
-const KEEP = /(\d[\d,.]*%?|\?%?) (ms|s|min|h|minutes?|seconds?|hours?|locations?|requests|URLs|times|a second|a minute|a location)\b/g;
+const KEEP = /(\d[\d,.]*%?|\?%?|\d[\d,.]*\/s(?= a location)) (ms|s|min|h|minutes?|seconds?|hours?|locations?|requests|URLs|times|a second|a minute|a location)\b/g;
 const glue = (t) =>
   t
-    .replace(KEEP, '$1⁠$2')
+    .replace(KEEP, (_, n, u) => `${n}⁠${u.replace(/ /g, '⁠')}`)
     .replace(/It was /g, 'It⁠was⁠')
     .replace(/(\d[\d,.]*%?) (×) (\d)/g, '$1⁠$2⁠$3');
 const unglue = (t) => t.replace(/⁠/g, ' ');
@@ -1426,7 +1426,7 @@ function events(sample, s) {
 function stepWords(sc, sample, t, hid) {
   const ev = events(sample, sc.s).filter((e) => !e.hit && e.at <= t);
   const last = ev.at(-1);
-  const clock = `${F.clock(t)} of ${windowWords(sc.s)}`;
+  const clock = `At ${F.clock(t)} of ${windowWords(sc.s)}`;
   if (!last || t - last.at > M.WINDOW_TTLS * sc.s.ttl * 0.08) return `${clock}: requests arrive at the outlined location; a short tick found its copy there.`;
   if (last.lane === 0 && last.dense) return `${clock}: #1’s copy expired; the next request misses, and the requests that arrive during its fetch wait for it (request collapsing), so one fetch goes on, not a herd.`;
   const rank = `#${F.group(sc.lanes[last.lane].rank)}`;
@@ -1909,15 +1909,21 @@ function square(D, y, sc, view, hid) {
     return { ...rg, w, x0: Math.min(g.x1 - w, Math.max(g.x0, rg.x - w / 2)) };
   });
   if (ringLabels.length === 2) {
+    // Centred and nudged apart; else each anchored outward at its own hairline; else neither (the key rows name them).
     const [a, b] = ringLabels[0].x <= ringLabels[1].x ? ringLabels : [ringLabels[1], ringLabels[0]];
+    const ok = () => a.x0 >= g.x0 && b.x0 + b.w <= g.x1 && a.x0 + a.w + 6 <= b.x0 && a.x0 + 2 <= a.x && a.x <= a.x0 + a.w - 3 && b.x0 + 2 <= b.x && b.x <= b.x0 + b.w - 3 && a.x0 + a.w + 3 <= b.x && a.x + 3 <= b.x0;
     const short = a.x0 + a.w + 6 - b.x0;
     if (short > 0) {
       a.x0 -= short / 2;
       b.x0 += short / 2;
-      a.x0 = Math.max(g.x0, a.x0);
-      b.x0 = Math.min(g.x1 - b.w, Math.max(b.x0, a.x0 + a.w + 6));
-      a.x0 = Math.min(a.x0, b.x0 - 6 - a.w);
+      if (b.x0 + b.w > g.x1) { a.x0 -= b.x0 + b.w - g.x1; b.x0 = g.x1 - b.w; }
+      if (a.x0 < g.x0) { b.x0 += g.x0 - a.x0; a.x0 = g.x0; }
     }
+    if (!ok()) {
+      a.x0 = a.x - a.w + 3;
+      b.x0 = b.x - 2;
+    }
+    if (!ok()) ringLabels.length = 0;
   }
   for (const rl of ringLabels) D.text(rl.x0, py1 + 16, [[rl.text, 'smallB', rl.kind === 'shield' ? 'shield-ink' : '']], { owner: 'xaxis', id: `ring-label-${rl.kind}`, data: ` data-ring-x="${r1(rl.x)}"` });
   const xt = [];
@@ -1926,7 +1932,7 @@ function square(D, y, sc, view, hid) {
     D.add('grid', line('tickmark', x, py1, x, py1 + 4));
     xt.push({ x, text: F.group(rank), anchor: rank === 100000 ? 'end' : 'middle' });
   }
-  placeTicks(D, xt, py1 + 16, 'xaxis', { from: 'end', fixed: ringLabels.map((rl) => ({ x: rl.x0, text: rl.text, anchor: 'start', role: 'smallB' })) });
+  placeTicks(D, xt, py1 + 16, 'xaxis', { from: 'end', fixed: [...ringLabels.map((rl) => ({ x: rl.x0, text: rl.text, anchor: 'start', role: 'smallB' })), ...rings.map((rg) => ({ x: rg.x, text: '', anchor: 'middle' }))] });
   y = py1 + 20;
   D.text(g.x0, y + 10, [[pick(AXIS_TITLES, (f) => tw(f, 'small') <= g.iw), 'small', 'muted']], { owner: 'xtitle' });
   y += 18;
@@ -2263,7 +2269,7 @@ function collisions(well) {
     const x = +kl.getAttribute('x1');
     for (const t of texts.filter((t) => t.owner === 'xaxis')) {
       const own = t.el.dataset.id === `ring-label-${kl.dataset.ring}`;
-      if (own ? !(t.x0 - 0.5 <= x && x <= t.x1 + 0.5) : t.x0 - 3 < x && x < t.x1 + 3) out.push(`ring ${kl.dataset.ring} at ${x.toFixed(0)} ${own ? 'outside its own label' : `under "${t.s}"`}`);
+      if (own ? !(t.x0 - 1.5 <= x && x <= t.x1 + 1.5) : t.x0 - 3 < x && x < t.x1 + 3) out.push(`ring ${kl.dataset.ring} at ${x.toFixed(0)} ${own ? 'outside its own label' : `under "${t.s}"`}`);
     }
   }
   for (const tg of svg.querySelectorAll('rect.tag')) {
