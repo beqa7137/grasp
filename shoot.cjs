@@ -15,7 +15,7 @@ const { chromium } = require('/var/tmp/r42a/node_modules/playwright');
 const DIR = __dirname;
 const args = process.argv.slice(2);
 const opt = (name) => args.find((a) => a.startsWith(`--${name}=`))?.split('=')[1];
-const FREE = ['default', 'tick10', 'gen11', 'gen16', 'gen0', 'seq0', 'epoch1970', 'overflow', 'burst', 'skew', 'stepback', 'naive', 'shared', 'random64', 'trillion', 'playing', 'reduced', 'describe'];
+const FREE = ['default', 'tick10', 'gen11', 'gen16', 'gen0', 'seq0', 'epoch1970', 'overflow', 'burst', 'skew', 'stepback', 'naive', 'shared', 'random64', 'trillion', 'playing', 'reduced', 'describe', 'older'];
 const STATES = opt('only')?.split(',') ?? [
   ...FREE,
   ...[1, 2, 3, 4, 5].map((k) => `ask:${k}`),
@@ -53,6 +53,13 @@ async function load(page, url) {
   fs.mkdirSync(path.join(DIR, 'shots'), { recursive: true });
   let total = 0;
   const errors = [];
+  // The stage's height is a function of its width alone: every setting, question, play moment and reveal.
+  const heights = new Map();
+  const noteH = (w, h, what) => {
+    if (!heights.has(w)) heights.set(w, new Map());
+    const m = heights.get(w);
+    if (!m.has(h)) m.set(h, what);
+  };
   const browser = await chromium.launch({ executablePath: EXECUTABLE });
   if (!args.includes('--no-shots'))
     for (const theme of THEMES)
@@ -60,7 +67,8 @@ async function load(page, url) {
         const page = await browser.newPage({ viewport: { width, height: 900 }, deviceScaleFactor: width < 600 ? 2 : 1 });
         page.on('pageerror', (e) => errors.push(`${theme} ${width}: ${e.message}`));
         for (const state of STATES) {
-          const { report } = await load(page, `${base}?${query(state)}&theme=${theme}`);
+          const { report, state: st } = await load(page, `${base}?${query(state)}&theme=${theme}`);
+          noteH(width, st.H, `${theme} ${state}`);
           await page.screenshot({ path: path.join(DIR, 'shots', `${theme}-${width}-${state.replace(/:/g, '')}.png`), fullPage: true });
           if (report.collisions.length) {
             total += report.collisions.length;
@@ -85,7 +93,8 @@ async function load(page, url) {
       await page.setViewportSize({ width: w, height: 900 });
       for (const s of settings) {
         const q = Object.entries(s).map(([k, v]) => `${k}=${v}`).join('&');
-        const { report } = await load(page, `${base}?state=default&${q}`);
+        const { report, state: st } = await load(page, `${base}?state=default&${q}`);
+        noteH(w, st.H, q);
         runs++;
         if (report.collisions.length) {
           sweepHits += report.collisions.length;
@@ -101,6 +110,7 @@ async function load(page, url) {
       await page.setViewportSize({ width: w, height: 900 });
       for (let k = 1; k <= 5; k++) {
         const { report, state } = await load(page, `${base}?state=reveal&exp=${k}`);
+        noteH(w, state.H, `reveal ${k}`);
         const visible = await page.evaluate(() =>
           [...document.querySelectorAll('svg.draw text.t-look')].every((t) => {
             const b = t.getBBox();
@@ -121,16 +131,16 @@ async function load(page, url) {
     const forbidden = (e) => {
       const truth = e.choices.find((c) => c.value === e.truth).text;
       const words = {
-        'one-bit': [M.fmt.years(M.layout({ ...e.setup, gen: 11 }).years), '3 November 2060', 'lasts 34.8'],
+        'one-bit': [M.fmt.years(M.layout({ ...e.setup, gen: 11 }).years), '3 November 2060', 'lasts 34.8', 'halves'],
         burst: ['3.95 ms', 'waits 3.95', 'full ticks', '904', '4 × 1,024', '4 ms'],
-        order: ['0 · 0 · 0'],
+        order: ['sorts after', 'sort after', 'sorts first', 'made 0.7 ms later'],
         'clock-back': ['ids repeat', 'id repeats', 'Two ids', 'same id', 'made twice', 'No id repeats'],
-        birthday: ['2.7%', 'about 2.7'],
+        birthday: ['2.7%', 'about 2.7', '0.027'],
       }[e.id];
       return [...words, truth.replace(/^About /, '').split(',')[0]].filter((w) => !['Some repeat ids it already made'].includes(w));
     };
     const structure = {
-      'one-bit': (d) => d.markers === 0,
+      'one-bit': (d, st) => (st === 'ask' ? d.markers === 1 && d.ghosts === 0 : d.markers === 0),
       burst: (d) => d.gaugesAfter === 0,
       order: (d) => d.rows === 0 && d.bits === 0,
       'clock-back': (d) => d.repeatMarks === 0 && d.rows === 0,
@@ -145,6 +155,7 @@ async function load(page, url) {
           text: `${txt} || ${svg.querySelector('title').textContent} || ${document.getElementById('notice').textContent} || ${document.getElementById('describe').textContent} || ${labels} || ${document.getElementById('story').textContent}`,
           describeDisabled: document.getElementById('desc-btn').disabled,
           markers: svg.querySelectorAll('circle.life-marker').length,
+          ghosts: svg.querySelectorAll('.ghost').length,
           gaugesAfter: [...svg.querySelectorAll('rect.gauge-bg')].length > 1 ? 1 : 0,
           rows: svg.querySelectorAll('polyline.order-line').length + svg.querySelectorAll('circle[data-key^="row-"]').length,
           bits: svg.querySelectorAll('text.t-bit').length,
@@ -154,16 +165,19 @@ async function load(page, url) {
       });
     async function sweepQuestion(e, k, leak, reduced) {
       const found = [];
+      // E5 has no play: it reveals on answering.
       for (const [st, fracs] of [
         ['ask', [null]],
-        ['play', [0.1, 0.5, 0.9, 1]],
+        ...(e.act.run === 'reveal' ? [] : [['play', [0, 0.1, 0.5, 0.9, 1]]]),
       ])
         for (const frac of fracs) {
-          await load(page, `${base}?state=${st}&exp=${k}${frac !== null ? `&frac=${frac}` : ''}${leak ? `&leak=${leak}` : ''}${reduced ? '&reduced=1' : ''}`);
+          const got = await load(page, `${base}?state=${st}&exp=${k}${frac !== null ? `&frac=${frac}` : ''}${leak ? `&leak=${leak}` : ''}${reduced ? '&reduced=1' : ''}`);
+          noteH(1280, got.state.H, `${st} ${k} ${frac}`);
+          if (got.report.collisions.length) found.push(`${st} ${frac ?? ''} collisions: ${got.report.collisions.join(' | ')}`);
           const d = await probe();
           const has = (w) => new RegExp(`(?<![\\d,.])${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\d,])`).test(d.text);
           for (const w of forbidden(e)) if (has(w)) found.push(`${st} ${frac ?? ''} text "${w}"`);
-          if (!structure[e.id](d)) found.push(`${st} ${frac ?? ''} structure`);
+          if (!structure[e.id](d, st)) found.push(`${st} ${frac ?? ''} structure`);
           if (!d.describeDisabled) found.push(`${st} describe enabled`);
         }
       return found;
@@ -192,14 +206,19 @@ async function load(page, url) {
     console.log(`No-answer sweep: ${clean} giveaways, ${leaksMissed} planted leaks missed.`);
     total += clean + leaksMissed;
     // 4. Stage heights per width, at the default.
-    const heights = [];
+    const defaults = [];
     for (const w of [300, 320, 360, 375, 390, 412, 430, 600, 800, 1000, 1280]) {
       await page.setViewportSize({ width: w, height: 900 });
       const { state } = await load(page, `${base}?state=default`);
-      heights.push(`${w}: ${state.H}`);
+      defaults.push(`${w}: ${state.H}`);
     }
-    console.log(`Stage heights at the default: ${heights.join(', ')}`);
+    console.log(`Stage heights at the default: ${defaults.join(', ')}`);
   }
+  for (const [w, m] of heights)
+    if (m.size > 1) {
+      total += 1;
+      console.log(`height varies at ${w}: ${[...m].map(([h, what]) => `${h} (${what})`).join(', ')}`);
+    } else console.log(`height at ${w}: ${[...m.keys()][0]} in every render`);
   await browser.close();
   server.close();
   for (const e of errors) console.log(`page error: ${e}`);

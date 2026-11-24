@@ -258,7 +258,7 @@
         cursor: pointer;
       }
       /* A checked segment changes colour only, never weight, so its label keeps its width (rule 20). */
-      .segment span {
+      .segment > span {
         display: flex;
         align-items: center;
         justify-content: center;
@@ -446,24 +446,64 @@
       .acc {
         fill: var(--g-accent);
       }
+      /* Each field: its colour, its tint, its ink (text at 4.5:1 or more on the tint) and its filled cell (on-fill digits at 4.5:1 or more). */
       .f-time {
         --f: var(--g-viz-current);
         --fs: var(--g-viz-current-soft);
+        --fi: #065a87;
+        --f1: #065a87;
       }
       .f-gen {
         --f: var(--g-viz-considering);
         --fs: var(--g-viz-considering-soft);
+        --fi: #7f4a00;
+        --f1: #7f4a00;
       }
       .f-seq {
         --f: var(--g-viz-final);
         --fs: rgba(18, 146, 95, 0.15);
+        --fi: #02583f;
+        --f1: #02583f;
       }
       .f-sign {
         --f: var(--g-stroke);
         --fs: rgba(var(--g-text-rgb), 0.06);
+        --fi: var(--g-muted);
+        --f1: var(--g-muted);
+      }
+      :root.dark .f-time {
+        --fi: #6cc6ee;
+        --f1: var(--g-viz-current);
+      }
+      :root.dark .f-gen {
+        --fi: #f0b860;
+        --f1: var(--g-viz-considering);
+      }
+      :root.dark .f-seq {
+        --fi: #3ddc97;
+        --f1: var(--g-viz-final);
+      }
+      :root.dark .f-sign {
+        --fi: #a3aabb;
+        --f1: var(--g-stroke);
       }
       .cell1 {
-        fill: var(--f);
+        fill: var(--f1);
+      }
+      .cellE {
+        fill: var(--fs);
+        stroke: var(--f);
+        stroke-opacity: 0.35;
+        stroke-width: 1;
+        stroke-dasharray: 0;
+      }
+      .field-ink {
+        fill: var(--fi);
+      }
+      .field-bracket {
+        fill: none;
+        stroke: var(--f);
+        stroke-width: 1.25;
       }
       .cell0 {
         fill: var(--fs);
@@ -476,9 +516,8 @@
         stroke: none;
       }
       .bit0 {
-        fill: var(--f);
+        fill: var(--fi);
         stroke: none;
-        opacity: 0.9;
       }
       .chip {
         fill: var(--f);
@@ -518,7 +557,41 @@
         fill: var(--g-viz-critical);
       }
       .dot.late {
-        fill: var(--g-viz-considering);
+        fill: var(--g-viz-stage);
+        stroke: var(--g-viz-considering);
+        stroke-width: 1.75;
+      }
+      .dot.first {
+        fill: var(--g-viz-stage);
+        stroke: var(--g-viz-critical);
+        stroke-width: 1.75;
+      }
+      .ghost {
+        fill: var(--g-viz-stage);
+        stroke: var(--g-muted);
+        stroke-width: 1.5;
+      }
+      .ghost-arrow {
+        fill: none;
+        stroke: var(--g-muted);
+        stroke-width: 1.25;
+      }
+      .goal {
+        stroke: var(--g-warn);
+        stroke-width: 2;
+      }
+      .twin-arc {
+        fill: none;
+        stroke: var(--g-viz-critical);
+        stroke-width: 1;
+      }
+      .clock-step {
+        stroke: var(--g-viz-critical);
+        stroke-width: 1.5;
+      }
+      .own-tick {
+        stroke: var(--g-warn);
+        stroke-width: 1;
       }
       .ring {
         fill: none;
@@ -581,7 +654,7 @@
         stroke-width: 1;
       }
       .ruler-step {
-        stroke: var(--g-line-strong);
+        stroke: var(--g-stroke);
         stroke-width: 1;
       }
       .marker {
@@ -606,8 +679,9 @@
         stroke: var(--g-viz-current);
         stroke-width: 2;
       }
+      /* Opaque: a hidden box sits over every grid, lane and now line, so none crosses its words. */
       .hidden-box {
-        fill: rgba(var(--g-text-rgb), 0.03);
+        fill: var(--g-viz-stage);
         stroke: var(--g-stroke);
         stroke-width: 1.5;
         stroke-dasharray: 5 4;
@@ -651,12 +725,13 @@
       }
       .options {
         list-style: none;
-        margin: 8px 0 0;
+        margin: 12px 0 0;
         padding: 0;
         display: grid;
-        gap: 8px;
+        gap: 14px;
       }
       .g-choice {
+        position: relative;
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -684,9 +759,16 @@
       .g-choice[disabled] {
         cursor: default;
       }
+      /* The tag sits on the choice's top border, out of the text's flow, so a choice keeps its size when tagged. */
       .mark {
-        flex: none;
-        font: 600 var(--g-text-body-s) var(--g-font);
+        position: absolute;
+        top: -9px;
+        right: 12px;
+        padding: 0 6px;
+        border-radius: var(--g-radius-pill);
+        background: var(--g-surface);
+        font: 600 0.75rem / 16px var(--g-font);
+        color: var(--g-muted);
       }
       .g-choice.right .mark {
         color: var(--g-success-ink);
@@ -849,6 +931,62 @@
       tr.bad td {
         color: var(--g-danger-ink);
       }
+      .keep {
+        white-space: nowrap;
+      }
+      .nav {
+        position: absolute;
+        z-index: 2;
+        display: flex;
+        gap: 6px;
+      }
+      .nav button {
+        min-width: 44px;
+        height: 44px;
+        padding: 0 10px;
+        border: 1px solid var(--g-line-strong);
+        border-radius: var(--g-radius-sm);
+        background: var(--g-raised);
+        color: var(--g-text);
+        font: 500 var(--g-text-body-s) var(--g-font);
+        cursor: pointer;
+      }
+      .nav button:disabled {
+        opacity: 0.45;
+        cursor: default;
+      }
+      .nav button:focus-visible {
+        outline: var(--g-focus-ring);
+        outline-offset: 2px;
+      }
+      .cg {
+        display: grid;
+        gap: 14px;
+      }
+      /* Narrow: each control group sits on the stage right under the band it changes. */
+      .controls.in-stage {
+        position: absolute;
+        inset: 0;
+        padding: 0;
+        border: 0;
+        background: none;
+        display: block;
+        pointer-events: none;
+      }
+      .controls.in-stage h2 {
+        display: none;
+      }
+      .controls.in-stage .cg {
+        position: absolute;
+        pointer-events: auto;
+        padding: 12px;
+        border: 1px solid var(--g-line);
+        border-radius: var(--g-radius-sm);
+        background: var(--g-surface);
+      }
+      .controls.in-stage .range output {
+        min-height: 2.6em;
+      }
       .sr-only {
         position: absolute;
         width: 1px;
@@ -858,6 +996,9 @@
         white-space: nowrap;
       }
       @media (max-width: 999px) {
+        .widget.dock-first .dock {
+          order: 0;
+        }
         .notice {
           position: absolute;
           width: 1px;
@@ -879,8 +1020,12 @@
             <div class="well" id="well">
               <svg class="draw" id="svg" role="img" aria-labelledby="svg-title"><title id="svg-title"></title></svg>
               <button class="play" id="play" type="button" aria-label="Play the mint: 8 ms of the clock, slowed down">
-                <svg viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="16" /><path d="M13 10.5 L24 17 L13 23.5 Z" /></svg>
+                <svg viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="16" /><path id="play-glyph" d="M13 10.5 L24 17 L13 23.5 Z" /></svg>
               </button>
+              <div class="nav" id="nav">
+                <button type="button" id="older" aria-label="Older id">‹ Older id</button>
+                <button type="button" id="newer" aria-label="Newer id">Newer id ›</button>
+              </div>
             </div>
             <p class="caption" id="story" hidden></p>
           </div>
@@ -890,6 +1035,7 @@
           <div class="dock" id="dock"></div>
           <form class="controls" id="controls" onsubmit="return false">
             <h2>Try it</h2>
+            <div class="cg" data-slot="layout">
             <fieldset class="group" id="g-layout">
               <legend class="control-label">The layout <span class="why">(63 bits to share)</span></legend>
               <div class="row2">
@@ -927,6 +1073,8 @@
                 </div>
               </fieldset>
             </div>
+            </div>
+            <div class="cg" data-slot="mint">
             <fieldset class="group" id="g-load">
               <legend class="control-label">Requests to G0</legend>
               <div class="segments">
@@ -940,10 +1088,12 @@
                 <label class="segment"><input type="radio" name="fault" value="0" /><span>Nothing</span></label>
                 <label class="segment"><input type="radio" name="fault" value="1" /><span>G2's clock ahead</span></label>
                 <label class="segment"><input type="radio" name="fault" value="2" /><span>G1's clock steps back</span></label>
-                <label class="segment"><input type="radio" name="fault" value="3" /><span>G2 given number 1</span></label>
+                <label class="segment"><input type="radio" name="fault" value="3" /><span><span>G2 given <span class="keep">number 1</span></span></span></label>
               </div>
               <label class="toggle"><input type="checkbox" id="guard" />Keep the last timestamp (wait if the clock is behind it)</label>
             </fieldset>
+            </div>
+            <div class="cg" data-slot="random">
             <fieldset class="group" id="g-random">
               <legend class="control-label">Random ids</legend>
               <div class="segments">
@@ -954,6 +1104,7 @@
                 ><span class="control-label" style="margin: 8px 0 0">Ids made</span
                 ><input type="range" id="count" min="3" max="15" step="1" aria-describedby="count-v" /><output id="count-v"></output></label>
             </fieldset>
+            </div>
             <p class="notice" id="notice" aria-live="polite" aria-atomic="true"></p>
           </form>
           <h2 class="heading">Experiments</h2>
@@ -993,7 +1144,9 @@ const FREE = {
   playing: {},
   reduced: {},
   describe: {},
+  older: {},
 };
+const CHANGED = { gen11: 'gen', gen16: 'gen', gen0: 'gen', seq0: 'seq', tick10: 'tick', epoch1970: 'epoch', overflow: 'gen', burst: 'load', skew: 'fault', stepback: 'fault', naive: 'fault', shared: 'fault', random64: 'bits', trillion: 'count' };
 const STATE = Q.get('state') ?? 'default';
 const view = {
   s: { ...M.BASE },
@@ -1006,6 +1159,9 @@ const view = {
   ghost: null,
   challenge: false,
   describeOpen: STATE === 'describe',
+  inspectKey: null,
+  lastChange: CHANGED[STATE] ?? null,
+  frac: Q.has('frac') ? Number(Q.get('frac')) : 1,
 };
 function applyState() {
   const n = Number(Q.get('exp'));
@@ -1016,23 +1172,29 @@ function applyState() {
       view.phase = 'playing';
       view.t = Number(Q.get('frac') ?? 0.55) * M.WINDOW_US;
     }
+    if (STATE === 'older') view.inspectKey = 'g0-1';
   } else if (STATE === 'ask' || STATE === 'play' || STATE === 'reveal') {
     const e = EXPS[n - 1];
     view.exp = n;
     const after = { ...e.setup, ...(e.act.set ?? {}) };
-    if (STATE === 'ask') {
+    const truth = e.choices.findIndex((c) => c.value === e.truth);
+    // E5 has no play: its answer is the curve itself, so it reveals at once and the marker slides up the curve.
+    const state = STATE === 'play' && e.act.run === 'reveal' ? 'reveal' : STATE;
+    view.expState = state;
+    if (state === 'ask') {
       view.s = { ...e.setup };
       view.hide = new Set(e.hide);
-    } else if (STATE === 'play') {
+    } else if (state === 'play') {
       view.s = after;
       view.hide = new Set(e.hide);
       view.phase = 'playing';
       view.t = Number(Q.get('frac') ?? 0.7) * M.WINDOW_US;
       view.picked = Number(Q.get('pick') ?? 1) - 1;
+      if (e.id === 'one-bit') view.ghost = { ...e.setup };
     } else {
       view.s = after;
       view.focus = e.focus;
-      const truth = e.choices.findIndex((c) => c.value === e.truth);
+      view.pair = e.pair ?? null;
       view.picked = Q.has('pick') ? Number(Q.get('pick')) - 1 : (truth + 1) % 3;
       if (e.id === 'one-bit') view.ghost = { ...e.setup };
     }
@@ -1043,16 +1205,20 @@ function applyState() {
   for (const k of Object.keys(M.BASE)) if (Q.has(k)) view.s[k] = Number(Q.get(k));
 }
 applyState();
+const expState = () => view.expState ?? null;
 
 /**
- * The one hiding map: each hidden region a question names, to every surface it covers. A planted leak (?leak=flag)
- * turns one flag off, so shoot.cjs can prove its sweep catches it.
+ * The one hiding map: each hidden region a question names, to every surface it covers. `lifetime` hides only a
+ * lifetime other than the setup's (so E1 asks with Snowflake's 69.7 years in view); `burstAfter` hides only a burst's
+ * later ticks (so E2 asks over the plain trickle). A planted leak (?leak=flag) turns one flag off, so shoot.cjs can
+ * prove its sweep catches it.
  */
 function hiding() {
   const h = view.hide;
+  const e = view.exp ? EXPS[view.exp - 1] : null;
   const flags = {
-    lifetime: h.has('lifetime'),
-    burstAfter: h.has('burstAfter'),
+    lifetime: h.has('lifetime') && !!e && M.layout(view.s).timeBits !== M.layout(e.setup).timeBits,
+    burstAfter: h.has('burstAfter') && view.s.load === M.LOAD_BURST,
     order: h.has('order') || h.has('repeats'),
     inspect: h.has('order') || h.has('repeats'),
     repeats: h.has('repeats'),
@@ -1064,6 +1230,7 @@ function hiding() {
   if (leak && leak in flags) flags[leak] = false;
   return flags;
 }
+const anyHidden = (H) => H.lifetime || H.burstAfter || H.order || H.inspect || H.repeats || H.chance;
 
 // ------------------------------------------------------------------------------------------------------------------
 // Text measurement (the mockup's stand-in for stage-text.ts): every label is measured as it is drawn, so placement
@@ -1083,11 +1250,16 @@ const ROLES = {
   look: { font: '600 11px "Inter Variable"', size: 11, cls: 't-look' },
 };
 const ctx = document.createElement('canvas').getContext('2d');
+const mcache = new Map();
 function measure(role, str) {
+  const k = `${role}|${str}`;
+  if (mcache.has(k)) return mcache.get(k);
   const r = ROLES[role];
   ctx.font = r.font;
   const s = r.upper ? str.toUpperCase() : str;
-  return ctx.measureText(s).width + (r.ls ?? 0) * s.length;
+  const w = ctx.measureText(s).width + (r.ls ?? 0) * s.length;
+  mcache.set(k, w);
+  return w;
 }
 /** Words that stay together: a number with the word after it, an operator with its operand, a superscript power. */
 function tokens(str) {
@@ -1095,7 +1267,7 @@ function tokens(str) {
   const out = [];
   for (const w of words) {
     const prev = out[out.length - 1];
-    if (prev && (/[\d⁰¹²³⁴⁵⁶⁷⁸⁹%]$/.test(prev) || /^[×=÷−+→]$/.test(prev) || prev === 'a' || prev === 'G')) out[out.length - 1] = `${prev} ${w}`;
+    if (prev && (/[\d⁰¹²³⁴⁵⁶⁷⁸⁹%]$/.test(prev) || /^[×=÷−+→≈(]$/.test(prev) || /^\(?need$/.test(prev) || prev === 'a' || prev === 'G')) out[out.length - 1] = `${prev} ${w}`;
     else out.push(w);
   }
   return out;
@@ -1130,9 +1302,22 @@ function wrap(role, str, maxW) {
   if (cur) lines.push(cur);
   return lines;
 }
+/**
+ * Reserved line counts: the most lines a block takes at this width over every setting it can show, so the stage's
+ * height is a function of its width alone (no setting, question or play moves a band). Memoised per width.
+ */
+const reserveMemo = new Map();
+function reserve(key, W, fn) {
+  const k = `${key}@${W}`;
+  if (!reserveMemo.has(k)) reserveMemo.set(k, fn());
+  return reserveMemo.get(k);
+}
+const LAYOUTS = [];
+for (let gen = 0; gen <= M.BITS_MAX; gen++)
+  for (let seq = 0; seq <= M.BITS_MAX; seq++) for (const tick of M.TICKS_MS) for (const epoch of [0, 1]) LAYOUTS.push({ ...M.BASE, gen, seq, tick, epoch });
 
 // ------------------------------------------------------------------------------------------------------------------
-// The drawing: an SVG string with a registry of every text box, line and dot for the collision report.
+// The drawing: an SVG string with a registry of every text box, line, dot, mark and outline for the collision report.
 
 let out;
 let reg;
@@ -1155,8 +1340,8 @@ function text(role, x, y, str, o = {}) {
   return box;
 }
 function line(x1, y1, x2, y2, cls, o = {}) {
-  el('line', { x1, y1, x2, y2, class: cls, 'data-region': o.region });
-  if (o.check !== false) reg.lines.push({ x1, y1, x2, y2, cls, region: o.region });
+  el('line', { x1: +x1.toFixed(1), y1: +y1.toFixed(1), x2: +x2.toFixed(1), y2: +y2.toFixed(1), class: cls, 'data-region': o.region });
+  if (o.check !== false) reg.lines.push({ x1, y1, x2, y2, cls, region: o.region, kind: o.kind ?? 'line' });
 }
 function rect(x, y, w, h, cls, o = {}) {
   el('rect', { x: x.toFixed(1), y: y.toFixed(1), width: Math.max(0, w).toFixed(1), height: Math.max(0, h).toFixed(1), rx: o.rx, class: cls, 'data-region': o.region, 'data-key': o.key });
@@ -1164,30 +1349,60 @@ function rect(x, y, w, h, cls, o = {}) {
 }
 function dot(x, y, r, cls, o = {}) {
   el('circle', { cx: x.toFixed(1), cy: y.toFixed(1), r, class: cls, 'data-key': o.key, 'data-region': o.region });
-  if (o.check !== false) reg.dots.push({ x, y, r, key: o.key });
+  if (o.check !== false) reg.dots.push({ x, y, r: o.hitR ?? r, key: o.key });
 }
 function path(d, cls, o = {}) {
   el('path', { d, class: cls, 'data-region': o.region });
   if (o.points) reg.curves.push({ points: o.points, region: o.region });
+  if (o.segments) for (const [a, b] of o.segments) reg.lines.push({ x1: a[0], y1: a[1], x2: b[0], y2: b[1], cls, kind: o.kind ?? 'line' });
 }
+/** A hidden box: painted after every other mark, opaque, so no grid, lane or now line crosses its words. */
 function hiddenBox(x, y, w, h, region, words = 'Hidden until you answer', textY = null) {
-  rect(x, y, w, h, 'hidden-box', { rx: 8, region: `hidden-${region}` });
-  const fits = measure('small', words) + 16 < w && h >= 18;
-  const ty = textY ?? y + h / 2 + 4;
-  if (fits) text('small', x + w / 2, ty, words, { anchor: 'middle', region: `hidden-${region}` });
-  else text('capB', x + w / 2, ty, '?', { anchor: 'middle', region: `hidden-${region}` });
-  reg.hidden.push({ x0: x, y0: y, x1: x + w, y1: y + h, region });
+  reg.hidden.push({ x0: x, y0: y, x1: x + w, y1: y + h, region, words, textY });
 }
+function paintHidden() {
+  for (const b of reg.hidden) {
+    const w = b.x1 - b.x0;
+    const h = b.y1 - b.y0;
+    rect(b.x0, b.y0, w, h, 'hidden-box', { rx: 8, region: `hidden-${b.region}` });
+    const lines = wrap('small', b.words, w - 16);
+    const fits = lines.length * 14 + 6 <= h && lines.every((l) => measure('small', l) + 12 <= w);
+    const ty = b.textY ?? b.y0 + h / 2 + 4 - ((lines.length - 1) * 14) / 2;
+    if (fits) lines.forEach((ln, i) => text('small', b.x0 + w / 2, ty + i * 14, ln, { anchor: 'middle', region: `hidden-${b.region}`, kind: 'hidden' }));
+    else text('capB', b.x0 + w / 2, b.y0 + h / 2 + 4, '?', { anchor: 'middle', region: `hidden-${b.region}`, kind: 'hidden' });
+  }
+}
+/** Placement from candidates: the first box clear of every text, dot, line, curve, mark and hidden box. */
+function clearBox(b, gap = 4, except = () => false) {
+  if (reg.texts.some((t) => !except(t) && overlap(t, b, gap) && t.y0 < b.y1 + gap && b.y0 < t.y1 + gap)) return false;
+  if (reg.dots.some((d) => d.x + d.r > b.x0 - gap && d.x - d.r < b.x1 + gap && d.y + d.r > b.y0 - gap && d.y - d.r < b.y1 + gap)) return false;
+  const g = { x0: b.x0 - gap, x1: b.x1 + gap, y0: b.y0 - gap, y1: b.y1 + gap };
+  if (reg.lines.some((l) => segHitsBox(l, g))) return false;
+  if (reg.curves.some((cv) => cv.points.some((q, k) => k > 0 && segHitsBox({ x1: cv.points[k - 1][0], y1: cv.points[k - 1][1], x2: q[0], y2: q[1] }, g)))) return false;
+  if (reg.marks.some((m) => overlap(m, g))) return false;
+  if (reg.hidden.some((h) => overlap(h, g))) return false;
+  return true;
+}
+const textBox = (role, x, y, str, anchor = 'start') => {
+  const w = measure(role, str);
+  const x0 = anchor === 'end' ? x - w : anchor === 'middle' ? x - w / 2 : x;
+  return { x0, x1: x0 + w, y0: y - ROLES[role].size * 0.76, y1: y + ROLES[role].size * 0.24 };
+};
 
 // ------------------------------------------------------------------------------------------------------------------
 // The stage.
 
 const FIELD_CLASS = { sign: 'f-sign', time: 'f-time', gen: 'f-gen', seq: 'f-seq' };
-const FIELD_NAME = { time: 'timestamp', gen: 'generator', seq: 'sequence' };
+const FIELD_NAMES = { time: ['timestamp', 'time', ''], gen: ['generator', 'gen', ''], seq: ['sequence', 'seq', ''], sign: ['sign', '', ''] };
+const LANE = 74;
+const ROW_H = 16;
+let playPos = { x: 0, y: 0 };
+let navPos = null;
+let slotPos = {};
 
-function build(W) {
+function build(W, slots) {
   out = [];
-  reg = { texts: [], lines: [], dots: [], marks: [], curves: [], hidden: [], regions: {}, W };
+  reg = { texts: [], lines: [], dots: [], marks: [], curves: [], hidden: [], outlines: [], notes: [], regions: {}, W };
   const H = hiding();
   const s = view.s;
   const L = M.layout(s);
@@ -1196,244 +1411,268 @@ function build(W) {
   const inner = W - 2 * pad;
   const m = M.mint(s);
   const t = view.phase === 'playing' ? view.t : Infinity;
-  const made = (x) => x.issued <= t;
   let y = pad;
-
-  // --- Band A: one id, its 64 bits laid out as fields. ---------------------------------------------------------
-  const inspectId = pickInspect(m, t);
-  const aTop = y;
-  text('label', pad, y + 9, 'One id, 64 bits');
-  if (inspectId && !H.inspect) {
-    const who = `made by G${inspectId.lane} at ${F.ms(inspectId.issued)}`;
-    if (measure('label', 'One id, 64 bits') + measure('small', who) + 16 < inner) text('small', W - pad, y + 9, who, { anchor: 'end' });
-  }
-  y += 22;
-  const gap = narrow ? 3 : 5;
-  const fields = [
-    { f: 'sign', n: 1 },
-    { f: 'time', n: L.timeBits },
-    { f: 'gen', n: L.genBits },
-    { f: 'seq', n: L.seqBits },
-  ].filter((x) => x.n > 0);
-  const gaps = (fields.length - 1) * gap;
-  const rows = narrow ? 2 : 1;
-  const perRow = 64 / rows;
-  const cell = Math.floor(((inner - (narrow ? gap * 2 : gaps)) / perRow) * 10) / 10;
-  const cellH = narrow ? 18 : 22;
-  // Field spans: where each field's cells start and end, row by row.
-  const bitsArr = inspectId && !H.inspect ? M.bits(L, inspectId.id) : M.bits(L, 0n).map((b) => ({ ...b, bit: null }));
-  const spans = {};
-  const labelRowY = y + 9;
-  y += 16;
-  const barTop = y;
-  let x = pad;
-  let row = 0;
-  let prevField = null;
-  bitsArr.forEach((b, i) => {
-    const r = Math.floor(i / perRow);
-    if (r !== row) {
-      row = r;
-      x = pad;
-      prevField = null;
-    }
-    if (prevField && prevField !== b.field) x += gap;
-    prevField = b.field;
-    const cy = barTop + row * (cellH + 22);
-    const cls = FIELD_CLASS[b.field];
-    const sp = (spans[`${b.field}:${row}`] ??= { field: b.field, row, x0: x, x1: x, y: cy });
-    sp.x1 = x + cell;
-    el('g', { class: cls }, '');
-    out.pop();
-    out.push(`<g class="${cls}">`);
-    if (!H.inspect) rect(x + 0.5, cy, cell - 1, cellH, b.bit === 1 ? 'cell1' : 'cell0', { rx: 2, region: 'bits' });
-    if (b.bit !== null && cell >= 9) text('bit', x + cell / 2, cy + cellH / 2 + 3.5, String(b.bit), { anchor: 'middle', cls: b.bit ? 'bit1' : 'bit0', onFill: true, kind: 'bit' });
-    out.push('</g>');
-    x += cell;
-  });
-  if (H.inspect) hiddenBox(pad - 2, barTop - 2, inner + 4, rows * cellH + (rows - 1) * 22 + 4, 'inspect', 'This id is hidden until you answer', barTop + cellH / 2 + 4);
-  // Field names over their spans: the longest form that fits, else the bit count alone.
-  const spanList = Object.values(spans);
-  // A field too narrow for even its count beside its neighbour's name is named only in the ledger below.
-  const placedNames = [];
-  for (const sp of spanList) {
-    if (sp.field === 'sign') continue;
-    const n = { time: L.timeBits, gen: L.genBits, seq: L.seqBits }[sp.field];
-    const total = spanList.filter((o) => o.field === sp.field);
-    const first = total[0] === sp;
-    const width = sp.x1 - sp.x0;
-    const forms = first ? [`${FIELD_NAME[sp.field]} · ${n} bits`, `${FIELD_NAME[sp.field]} ${n}`, `${sp.field === 'time' ? 'time' : sp.field} ${n}`, `${n}`] : [];
-    const form = forms.find((f) => measure('smallB', f) <= width + gap - 6) ?? (first ? `${n}` : null);
-    if (!form) continue;
-    const ly = sp.row === 0 ? labelRowY : sp.y - 7;
-    const cx = Math.min(Math.max((sp.x0 + sp.x1) / 2, pad + measure('smallB', form) / 2), W - pad - measure('smallB', form) / 2);
-    const fw = measure('smallB', form);
-    if (placedNames.some((p) => p.ly === ly && cx - fw / 2 < p.x1 + 6 && cx + fw / 2 > p.x0 - 6)) continue;
-    placedNames.push({ ly, x0: cx - fw / 2, x1: cx + fw / 2 });
-    el('g', { class: FIELD_CLASS[sp.field] }, '');
-    out.pop();
-    out.push(`<g class="${FIELD_CLASS[sp.field]}">`);
-    text('smallB', cx, ly, form, { anchor: 'middle', cls: 'field-tone', region: 'fieldNames' });
-    out.push('</g>');
-  }
-  if (narrow) {
-    const sp = spans['sign:0'];
-    text('small', sp.x0, labelRowY, 'sign', { region: 'fieldNames' });
-  }
-  y = barTop + rows * cellH + (rows - 1) * 22 + 16;
-  // The field values and the clock's conversion into the timestamp: drawn, not only told.
-  if (inspectId && !H.inspect) {
-    const tsTxt = F.int(inspectId.ts);
-    for (const ln of wrapSegments('mono', [`timestamp ${tsTxt}`, `generator ${inspectId.number}`, `sequence ${inspectId.seq}`], inner)) {
-      text('mono', pad, y, ln, { region: 'values' });
-      y += 16;
-    }
-    const elapsedMs = M.NOW_MS - L.epochMs + inspectId.clock / 1000;
-    const segs = [
-      `G${inspectId.lane}'s clock: 12:00:00 + ${F.ms(inspectId.clock)}`,
-      `− epoch ${F.date(L.epochMs)}`,
-      `= ${F.int(Math.floor(elapsedMs))}${elapsedMs % 1 ? `.${String(Math.round((elapsedMs % 1) * 10))}` : ''} ms`,
-      `÷ ${s.tick} ms a tick, rounded down`,
-      `= ${tsTxt}`,
-    ];
-    for (const ln of wrapSegments('small', segs, inner, '  ')) {
-      text('small', pad, y, ln, { region: 'values' });
-      y += 15;
-    }
-    y += 4;
-    const idTxt = `id ${F.int(inspectId.id)}`;
-    text('monoL', pad, y + 4, idTxt, { region: 'values' });
-    if (inspectId.repeatOf && !H.repeats) {
-      const twice = 'made twice: an earlier id has the same 64 bits';
-      if (measure('monoL', idTxt) + 10 + measure('smallB', twice) <= inner) text('smallB', pad + measure('monoL', idTxt) + 10, y + 4, twice, { cls: 'bad' });
-      else {
-        y += 17;
-        for (const ln of wrap('smallB', twice, inner)) {
-          text('smallB', pad, y + 4, ln, { cls: 'bad' });
-          y += 15;
-        }
-        y -= 15;
-      }
-    }
-    y += 14;
-  } else if (!L.fits) {
-    for (const ln of wrap('capB', `No id: the clock is past the timestamp's end, ${F.endWords(L)}. A generator must refuse to mint.`, inner)) {
-      text('capB', pad, y + 4, ln, { cls: 'bad' });
-      y += 18;
-    }
-  } else if (H.inspect) {
-    y += 2;
-  } else {
-    text('small', pad, y, 'No id made yet: press Play.');
-    y += 14;
-  }
-  reg.regions.bits = { x0: pad - 4, y0: aTop - 4, x1: W - pad + 4, y1: y };
+  const ctxB = { W, pad, inner, narrow, H, s, L, m, t };
+  y = drawBits(ctxB, y);
   y += 14;
   line(pad, y, W - pad, y, 'rule', { check: false });
-  y += 18;
+  y += 22;
+  y = drawLedger(ctxB, y);
+  y = slot('layout', y, slots, pad);
+  line(pad, y, W - pad, y, 'rule', { check: false });
+  y += 22;
+  y = drawLanes(ctxB, y);
+  y = slot('mint', y, slots, pad);
+  line(pad, y, W - pad, y, 'rule', { check: false });
+  y += 22;
+  y = drawSorted(ctxB, y);
+  y += 10;
+  line(pad, y, W - pad, y, 'rule', { check: false });
+  y += 22;
+  y = drawRandom(ctxB, y);
+  y = slot('random', y, slots, pad);
+  const Hh = Math.ceil(y + pad);
+  paintHidden();
+  drawFocus(W, Hh);
+  return { H: Hh, svg: out.join(''), reg };
+}
+/** Narrow stages keep a control group under the band it changes: a gap the HTML group is placed in. */
+function slot(name, y, slots, pad) {
+  if (!slots) return y + 10;
+  y += 14;
+  slotPos[name] = { x: pad, y };
+  reg.marks.push({ x0: pad, y0: y, x1: reg.W - pad, y1: y + slots[name], cls: 'controls', region: name });
+  return y + slots[name] + 18;
+}
 
-  // --- Band B: what each field buys. -------------------------------------------------------------------------------
+// --- Band A: one id, its 64 bits as fields, the field values under brackets, the clock's conversion, the id. -----
+
+/** The inspected id: a chosen one (Older and Newer, or a tap), the newest made while playing, else a rest choice. */
+function visibleIds(m, H, t) {
+  return m.byMade.filter((x) => x.issued <= t && !(H.burstAfter && x.lane === 0 && x.column > 0));
+}
+function pickInspect(m, t, H) {
+  const vis = visibleIds(m, H, t);
+  if (!vis.length) return null;
+  if (view.inspectKey) {
+    const x = vis.find((v) => v.key === view.inspectKey);
+    if (x) return x;
+  }
+  if (view.phase === 'playing') return vis[vis.length - 1];
+  return m.repeats[0] ?? m.lanes[2].ids.find((x) => x.seq === 1) ?? vis[vis.length - 1];
+}
+function madeByText(x, s) {
+  const base = `made by G${x.lane} at ${F.ms(x.issued)}`;
+  if (Math.abs(x.clock - x.issued) < 1e-9) return base;
+  const how = s.fault === M.FAULT.skew ? `G${x.lane}'s clock, ${F.ms(M.SKEW_US)} ahead,` : `G${x.lane}'s clock, stepped back ${F.ms(M.STEP_US)},`;
+  return `${base}; ${how} read ${F.ms(x.clock)}`;
+}
+function convSegs(L, s, x) {
+  const elapsedMs = M.NOW_MS - L.epochMs + x.clock / 1000;
+  const frac = Math.round((elapsedMs % 1) * 100) / 100;
+  const whole = F.int(Math.floor(elapsedMs));
+  const elapsed = frac ? `${whole}${String(frac).slice(1)}` : whole;
+  return [`G${x.lane}'s clock: 12:00:00 + ${F.ms(x.clock)}`, `− epoch ${F.date(L.epochMs)}`, `= ${elapsed} ms`, `÷ ${s.tick} ms a tick, rounded down`, `= ${F.int(x.ts)}, the timestamp`];
+}
+const TWICE = 'made twice: an earlier id has the same 64 bits';
+
+function bitGeometry(inner) {
+  const gap = inner < 400 ? 3 : 4;
+  const rows = (inner - 3 * gap) / 32 >= 15 ? 2 : 4;
+  const perRow = 64 / rows;
+  const cell = Math.floor(((inner - 3 * gap) / perRow) * 10) / 10;
+  const cellH = rows === 4 ? 20 : 22;
+  return { gap, rows, perRow, cell, cellH, pitch: cellH + 34 };
+}
+
+function drawBits(c, y) {
+  const { W, pad, inner, narrow, H, s, L, m, t } = c;
+  const x = pickInspect(m, t, H);
+  view.inspected = x;
+  const aTop = y;
+  // The header row holds the band's name and the Older and Newer buttons (44 px each).
+  const navW = narrow ? 94 : Math.ceil(measure('cap', '‹ Older id') + 22 + measure('cap', 'Newer id ›') + 22 + 6);
+  navPos = { x: W - pad - navW, y, w: navW };
+  reg.marks.push({ x0: W - pad - navW, y0: y, x1: W - pad, y1: y + 44, cls: 'nav' });
+  text('label', pad, y + 26, narrow ? 'One id' : 'One id, 64 bits');
+  y += 44 + 14;
+  // Who made it, and when by true time and by its own clock: reserved lines, so a fault's longer words move nothing.
+  const headLines = reserve('madeBy', W, () =>
+    Math.max(
+      ...['made by G1 at 7.95 ms; G1\'s clock, stepped back 2 ms, read 5.95 ms', 'made by G2 at 7.95 ms; G2\'s clock, 2 ms ahead, read 9.95 ms', 'This id is hidden until you answer'].map((str) => wrap('small', str, inner).length),
+    ),
+  );
+  const head = !L.fits ? 'No id: every generator refuses.' : H.inspect ? 'This id is hidden until you answer' : x ? madeByText(x, s) : 'No id made yet: press Play.';
+  wrap('small', head, inner).forEach((ln, i) => text('small', pad, y + i * 15, ln, { region: 'bits' }));
+  y += headLines * 15 + 6;
+  // The 64 cells: two rows of 32 (four of 16 on a phone), a gap between fields, a bracket under each field's span.
+  const G = bitGeometry(inner);
+  const showBits = x && !H.inspect && L.fits;
+  const bitsArr = showBits ? M.bits(L, x.id) : M.bits(L, 0n).map((b) => ({ ...b, bit: null }));
+  const spans = [];
+  let cx = pad;
+  let row = -1;
+  let prevField = null;
+  const barTop = y;
+  bitsArr.forEach((b, i) => {
+    const r = Math.floor(i / G.perRow);
+    if (r !== row) {
+      row = r;
+      cx = pad;
+      prevField = null;
+    }
+    if (prevField && prevField !== b.field) cx += G.gap;
+    const cy = barTop + row * G.pitch;
+    let sp = spans[spans.length - 1];
+    if (!sp || sp.field !== b.field || sp.row !== row) spans.push((sp = { field: b.field, row, x0: cx, x1: cx, y: cy }));
+    sp.x1 = cx + G.cell;
+    prevField = b.field;
+    out.push(`<g class="${FIELD_CLASS[b.field]}">`);
+    rect(cx + 0.5, cy, G.cell - 1, G.cellH, b.bit === 1 ? 'cell1' : b.bit === 0 ? 'cell0' : 'cellE', { rx: 2, region: 'bits' });
+    if (b.bit !== null) text('bit', cx + G.cell / 2, cy + G.cellH / 2 + 3.5, String(b.bit), { anchor: 'middle', cls: b.bit ? 'bit1' : 'bit0', onFill: true, kind: 'bit', noReg: true });
+    out.push('</g>');
+    cx += G.cell;
+  });
+  // Brackets and the field's value (or only its name while hidden) under the field's longest span.
+  const values = showBits ? { sign: '0', time: F.int(x.ts), gen: F.int(x.number), seq: F.int(x.seq) } : { sign: '', time: '', gen: '', seq: '' };
+  const placed = [];
+  for (const field of ['time', 'gen', 'seq', 'sign']) {
+    const mine = spans.filter((sp) => sp.field === field);
+    if (!mine.length) continue;
+    const longest = mine.reduce((a, b) => (b.x1 - b.x0 > a.x1 - a.x0 ? b : a));
+    out.push(`<g class="${FIELD_CLASS[field]}">`);
+    for (const sp of mine) {
+      const by = sp.y + G.cellH + 4;
+      if (sp.x1 - sp.x0 >= 6) path(`M${(sp.x0 + 1).toFixed(1)} ${by} v4 H${(sp.x1 - 1).toFixed(1)} v-4`, 'field-bracket');
+    }
+    const forms = FIELD_NAMES[field]
+      .map((n) => [n, values[field]].filter(Boolean).join(' '))
+      .filter((f, i, a) => f && a.indexOf(f) === i);
+    const ly = longest.y + G.cellH + 22;
+    const mid = (longest.x0 + longest.x1) / 2;
+    for (const f of forms) {
+      const w = measure('smallB', f);
+      const lx = Math.min(Math.max(mid, pad + w / 2), W - pad - w / 2);
+      const b = { x0: lx - w / 2, x1: lx + w / 2, row: longest.row };
+      if (w > longest.x1 - longest.x0 + 2 * G.gap + 24 && f !== forms[forms.length - 1]) continue;
+      if (placed.some((p) => p.row === b.row && b.x0 < p.x1 + 6 && b.x1 > p.x0 - 6)) continue;
+      placed.push(b);
+      text('smallB', lx, ly, f, { anchor: 'middle', cls: 'field-ink', region: 'fieldNames' });
+      break;
+    }
+    out.push('</g>');
+  }
+  y = barTop + G.rows * G.pitch;
+  // Below the bits: the clock's conversion into the timestamp, the id in decimal, a repeat's note and what the id
+  // tells anyone who holds it, each block reserved at its widest so the band never moves.
+  const convLines = reserve('conv', W, () => {
+    const L70 = M.layout({ ...M.BASE, epoch: 1 });
+    const L10 = M.layout({ ...M.BASE, epoch: 1, tick: 10 });
+    const fake = { lane: 1, clock: 9950, ts: L70.nowTicks + 9 };
+    return Math.max(wrapSegments('small', convSegs(L70, { ...M.BASE, epoch: 1 }, fake), inner, '  ').length, wrapSegments('small', convSegs(L10, { ...M.BASE, tick: 10, epoch: 1 }, { ...fake, ts: L10.nowTicks }), inner, '  ').length);
+  });
+  const twiceLines = reserve('twice', W, () => (measure('monoL', 'id 9,223,372,036,854,775,807') + 10 + measure('smallB', TWICE) <= inner ? 0 : wrap('smallB', TWICE, inner).length));
+  const leakLines = reserve('leak', W, () => wrap('small', M.leakLine(M.layout({ ...M.BASE, epoch: 1, gen: 16 }), { ts: M.layout({ ...M.BASE, epoch: 1 }).nowTicks + 7, number: 65535 }), inner).length);
+  const lowTop = y;
+  const lowH = convLines * 15 + 8 + 20 + twiceLines * 15 + 6 + leakLines * 15;
+  if (showBits) {
+    out.push('<g class="f-time">');
+    wrapSegments('small', convSegs(L, s, x), inner, '  ').forEach((ln, i) => text('small', pad, y + i * 15, ln, { region: 'values' }));
+    out.push('</g>');
+    y += convLines * 15 + 8;
+    const idTxt = `id ${F.int(x.id)}`;
+    text('monoL', pad, y + 4, idTxt, { region: 'values' });
+    const twice = x.repeatOf && !H.repeats;
+    if (twice && !twiceLines) text('smallB', pad + measure('monoL', idTxt) + 10, y + 4, TWICE, { cls: 'bad' });
+    y += 20;
+    if (twice && twiceLines) wrap('smallB', TWICE, inner).forEach((ln, i) => text('smallB', pad, y + i * 15, ln, { cls: 'bad' }));
+    y += twiceLines * 15 + 6;
+    wrap('small', M.leakLine(L, x), inner).forEach((ln, i) => text('small', pad, y + i * 15, ln, { region: 'leak' }));
+  } else if (!L.fits) {
+    wrap('capB', `No id: the clock is past the timestamp's end, ${F.endWords(L)}. A generator must refuse to mint.`, inner).forEach((ln, i) => text('capB', pad, y + 4 + i * 18, ln, { cls: 'bad' }));
+  } else if (H.inspect) {
+    hiddenBox(pad - 2, lowTop - 3, inner + 4, lowH, 'inspect', "This id's value is hidden until you answer");
+  }
+  y = lowTop + lowH;
+  reg.regions.bits = { x0: pad, y0: aTop, x1: W - pad, y1: y };
+  return y;
+}
+
+// --- Band B: what each field buys, the lifetime ruler. ------------------------------------------------------------
+
+function ghostWords(ghostL, L) {
+  const d = ghostL.timeBits - L.timeBits;
+  const how = d === 1 ? 'one bit fewer halves it' : d === -1 ? 'one bit more doubles it' : d > 0 ? `${d} bits fewer divide it by ${F.int(2 ** d)}` : `${-d} bits more multiply it by ${F.int(2 ** -d)}`;
+  return `was ${F.years(ghostL.years)} with ${ghostL.timeBits} bits: ${how}`;
+}
+function drawLedger(c, y) {
+  const { W, pad, inner, narrow, H, s, L } = c;
   const ledger = M.ledger(s);
-  const ghostL = view.ghost ? M.layout(view.ghost) : null;
+  const ghostL = view.ghost && M.layout(view.ghost).timeBits !== L.timeBits ? M.layout(view.ghost) : null;
   const nameW = narrow ? 0 : 150;
   const chainX = pad + nameW;
   const chainW = inner - nameW;
-  function fieldHead(field, title, yy) {
+  const fieldHead = (field, title, yy) => {
     out.push(`<g class="${FIELD_CLASS[field]}">`);
     rect(pad, yy - 9, 10, 10, 'chip', { rx: 2 });
     out.push('</g>');
     text('capB', pad + 16, yy, title);
-  }
+  };
+  const need = view.challenge ? M.CHALLENGE.bounds : null;
   // Timestamp.
   const bTop = y;
   fieldHead('time', `Timestamp, ${L.timeBits} bits`, y);
   if (narrow) y += 20;
-  const result = H.lifetime ? '= ?' : ledger.time.chain[2];
-  const tchain = `${ledger.time.chain[0]} ${ledger.time.chain[1]} ${result}`;
-  let ty = y;
-  for (const ln of wrap('cap', tchain, chainW)) {
-    text('cap', chainX, ty, ln, { region: 'ledgerTime' });
-    ty += 18;
+  const chainLines = reserve('tchain', W, () => Math.max(...LAYOUTS.map((l) => wrapSegments('cap', M.ledger(l).time.chain, chainW, ' ').length)));
+  const endLines = reserve('tend', W, () => Math.max(...LAYOUTS.map((l) => wrap('small', endText(l), chainW).length)));
+  const ghostLines = reserve('tghost', W, () => Math.max(...['was 2.9 billion years with 63 bits: 16 bits fewer divide it by 65,536', 'was 696.8 years with 41 bits: one bit fewer halves it'].map((g) => wrap('small', g, chainW).length)));
+  const chain = [...ledger.time.chain.slice(0, 2), H.lifetime ? '= ?' : ledger.time.chain[2]];
+  wrapSegments('cap', chain, chainW, ' ').forEach((ln, i) => text('cap', chainX, y + i * 18, ln, { region: 'ledgerTime' }));
+  y += chainLines * 18 - 2;
+  const endTop = y;
+  if (H.lifetime) hiddenBox(chainX, endTop - 9, chainW, (endLines + ghostLines) * 15 + 2, 'lifetime', 'The end date is hidden until you answer');
+  else {
+    wrap('small', endText(s), chainW).forEach((ln, i) => text('small', chainX, y + i * 15, ln, { region: 'ledgerTime', cls: L.fits ? '' : 'bad' }));
+    if (ghostL) wrap('small', ghostWords(ghostL, L), chainW).forEach((ln, i) => text('small', chainX, y + (endLines + i) * 15, ln, { region: 'ledgerTime', cls: 'warn' }));
   }
-  if (!H.lifetime) {
-    const endTxt = L.fits ? ledger.time.end : `ran out on ${F.endWords(L)}: the clock no longer fits`;
-    for (const ln of wrap('small', endTxt, chainW)) {
-      text('small', chainX, ty - 2, ln, { region: 'ledgerTime', cls: L.fits ? '' : 'bad' });
-      ty += 15;
-    }
-    if (ghostL && ghostL.timeBits !== L.timeBits) {
-      const g = `was ${F.years(ghostL.years)} with ${ghostL.timeBits} bits: one bit ${ghostL.timeBits > L.timeBits ? 'fewer halves' : 'more doubles'} it`;
-      for (const ln of wrap('small', g, chainW)) {
-        text('small', chainX, ty - 2, ln, { region: 'ledgerTime', cls: 'warn' });
-        ty += 15;
-      }
-    }
-  } else {
-    hiddenBox(chainX, ty - 12, Math.min(chainW, 260), 22, 'lifetime');
-    ty += 16;
-  }
-  y = Math.max(ty, y + 18) + 4;
-  y = drawRuler(W, pad, chainX, chainW, y, L, H, ghostL);
-  reg.regions.ledgerTime = { x0: pad - 4, y0: bTop - 16, x1: W - pad + 4, y1: y - 6 };
-  y += 10;
+  y += (endLines + ghostLines) * 15 + 4;
+  y = drawRuler(c, chainX, chainW, y, ghostL);
+  reg.regions.ledgerTime = { x0: pad, y0: bTop - 13, x1: W - pad, y1: y };
+  y += 26;
   // Generator.
-  const gTop = y;
   fieldHead('gen', `Generator, ${plural(L.genBits, 'bit')}`, y);
   if (narrow) y += 20;
-  for (const ln of wrap('cap', ledger.gen.chain.join(' '), chainW)) {
-    text('cap', chainX, y, ln);
-    y += 18;
-  }
-  y += 6;
+  const genLines = reserve('gchain', W, () => Math.max(...LAYOUTS.map((l) => wrapSegments('cap', [...M.ledger(l).gen.chain, '(need 1,000)'], chainW, ' ').length)));
+  const gChain = [...ledger.gen.chain, ...(need ? [`(need ${need[0].need})`] : [])];
+  wrapSegments('cap', gChain, chainW, ' ').forEach((ln, i) => text('cap', chainX, y + i * 18, ln, { cls: need && i === 0 ? '' : '' }));
+  y += genLines * 18 + 8;
   // Sequence.
   fieldHead('seq', `Sequence, ${plural(L.seqBits, 'bit')}`, y);
   if (narrow) y += 20;
-  for (const ln of wrap('cap', ledger.seq.chain.join(' '), chainW)) {
-    text('cap', chainX, y, ln);
-    y += 18;
-  }
-  for (const ln of wrap('small', ledger.seq.total, chainW)) {
-    text('small', chainX, y - 2, ln);
-    y += 15;
-  }
-  reg.regions.ledger = { x0: pad - 4, y0: gTop - 16, x1: W - pad + 4, y1: y };
-  y += 10;
-  line(pad, y, W - pad, y, 'rule', { check: false });
-  y += 18;
-
-  // --- Band C and D: the mint and the sorted ids, on one time axis. ----------------------------------------------
-  y = drawMint(W, pad, y, m, L, H, t, narrow, inspectId);
-  y += 10;
-  line(pad, y, W - pad, y, 'rule', { check: false });
-  y += 18;
-
-  // --- Band E: random ids. -------------------------------------------------------------------------------------------
-  y = drawRandom(W, pad, y, H, narrow);
-  const Hh = Math.ceil(y + pad);
-  drawFocus(W, Hh);
-  return { H: Hh, svg: out.join(''), reg };
+  const seqLines = reserve('schain', W, () => Math.max(...LAYOUTS.map((l) => wrapSegments('cap', [...M.ledger(l).seq.chain, '(need 1,000,000)'], chainW, ' ').length)));
+  const totLines = reserve('stotal', W, () => Math.max(...LAYOUTS.map((l) => wrap('small', M.ledger(l).seq.total, chainW).length)));
+  const sChain = [...ledger.seq.chain, ...(need ? [`(need ${need[1].need})`] : [])];
+  wrapSegments('cap', sChain, chainW, ' ').forEach((ln, i) => text('cap', chainX, y + i * 18, ln));
+  y += seqLines * 18 - 2;
+  wrap('small', ledger.seq.total, chainW).forEach((ln, i) => text('small', chainX, y + i * 15, ln));
+  y += totLines * 15;
+  return y;
 }
-
-function plural(n, one) {
-  return `${F.int(n)} ${n === 1 ? one : `${one}s`}`;
-}
-
-function pickInspect(m, t) {
-  if (!m.ids.length) return null;
-  const H = hiding();
-  const done = m.byMade.filter((x) => x.issued <= t && !(H.burstAfter && x.lane === 0 && x.column > 0));
-  if (view.phase === 'playing') return done[done.length - 1] ?? null;
-  if (Q.has('inspect')) return m.ids.find((x) => x.key === Q.get('inspect')) ?? m.ids[0];
-  return m.repeats[0] ?? m.lanes[2].ids.find((x) => x.seq === 1) ?? m.byMade[m.byMade.length - 1];
+function endText(s) {
+  const L = M.layout(s);
+  return L.fits ? M.ledger(s).time.end : `ran out on ${F.endWords(L)}: the clock no longer fits`;
 }
 
 /** The lifetime on a log scale in bits: each step is one bit, twice as long as the step before. */
-function drawRuler(W, pad, x0, w, y, L, H, ghostL) {
+function drawRuler(c, x0, w, y, ghostL) {
+  const { H, L } = c;
   const lo = 30;
   const hi = 67;
-  const X = (bitsLog2) => x0 + ((bitsLog2 - lo) / (hi - lo)) * w;
-  const top = y + 10;
-  line(x0, top, x0 + w, top, 'axis', { region: 'ruler' });
-  for (let b = lo; b <= hi; b++) line(X(b), top - 3, X(b), top + 3, 'ruler-step', { check: false });
+  const X = (b) => x0 + ((b - lo) / (hi - lo)) * w;
+  const NAME_ROWS = 3;
+  const top = y + 14 * NAME_ROWS + 14;
+  line(x0, top, x0 + w, top, 'axis', { region: 'ruler', check: false });
+  for (let b = lo; b <= hi; b++) line(X(b), top - 4, X(b), top + 4, 'ruler-step', { check: false });
   const YEAR = Math.log2(M.YEAR_MS);
   const marks = [
     { v: Math.log2(M.YEAR_MS / 12), forms: ['1 month', '1 mo'] },
@@ -1443,7 +1682,6 @@ function drawRuler(W, pad, x0, w, y, L, H, ghostL) {
     { v: YEAR + Math.log2(1e6), forms: ['1 million years', '1M yr'] },
     { v: YEAR + Math.log2(1e9), forms: ['1 billion years', '1B yr'] },
   ];
-  // The widest form at which every label keeps 6 px from the next, else every other label.
   let chosen = null;
   for (const fi of [0, 1]) {
     for (const step of [1, 2, 3]) {
@@ -1461,335 +1699,458 @@ function drawRuler(W, pad, x0, w, y, L, H, ghostL) {
     if (chosen) break;
   }
   for (const b of chosen ?? []) {
-    line(X(b.mk.v), top, X(b.mk.v), top + 6, 'axis', { check: false });
-    text('small', b.cx, top + 19, b.s, { anchor: 'middle', region: 'ruler' });
+    line(X(b.mk.v), top + 4, X(b.mk.v), top + 7, 'axis', { check: false });
+    text('small', b.cx, top + 20, b.s, { anchor: 'middle', region: 'ruler' });
   }
   const life = Math.log2(L.lifetimeMs);
   const now = Math.log2(Math.max(L.elapsedMs, 1));
-  // Today: how far the clock already is from the epoch.
   el('path', { d: `M${X(now).toFixed(1)} ${top - 4} l-4 -7 h8 z`, class: 'now-mark' });
   reg.marks.push({ x0: X(now) - 4, y0: top - 11, x1: X(now) + 4, y1: top - 4, cls: 'now' });
-  if (!H.lifetime) {
-    dot(X(life), top, 5.5, L.fits ? 'marker life-marker' : 'marker life-marker bad', { region: 'ruler' });
+  const items = [];
+  if (H.lifetime) {
+    // Where the new lifetime lands is a dashed box: the guess is held while it plays; the value comes at the reveal.
+    rect(X(life) - 7, top - 7, 14, 14, 'hidden-box', { rx: 3 });
+    reg.marks.push({ x0: X(life) - 7, y0: top - 7, x1: X(life) + 7, y1: top + 7, cls: 'hidden-mark' });
+    items.push({ x: X(life), s: 'lasts ?', cls: 'acc', pri: 0 });
   } else {
-    // The lifetime's marker is left off while hidden; the ledger's hidden box above says so.
+    dot(X(life), top, 5.5, L.fits ? 'marker life-marker' : 'marker life-marker bad', { region: 'ruler' });
+    items.push({ x: X(life), s: `lasts ${F.years(L.years)}`, cls: L.fits ? 'acc' : 'bad', pri: 0 });
   }
-  // The marker's and today's names sit over the line, nudged apart; a ghost is said in words in the ledger.
-  const nowTxt = L.usedFraction < 1 ? `today, ${F.years(L.elapsedMs / M.YEAR_MS)} in` : `today, past the end`;
-  const lifeTxt = H.lifetime ? null : `lasts ${F.years(L.years)}`;
-  const items = [{ x: X(now), s: nowTxt, cls: 'muted' }];
-  if (lifeTxt) items.push({ x: X(life), s: lifeTxt, cls: L.fits ? 'acc' : 'bad' });
-  items.sort((a, b) => a.x - b.x);
-  const placed = [];
-  let row = 0;
-  for (const it of items) {
-    const wd = measure('smallB', it.s);
-    let cx = Math.min(Math.max(it.x, x0 + wd / 2), x0 + w - wd / 2);
-    const prev = placed[placed.length - 1];
-    if (prev && cx - wd / 2 < prev.x1 + 6) {
-      cx = prev.x1 + 6 + wd / 2;
-      if (cx + wd / 2 > x0 + w) {
-        cx = Math.min(Math.max(it.x, x0 + wd / 2), x0 + w - wd / 2);
-        row = 1;
-      }
+  if (ghostL) {
+    const gx = X(Math.log2(ghostL.lifetimeMs));
+    // The ghost is a hollow tick, narrow enough to stay clear of the marker one bit step away on a phone.
+    rect(gx - 1.5, top - 8, 3, 16, 'ghost', { rx: 1 });
+    const lx = X(life);
+    if (Math.abs(gx - lx) >= 12) {
+      const dir = Math.sign(lx - gx);
+      const a = gx + dir * 6;
+      const b = lx - dir * 8;
+      path(`M${a.toFixed(1)} ${top - 7} Q${((a + b) / 2).toFixed(1)} ${top - 14} ${b.toFixed(1)} ${top - 7} l${(-dir * 4).toFixed(1)} -3 m${(dir * 4).toFixed(1)} 3 l${(-dir * 4).toFixed(1)} 3`, 'ghost-arrow');
+      reg.marks.push({ x0: Math.min(a, b), y0: top - 12, x1: Math.max(a, b), y1: top - 4, cls: 'ghost-arrow' });
     }
-    const yy = top - 16 - row * 14;
-    text('smallB', cx, yy, it.s, { anchor: 'middle', cls: it.cls, region: 'ruler' });
-    placed.push({ x1: cx + wd / 2 });
+    items.push({ x: gx, s: `was ${F.years(ghostL.years)}`, cls: 'muted', pri: 2 });
   }
-  const rTop = top - 30 - row * 14;
-  reg.regions.ruler = { x0: x0 - 4, y0: rTop, x1: x0 + w + 4, y1: top + 24 };
-  return top + 30;
+  const nowTxt = L.usedFraction < 1 ? `today, ${F.years(L.elapsedMs / M.YEAR_MS)} in` : `today, past the end`;
+  items.push({ x: X(now), s: nowTxt, cls: 'muted', pri: 1 });
+  if (view.challenge) {
+    const gx = X(Math.log2(L.elapsedMs + 200 * M.YEAR_MS));
+    line(gx, top - 6, gx, top + 6, 'goal', { check: false });
+    items.push({ x: gx, s: 'need 200 years from today', short: 'need 200 yr', cls: 'warn', pri: 3 });
+  }
+  // Names over the line in three rows, by priority, each the nearest clear place to its mark.
+  const placed = [];
+  for (const it of items.sort((a, b) => a.pri - b.pri)) {
+    let done = false;
+    for (const form of [it.s, it.short].filter(Boolean)) {
+      const wd = measure('smallB', form);
+      const ideal = Math.min(Math.max(it.x, x0 + wd / 2), x0 + w - wd / 2);
+      for (let r = 0; r < NAME_ROWS && !done; r++) {
+        const yy = top - 20 - r * 14;
+        const cands = [ideal, ...placed.filter((p) => p.r === r).flatMap((p) => [p.x1 + 6 + wd / 2, p.x0 - 6 - wd / 2])]
+          .map((cx) => Math.min(Math.max(cx, x0 + wd / 2), x0 + w - wd / 2))
+          .sort((a, b) => Math.abs(a - it.x) - Math.abs(b - it.x));
+        for (const cx of cands) {
+          const b = { x0: cx - wd / 2, x1: cx + wd / 2, r };
+          if (placed.some((p) => p.r === r && b.x0 < p.x1 + 6 && b.x1 > p.x0 - 6)) continue;
+          if (Math.abs(cx - it.x) > wd / 2 + 40) continue;
+          placed.push(b);
+          text('smallB', cx, yy, form, { anchor: 'middle', cls: it.cls, region: 'ruler' });
+          done = true;
+          break;
+        }
+      }
+      if (done) break;
+    }
+  }
+  reg.regions.ruler = { x0: x0 - 4, y0: y, x1: x0 + w + 4, y1: top + 24 };
+  return top + 24;
+}
+function plural(n, one) {
+  return `${F.int(n)} ${n === 1 ? one : `${one}s`}`;
 }
 
-function drawMint(W, pad, y, m, L, H, t, narrow, inspectId) {
-  const gutter = narrow ? 84 : Math.ceil(measure('monoR', '0'.repeat(19)) + 14 + measure('mono', '0 · 0 · 0–1,023') + 14);
+// --- Band C: three generators, each lane with its own clock. -----------------------------------------------------
+
+function gutterWidth(narrow) {
+  if (narrow) return Math.ceil(Math.max(measure('small', 'timestamp·G·seq'), measure('mono', '…000·0·0'), measure('mono', '1,024 ids')) + 10);
+  return Math.ceil(measure('monoR', '9,223,372,036,854,775,807') + 14 + measure('mono', '…000 · 0 · 0–1,023') + 14);
+}
+const laneNote = (lane, narrow) => {
+  const f = view.s.fault;
+  if (f === M.FAULT.skew && lane.lane === 2) return { s: narrow ? 'clock +2 ms' : 'clock runs 2 ms ahead', cls: 'warn' };
+  if (f === M.FAULT.stepBack && lane.lane === 1) return { s: narrow ? 'clock −2 ms' : 'clock steps back 2 ms at 5.5', cls: 'warn' };
+  if (f === M.FAULT.shared && lane.lane === 2) return { s: narrow ? 'same as G1' : 'handed G1’s number', cls: 'bad' };
+  return null;
+};
+const faulty = (g) => (view.s.fault === M.FAULT.skew && g === 2) || (view.s.fault === M.FAULT.stepBack && g === 1);
+
+function drawLanes(c, y) {
+  const { W, pad, narrow, H, L, m, t } = c;
+  const gutter = gutterWidth(narrow);
   const x0 = pad + gutter;
   const x1 = W - pad;
   const X = (us) => x0 + (Math.min(us, M.WINDOW_US) / M.WINDOW_US) * (x1 - x0);
-  const head = narrow ? 'Three generators' : 'Three generators, no coordination';
-  text('label', pad, y + 9, head);
-  playPos = { x: W - pad - 44, y: y - 12 };
+  c.X = X;
+  text('label', pad, y + 9, narrow ? 'Three generators' : 'Three generators, no coordination');
+  playPos = { x: W - pad - 44, y: y - 13 };
   reg.marks.push({ x0: playPos.x, y0: playPos.y, x1: playPos.x + 44, y1: playPos.y + 44, cls: 'play' });
   y += 26;
-  const sub = `None talks to another. The clock starts at 12:00:00.000 UTC on 24 November 2026. Each id is a dot at the moment its generator makes it; a number over dots is their sequence, and a dot with none is sequence 0.`;
-  for (const ln of wrap('small', sub, W - 2 * pad - 50)) {
-    text('small', pad, y, ln);
-    y += 15;
-  }
-  y += 10;
-  const afterLanes = new Set(m.ids.filter((x) => x.issued >= M.WINDOW_US).map((x) => x.lane));
-  const laneH = m.lanes.some((l) => laneNote(l, narrow) && afterLanes.has(l.lane)) ? 54 : 40;
+  const sub = 'None talks to another. The clock starts at 12:00:00.000 UTC on 24 November 2026, and the axis is true time; a lane with a faulty clock shows its own ticks. Each id is a dot at the moment its generator makes it; a number over dots is their sequence, and a dot with none is sequence 0.';
+  const tick10 = ' One 10 ms tick spans all 8 ms drawn.';
+  const capW = W - 2 * pad - 50;
+  const capLines = reserve('lanecap', W, () => wrap('small', sub + tick10, capW).length);
+  wrap('small', view.s.tick === 10 ? sub + tick10 : sub, capW).forEach((ln, i) => text('small', pad, y + i * 15, ln));
+  y += capLines * 15 + 4;
   const lanesTop = y;
   const tickUs = view.s.tick * 1000;
-  // Tick columns: one band per tick, so ids in the same tick share a band.
-  for (let c = 0; c * tickUs < M.WINDOW_US; c++) {
-    if (c % 2 === 1) rect(X(c * tickUs), lanesTop, X(Math.min((c + 1) * tickUs, M.WINDOW_US)) - X(c * tickUs), laneH * 3, 'tick-band');
-  }
-  if (view.s.tick === 10) {
-    const msg = 'One 10 ms tick spans all 8 ms drawn';
-    if (measure('small', msg) < x1 - x0 - 8) text('small', x1, lanesTop - 6, msg, { anchor: 'end', region: 'tick10' });
+  const r = narrow ? (W < 290 ? 3 : 3.5) : 4.5;
+  const laneTop = (g) => lanesTop + g * LANE;
+  const laneY = (g) => laneTop(g) + 40;
+  c.laneY = laneY;
+  // Each lane's bands follow its own clock's ticks, so a dot always sits in the band of the tick it carries.
+  for (const lane of m.lanes) {
+    const lt = laneTop(lane.lane);
+    for (const b of M.ownTicks(view.s, lane.lane)) if (b.tick % 2 === 1) rect(X(b.from), lt, X(b.to) - X(b.from), LANE, 'tick-band');
   }
   const groups = M.groups(m);
-  const laneY = (g) => lanesTop + g * laneH + laneH / 2 + 4;
   for (const lane of m.lanes) {
+    const lt = laneTop(lane.lane);
     const ly = laneY(lane.lane);
-    line(x0, ly, x1, ly, 'grid', { check: false });
-    const nameTxt = narrow ? `G${lane.lane}` : `G${lane.lane}`;
-    text('capB', pad, ly - 2, nameTxt, { region: `lane${lane.lane}` });
-    const numTxt = narrow ? `#${lane.number}` : `number ${lane.number}`;
+    if (lane.runs) line(x0, ly, x1, ly, 'grid', { kind: 'lane' });
+    text('capB', pad, ly - 2, `G${lane.lane}`, { region: `lane${lane.lane}` });
     const shared = view.s.fault === M.FAULT.shared && lane.lane === 2;
-    text('small', pad + measure('capB', nameTxt) + 6, ly - 2, numTxt, { cls: shared ? 'bad' : '' });
+    text('small', pad + measure('capB', `G${lane.lane}`) + 6, ly - 2, narrow ? `#${lane.number}` : `number ${lane.number}`, { cls: shared ? 'bad' : '' });
     const note = laneNote(lane, narrow);
     if (note) text('small', pad, ly + 12, note.s, { cls: note.cls });
+    if (faulty(lane.lane) && lane.runs) {
+      // The lane's own clock: its tick numbers, centred in its bands, with the stretch where it jumped.
+      text('small', pad, lt + 17, `G${lane.lane}'s clock`, { cls: 'warn' });
+      const placed = [];
+      const stepX = view.s.fault === M.FAULT.stepBack ? X(M.STEP_AT_US) : -1e9;
+      for (const b of M.ownTicks(view.s, lane.lane)) {
+        const s2 = String(b.tick);
+        const w = measure('monoR', s2);
+        const cx = (X(b.from) + X(b.to)) / 2;
+        const bx = { x0: cx - w / 2, x1: cx + w / 2 };
+        if (bx.x0 < X(b.from) + 1 || bx.x1 > X(b.to) - 1) continue;
+        if (Math.abs(cx - stepX) < w / 2 + 4) continue;
+        if (placed.some((p) => bx.x0 < p.x1 + 6 && bx.x1 > p.x0 - 6)) continue;
+        placed.push(bx);
+        text('monoR', cx, lt + 17, s2, { anchor: 'middle', cls: 'warn', kind: 'clock' });
+      }
+      if (view.s.fault === M.FAULT.stepBack) {
+        const xs = X(M.STEP_AT_US);
+        line(xs, lt + 7, xs, ly + 12, 'clock-step', { kind: 'step' });
+        const lab = '−2 ms';
+        const wl = measure('small', lab);
+        for (const [lx, anchor] of [[xs + 4, 'start'], [xs - 4, 'end']]) {
+          const b = textBox('small', lx, ly + 23, lab, anchor);
+          if (clearBox(b, 3)) {
+            text('small', lx, ly + 23, lab, { anchor, cls: 'bad' });
+            break;
+          }
+        }
+        void wl;
+      }
+    }
     if (!lane.runs) {
       const why =
         lane.why === 'overflow'
           ? "refuses: the clock is past the timestamp's end"
           : `no number: ${plural(L.genBits, 'generator bit')} ${L.genBits === 1 ? 'gives' : 'give'} only ${plural(L.generators, 'number')}`;
-      const lines = wrap('small', why, x1 - x0 - 8);
-      text('small', x0 + 6, ly - 4 + (lines.length > 1 ? -4 : 0), lines[0], { cls: 'bad' });
-      if (lines[1]) text('small', x0 + 6, ly + 8, lines[1], { cls: 'bad' });
-      continue;
+      wrap('small', why, x1 - x0 - 8).slice(0, 2).forEach((ln, i, a) => text('small', x0 + 6, ly + 4 - (a.length - 1) * 7 + i * 14, ln, { cls: 'bad' }));
     }
   }
-  // Clock faults, drawn where they happen.
-  if (view.s.fault === M.FAULT.stepBack && m.lanes[1].runs) {
-    const xs = X(M.STEP_AT_US);
-    const ly = laneY(1);
-    line(xs, ly - 12, xs, ly + 12, 'bracket bad', { check: false });
-  }
-  const r = narrow ? (W < 290 ? 3 : 3.5) : 4.5;
+  // Dots, waits, repeats and their first copies, joined by a hairline drawn at the repeat's moment.
   const after = new Map();
+  const dotAt = new Map();
+  const H2 = H;
+  const repVisible = (x) => x.repeatOf && !H2.repeats && x.issued <= t;
+  const firsts = new Set(m.repeats.filter(repVisible).map((x) => x.repeatOf));
   for (const gr of groups) {
     const lane = gr.lane;
     const ly = laneY(lane);
     if (gr.first.issued >= M.WINDOW_US) {
-      after.set(lane, (after.get(lane) ?? 0) + gr.count);
+      after.set(lane, (after.get(lane) ?? 0) + gr.ids.filter((x) => x.issued >= M.WINDOW_US).length);
       continue;
     }
-    const hideAfter = H.burstAfter && lane === 0 && gr.column > 0;
-    if (hideAfter) continue;
-    const shown = gr.single ? gr.ids.filter((x) => x.issued <= t) : null;
+    if (H.burstAfter && lane === 0 && gr.column > 0) continue;
     if (gr.single) {
-      if (!shown.length) continue;
+      const shown = gr.ids.filter((x) => x.issued <= t && x.issued < M.WINDOW_US);
+      after.set(lane, (after.get(lane) ?? 0) + gr.ids.filter((x) => x.issued >= M.WINDOW_US).length);
       for (const x of shown) {
-        if (x.wait > 0 && x.issued <= t) drawWait(X, ly, x, lane, narrow);
-        const isRep = x.repeatOf && !H.repeats;
-        const insp = inspectId && x.key === inspectId.key && !H.inspect;
-        dot(X(x.issued), ly, r, `dot ${isRep ? 'repeat' : ''} ${insp ? 'inspect' : ''}`, { key: x.key, region: `lane${lane}` });
+        if (x.wait > 0) drawWait(c, X, ly, x, narrow);
+        const insp = view.inspected && x.key === view.inspected.key && !H.inspect;
+        const cls = repVisible(x) ? 'repeat' : firsts.has(x.key) ? 'first' : '';
+        dot(X(x.issued), ly, r, `dot ${cls} ${insp ? 'inspect' : ''}`, { key: x.key, region: `lane${lane}` });
+        dotAt.set(x.key, [X(x.issued), ly]);
         if (insp) dot(X(x.issued), ly, r + 3.5, 'ring', { check: false });
-        if (isRep) dot(X(x.issued), ly, r + 3.5, 'ring bad', { check: false });
+        if (repVisible(x)) dot(X(x.issued), ly, r + 3.5, 'ring bad', { check: false });
+        if (view.pair?.includes(x.key)) dot(X(x.issued), ly, r + 3.5, 'ring', { check: false });
       }
       if (shown.some((x) => x.seq > 0)) {
-        const seqTxt = shown.map((x) => x.seq).join(' ');
-        const cx = (X(shown[0].issued) + X(shown[shown.length - 1].issued)) / 2;
-        text('monoR', cx, ly - r - 6, seqTxt, { anchor: 'middle', region: `lane${lane}`, kind: 'seq' });
+        const labs = shown.map((x) => ({ s: String(x.seq), cx: X(x.issued) }));
+        const apart = labs.every((l, i) => i === 0 || l.cx - measure('monoR', l.s) / 2 - (labs[i - 1].cx + measure('monoR', labs[i - 1].s) / 2) >= 6);
+        if (apart) for (const l of labs) text('monoR', l.cx, ly - r - 6, l.s, { anchor: 'middle', region: `lane${lane}`, kind: 'seq' });
+        else text('monoR', (labs[0].cx + labs[labs.length - 1].cx) / 2, ly - r - 6, labs.map((l) => l.s).join(' '), { anchor: 'middle', region: `lane${lane}`, kind: 'seq' });
       }
     } else {
-      // A tick's worth of ids as one gauge: its fill is the ids made so far over the 2^seq a tick holds.
-      const c0 = gr.column * tickUs;
-      const gx0 = X(c0) + 2;
-      const gx1 = X(Math.min(c0 + tickUs, M.WINDOW_US)) - 2;
-      const done = gr.first.issued > t ? 0 : Math.min(gr.count, gr.ids[0] ? countMade(gr, t) : gr.count);
+      // A tick's ids made at one moment: a column at that moment, rising from the lane line, full at 2^seq.
+      const done = gr.first.issued > t ? 0 : countMade(gr, t);
       if (!done) continue;
-      rect(gx0, ly - 7, gx1 - gx0, 14, 'gauge-bg', { rx: 3, mark: true, region: `lane${lane}` });
-      rect(gx0, ly - 7, ((gx1 - gx0) * done) / L.perTick, 14, 'gauge', { rx: 3 });
-      if (gr.last.wait > 0 && gr.last.issued <= t && lane === 0) drawWait(X, ly, gr.last, lane, narrow, true);
+      const cw = narrow ? 5 : 7;
+      const gx = X(gr.first.issued);
+      const colH = 16;
+      rect(gx, ly - colH, cw, colH, 'gauge-bg', { rx: 1.5, mark: true, region: `lane${lane}` });
+      const fh = (colH * done) / L.perTick;
+      rect(gx, ly - fh, cw, fh, 'gauge', { rx: 1.5 });
     }
   }
-  // Burst labels: one bracket over the full gauges, one figure over the last.
-  if (view.s.load === M.LOAD_BURST && m.lanes[0].runs) burstLabels(X, laneY(0), groups.filter((g) => g.lane === 0), L, H, t, narrow, tickUs);
+  if (view.s.load === M.LOAD_BURST && m.lanes[0].runs) burstLabels(c, X, laneTop(0), laneY(0), groups.filter((g) => g.lane === 0), tickUs);
+  // Twins: a hairline from the first copy to the repeat, below the lane line.
+  for (const x of m.repeats.filter(repVisible)) {
+    const a = dotAt.get(x.repeatOf);
+    const b = dotAt.get(x.key);
+    if (!a || !b) continue;
+    const ya = a[1] + r + 2;
+    const yb = b[1] + r + 2;
+    const mx = (a[0] + b[0]) / 2;
+    // Below the lane in one lane; across lanes, from the upper dot's foot to the lower dot's side. Drawn only where it
+    // crosses no word.
+    const routes = [];
+    if (a[1] === b[1]) routes.push({ my: ya + 9, ya, yb });
+    else {
+      const up = a[1] < b[1] ? a : b;
+      const lo = up === a ? b : a;
+      routes.push({ straight: true, p: [up[0], up[1] + r + 2], q: [lo[0] + Math.sign(up[0] - lo[0] || 1) * (r + 2), lo[1]] });
+    }
+    for (const rt of routes) {
+      const segs = rt.straight
+        ? [[rt.p, rt.q]]
+        : [
+            [[a[0], ya], [mx, (ya + rt.my) / 2 + 2]],
+            [[mx, (ya + rt.my) / 2 + 2], [b[0], yb]],
+          ];
+      if (segs.some(([p, q]) => reg.texts.some((tb) => segHitsBox({ x1: p[0], y1: p[1], x2: q[0], y2: q[1] }, tb)))) continue;
+      const d = rt.straight ? `M${rt.p[0].toFixed(1)} ${rt.p[1].toFixed(1)} L${rt.q[0].toFixed(1)} ${rt.q[1].toFixed(1)}` : `M${a[0].toFixed(1)} ${ya.toFixed(1)} Q${mx.toFixed(1)} ${rt.my.toFixed(1)} ${b[0].toFixed(1)} ${yb.toFixed(1)}`;
+      path(d, 'twin-arc', { segments: segs, kind: 'arc' });
+      break;
+    }
+  }
   for (const [lane, n] of after) {
+    if (!n || (H.burstAfter && lane === 0)) continue;
     const forms = [`+${F.int(n)} after 8 ms`, `+${F.int(n)} later`];
     const form = forms.find((f) => measure('small', f) <= gutter - 6) ?? forms[1];
-    if (!(H.burstAfter && lane === 0)) text('small', pad, laneY(lane) + (laneNote(m.lanes[lane], narrow) ? 25 : 12), form, { cls: 'warn' });
+    text('small', pad, laneY(lane) + (laneNote(m.lanes[lane], narrow) ? 25 : 12), form, { cls: 'warn' });
   }
-  if (H.burstAfter) hiddenBox(X(tickUs) + 2, laneY(0) - 16, x1 - X(tickUs) - 2, 30, 'burstAfter', narrow ? '?' : 'Later ticks hidden until you answer');
-  // The axis.
-  const axY = lanesTop + laneH * 3 + 6;
+  if (H.burstAfter) {
+    const hx = X(tickUs) - 2;
+    hiddenBox(hx, laneTop(0) + 5, x1 - hx, LANE - 10, 'burstAfter', narrow ? 'Hidden until the reveal' : "G0's later ticks are hidden until the reveal");
+  }
+  // The true-time axis.
+  const axY = lanesTop + LANE * 3 + 4;
   line(x0, axY, x1, axY, 'axis', { check: false });
   const every = (x1 - x0) / 8 < 44 ? 2 : 1;
   for (let k = 0; k <= 8; k += every) {
     line(X(k * 1000), axY, X(k * 1000), axY + 4, 'axis', { check: false });
     text('small', X(k * 1000), axY + 16, k === 8 ? '8 ms' : String(k), { anchor: k === 8 ? 'end' : 'middle' });
   }
-  if (view.phase === 'playing') {
-    line(X(t), lanesTop - 4, X(t), axY, 'now-line', { check: false });
-  }
-  reg.regions.laneG0 = { x0: pad - 4, y0: lanesTop, x1: W - pad + 4, y1: lanesTop + laneH };
-  reg.regions.laneG1 = { x0: pad - 4, y0: lanesTop + laneH, x1: W - pad + 4, y1: lanesTop + 2 * laneH };
-  reg.regions.mint = { x0: pad - 4, y0: lanesTop, x1: W - pad + 4, y1: axY + 20 };
-  y = axY + 34;
-  return drawSorted(W, pad, y, m, L, H, t, narrow, X, inspectId, groups);
+  if (view.phase === 'playing') nowLine(X(t), lanesTop + 2, axY);
+  // A lane's outline runs on its own boundary: lanes touch, so it cannot grow into the next one.
+  for (let g = 0; g < 3; g++) reg.regions[`laneG${g}`] = { x0: pad - 8, y0: laneTop(g), x1: W - pad + 8, y1: laneTop(g) + LANE, exact: true };
+  reg.regions.mint = { x0: pad, y0: lanesTop, x1: W - pad, y1: axY + 20 };
+  return axY + 24;
 }
-
+/** The play clock's now line, broken around every word it would cross. */
+function nowLine(x, y0, y1) {
+  const cuts = reg.texts
+    .filter((tb) => x > tb.x0 - 3 && x < tb.x1 + 3 && tb.y1 > y0 && tb.y0 < y1)
+    .map((tb) => [tb.y0 - 3, tb.y1 + 3])
+    .sort((a, b) => a[0] - b[0]);
+  let cur = y0;
+  for (const [a, b] of cuts) {
+    if (a > cur + 1) line(x, cur, x, a, 'now-line', { kind: 'now' });
+    cur = Math.max(cur, b);
+  }
+  if (y1 > cur + 1) line(x, cur, x, y1, 'now-line', { kind: 'now' });
+}
 function countMade(gr, t) {
   if (gr.last.issued <= t) return gr.count;
-  return gr.ids.filter((x) => x.issued <= t).length || (gr.first.issued <= t ? 1 : 0);
+  return gr.ids.filter((x) => x.issued <= t).length;
 }
-
-function laneNote(lane, narrow) {
-  const f = view.s.fault;
-  if (f === M.FAULT.skew && lane.lane === 2) return { s: narrow ? 'clock +2 ms' : 'clock runs 2 ms ahead', cls: 'warn' };
-  if (f === M.FAULT.stepBack && lane.lane === 1) return { s: narrow ? 'clock −2 ms' : 'clock steps back 2 ms at 5.5', cls: 'warn' };
-  if (f === M.FAULT.shared && lane.lane === 2) return { s: narrow ? 'same as G1' : 'handed G1’s number', cls: 'bad' };
-  return null;
-}
-
-function drawWait(X, ly, x, lane, narrow, burst) {
-  if (x.wait <= 0) return;
+function drawWait(c, X, ly, x, narrow) {
   const xa = X(x.arrival);
   const xb = X(x.issued) - (narrow ? 5 : 6);
   if (xb - xa < 4) return;
   line(xa, ly + 9, xb, ly + 9, 'wait-line', { check: false });
   el('circle', { cx: xa.toFixed(1), cy: ly + 9, r: 2.5, class: 'arrival' });
-  if (burst || narrow) return;
+  if (narrow) return;
   const why = x.why === 'clock' ? `waits ${F.ms(x.wait)}: clock behind` : `waits ${F.ms(x.wait)}`;
   const wd = measure('small', why);
   const bx = Math.min(xa, X(M.WINDOW_US) - wd);
-  const b = { x0: bx, x1: bx + wd, y0: ly + 12, y1: ly + 24 };
-  if (wd + 4 < X(M.WINDOW_US) - X(0) && !reg.texts.some((tb) => overlap(tb, b, 6)) && !reg.dots.some((d) => d.x + d.r > b.x0 && d.x - d.r < b.x1 && d.y + d.r > b.y0 && d.y - d.r < b.y1))
-    text('small', bx, ly + 21, why, { cls: 'warn' });
+  const b = { x0: bx, x1: bx + wd, y0: ly + 13, y1: ly + 24 };
+  if (wd + 4 < X(M.WINDOW_US) - X(0) && clearBox(b, 4)) text('small', bx, ly + 21, why, { cls: 'warn' });
 }
-
-function burstLabels(X, ly, grs, L, H, t, narrow, tickUs) {
+function burstLabels(c, X, lt, ly, grs, tickUs) {
+  const { H, L, t, narrow } = c;
+  if (H.burstAfter) return;
+  const vis = grs.filter((g) => !g.single && g.first.issued < M.WINDOW_US && g.first.issued <= t && !(H.burstAfter && g.column > 0));
+  const cw = narrow ? 5 : 7;
   let rightEdge = X(0) - 6;
-  const vis = grs.filter((g) => g.first.issued < M.WINDOW_US && g.first.issued <= t && !(H.burstAfter && g.column > 0));
-  if (!vis.length) return;
-  const full = vis.filter((g) => g.count === L.perTick && countMade(g, t) === g.count);
-  const firstFull = full[0];
-  const lastFull = full[full.length - 1];
-  if (firstFull) {
-    const bx0 = X(firstFull.column * tickUs) + 2;
-    const bx1 = X(Math.min((lastFull.column + 1) * tickUs, M.WINDOW_US)) - 2;
-    el('path', { d: `M${bx0.toFixed(1)} ${ly - 11} v-4 H${bx1.toFixed(1)} v4`, class: 'bracket' });
-    const s = full.length > 1 ? `${full.length} full ticks of ${F.int(L.perTick)}` : `full: ${F.int(L.perTick)}`;
-    const short = full.length > 1 ? `${full.length} × ${F.int(L.perTick)}` : F.int(L.perTick);
-    const form = measure('small', s) <= bx1 - bx0 ? s : short;
-    const b = text('small', Math.max((bx0 + bx1) / 2, X(0) + measure('small', form) / 2), ly - 19, form, { anchor: 'middle' });
-    rightEdge = b.x1;
-  }
-  const part = vis.find((g) => !full.includes(g));
-  if (part && (!lastFull || part.column > lastFull.column)) {
-    const done = countMade(part, t);
-    const wd = measure('mono', F.int(done));
-    const cx = Math.max(X(part.column * tickUs + tickUs / 2), rightEdge + 6 + wd / 2);
-    if (cx + wd / 2 <= X(M.WINDOW_US)) rightEdge = text('mono', cx, ly - 19, F.int(done), { anchor: 'middle' }).x1;
+  if (vis.length) {
+    const full = vis.filter((g) => g.count === L.perTick && countMade(g, t) === g.count);
+    if (full.length) {
+      const bx0 = X(full[0].first.issued);
+      const bx1 = X(full[full.length - 1].first.issued) + cw;
+      path(`M${bx0.toFixed(1)} ${lt + 22} v-3 H${bx1.toFixed(1)} v3`, 'bracket');
+      reg.marks.push({ x0: bx0, y0: lt + 19, x1: bx1, y1: lt + 22, cls: 'bracket' });
+      const s = full.length > 1 ? `${full.length} full ticks of ${F.int(L.perTick)}` : `full: ${F.int(L.perTick)}`;
+      const short = full.length > 1 ? `${full.length} × ${F.int(L.perTick)}` : F.int(L.perTick);
+      const form = measure('small', s) <= bx1 - bx0 + 30 ? s : short;
+      const wf = measure('small', form);
+      const b = text('small', Math.max((bx0 + bx1) / 2, X(0) + wf / 2), lt + 15, form, { anchor: 'middle' });
+      rightEdge = b.x1;
+    }
+    const part = vis.find((g) => !full.includes(g));
+    if (part) {
+      const done = countMade(part, t);
+      const wd = measure('mono', F.int(done));
+      const cx = Math.max(X(part.first.issued) + cw / 2, rightEdge + 6 + wd / 2);
+      if (cx + wd / 2 <= X(M.WINDOW_US)) rightEdge = text('mono', cx, lt + 15, F.int(done), { anchor: 'middle' }).x1;
+    }
   }
   const lastId = grs[grs.length - 1].last;
-  if (lastId.issued <= t && lastId.issued < M.WINDOW_US && lastId.wait > 0 && !H.burstAfter) {
+  if (!H.burstAfter && lastId.issued <= t && lastId.issued < M.WINDOW_US && lastId.wait > 0) {
+    // The wait runs from the requests' arrival to the moment the last tick's ids are made: x stays time.
+    const xa = X(lastId.arrival);
+    const xb = X(lastId.issued) - 1;
+    line(xa, ly + 9, xb, ly + 9, 'wait-line', { check: false });
+    el('circle', { cx: xa.toFixed(1), cy: ly + 9, r: 2.5, class: 'arrival' });
     const s = `last waits ${F.ms(lastId.wait)}`;
-    if (rightEdge + 10 + measure('small', s) <= X(M.WINDOW_US)) text('small', rightEdge + 10, ly - 19, s, { cls: 'warn' });
+    const sw = measure('small', s);
+    if (rightEdge + 10 + sw <= X(M.WINDOW_US)) text('small', rightEdge + 10, lt + 15, s, { cls: 'warn' });
+    else if (!narrow) {
+      const b = textBox('small', xa, ly + 21, s);
+      if (clearBox(b, 4)) text('small', xa, ly + 21, s, { cls: 'warn' });
+    }
   }
 }
 
-/** The ids in id order, one row each (a burst's tick as one row), each with a dot at the moment it was made. */
-function drawSorted(W, pad, y, m, L, H, t, narrow, X, inspectId, groups) {
-  const gutter = X(0) - pad;
-  const headTop = y - 6;
+// --- Band D: every id in id order, on the same time axis. ----------------------------------------------------------
+
+function drawSorted(c, y) {
+  const { W, pad, narrow, H, L, m, t, X } = c;
+  const headTop = y;
   text('label', pad, y + 9, 'Sorted by id');
   const sub = narrow ? 'the order an index keeps them in' : 'the order a database index keeps them in; the dot is when each was made';
   if (measure('label', 'Sorted by id') + 12 + measure('small', sub) < W - 2 * pad) text('small', pad + measure('label', 'Sorted by id') + 12, y + 9, sub);
   y += 26;
-  const headTxt = narrow ? 'tick · G · seq' : 'id                    tick · G · seq';
-  text('small', pad, y, narrow ? 'tick·G·seq' : 'id', {});
-  if (!narrow) text('small', pad + measure('monoR', '0'.repeat(19)) + 14, y, 'tick · G · seq');
-  void headTxt;
+  const idColW = measure('monoR', '9,223,372,036,854,775,807') + 14;
+  if (narrow) text('small', pad, y, 'timestamp·G·seq');
+  else {
+    text('small', pad, y, 'id');
+    text('small', pad + idColW, y, 'timestamp · G · seq');
+  }
   y += 8;
-  const rowH = 16;
   const top = y;
-  const made = m.sorted.filter((x) => x.issued <= t && x.issued < M.WINDOW_US);
-  // Rows: an id each, or a group for a burst's tick (more than three ids).
-  const rows = [];
-  const inBig = new Map();
-  for (const g of groups) if (!g.single) for (const x of m.lanes[g.lane].ids.filter((x) => x.tick === g.tick && x.column === g.column)) inBig.set(x.key, g);
-  const seenGroup = new Set();
-  let hiddenRows = 0;
-  for (const x of made) {
-    if (H.burstAfter && x.lane === 0 && x.column > 0) {
-      hiddenRows++;
-      continue;
-    }
-    const g = inBig.get(x.key);
-    if (g) {
-      if (seenGroup.has(g.key)) continue;
-      seenGroup.add(g.key);
-      rows.push({ group: g, x });
-    } else rows.push({ x });
+  const slotsH = M.ROW_SLOTS * ROW_H;
+  const axY = top + slotsH + 4;
+  const legend = 'A hollow amber dot is an id made before ids that sort above it: out of time order across ticks.';
+  const legendLines = reserve('legend', W, () => wrap('small', legend, W - 2 * pad).length);
+  const footH = 24 + legendLines * 15 + 26;
+  const bottom = axY + footH;
+  reg.regions.sorted = { x0: pad, y0: headTop - 12, x1: W - pad, y1: bottom - 4 };
+  if (H.order) {
+    hiddenBox(pad - 2, top - 2, W - 2 * pad + 4, bottom - top - 2, 'order', 'The order is hidden until you answer');
+    return bottom;
   }
-  const hideRows = H.order || (H.burstAfter && false);
-  if (hideRows) {
-    const h = Math.max(rows.length, 6) * rowH;
-    hiddenBox(pad - 2, top, W - 2 * pad + 4, Math.min(h, 120), 'order', 'The order is hidden until you answer');
-    reg.regions.sorted = { x0: pad - 4, y0: headTop, x1: W - pad + 4, y1: top + Math.min(h, 120) + 4 };
-    return top + Math.min(h, 120) + 10;
-  }
+  const all = M.rows(m).filter((r) => !(H.burstAfter && r.x.lane === 0 && r.x.column > 0));
+  const tickUs = view.s.tick * 1000;
+  // Zebra rows for every row the setting makes, the true ticks shaded through the plot, the axis under it.
+  all.forEach((_, i) => i % 2 === 0 && rect(pad - 4, top + i * ROW_H, W - 2 * pad + 8, ROW_H, 'lane-bg'));
+  for (let k = 0; k * tickUs < M.WINDOW_US; k++) if (k % 2 === 1) rect(X(k * tickUs), top, X(Math.min((k + 1) * tickUs, M.WINDOW_US)) - X(k * tickUs), slotsH, 'tick-band');
+  line(X(0), axY, X(M.WINDOW_US), axY, 'axis', { check: false });
+  const every = (X(M.WINDOW_US) - X(0)) / 8 < 44 ? 2 : 1;
+  for (let k = 0; k <= 8; k += every) text('small', X(k * 1000), axY + 14, k === 8 ? '8 ms' : String(k), { anchor: k === 8 ? 'end' : 'middle' });
+  // Rows sit at their final rank; a row not made yet is an empty slot with no words and no dot.
+  const ry = (i) => top + i * ROW_H + ROW_H / 2 + 4;
+  const rowsMade = all.map((r, i) => ({ ...r, i })).filter((r) => r.made <= t);
   const pts = [];
-  const lineAt = out.length;
-  rows.forEach((r, i) => {
-    const ry = top + i * rowH + rowH / 2 + 4;
+  for (const r of rowsMade) {
     const x = r.x;
-    if (i % 2 === 0) rect(pad - 4, ry - rowH / 2 - 4, W - 2 * pad + 8, rowH, 'lane-bg');
+    const yy = ry(r.i);
     const sep = narrow ? '·' : ' · ';
-    const fields = r.group ? `${x.tick}${sep}${x.number}${sep}${r.group.seqFrom}–${F.int(r.group.seqTo)}` : `${x.tick}${sep}${x.number}${sep}${x.seq}`;
-    const idColW = measure('monoR', '0'.repeat(19)) + 14;
-    if (!narrow) text('monoR', pad, ry, r.group ? `${F.int(r.group.count)} ids` : x.id.toString(), { kind: 'row' });
-    text('mono', narrow ? pad : pad + idColW, ry, fields, { kind: 'row', cls: x.repeatOf ? 'bad' : '' });
-    const insp = inspectId && x.key === inspectId.key;
+    const fields = r.group ? (narrow ? `${F.int(r.group.count)} ids` : `${M.tsShort(x)}${sep}${x.number}${sep}${r.group.ids[0].seq}–${F.int(r.group.last.seq)}`) : `${M.tsShort(x)}${sep}${x.number}${sep}${x.seq}`;
+    if (!narrow) text('monoR', pad, yy, r.group ? `${F.int(r.group.count)} ids` : F.int(x.id), { kind: 'row' });
+    text('mono', narrow ? pad : pad + idColW, yy, fields, { kind: 'row', cls: x.repeatOf && !H.repeats ? 'bad' : '' });
     if (r.group) {
       const gx0 = X(r.group.first.issued);
-      const gx1 = X(Math.min(r.group.last.issued, t));
-      rect(gx0 - 3, ry - 3.5, Math.max(gx1 - gx0, 0) + 6, 7, 'gauge', { rx: 3.5 });
-      pts.push([gx0, ry]);
-    } else {
-      const cls = x.repeatOf ? 'repeat' : m.lateByTick.includes(x) ? 'late' : '';
-      dot(X(x.issued), ry - 3.5, 3.5, `dot ${cls} ${insp ? 'inspect' : ''}`, { key: `row-${x.key}` });
-      pts.push([X(x.issued), ry - 3.5]);
-    }
-    if (x.repeatOf && !H.repeats) {
-      const s = 'same id as the row above';
-      const xx = X(x.issued) + 10;
-      if (xx + measure('small', s) < W - pad) text('small', xx, ry, s, { cls: 'bad' });
-      else text('small', X(x.issued) - 10, ry, narrow ? 'repeat' : s, { cls: 'bad', anchor: 'end' });
-    }
-  });
-  if (pts.length > 1) {
-    el('polyline', { points: pts.map((p) => p.map((v) => v.toFixed(1)).join(',')).join(' '), class: 'order-line' });
-    out.splice(lineAt, 0, out.pop());
+      pts.push([gx0, yy - 3.5]);
+    } else pts.push([X(x.issued), yy - 3.5]);
   }
-  let bottom = top + rows.length * rowH;
+  if (pts.length > 1) path(`M${pts.map((p) => p.map((v) => v.toFixed(1)).join(' ')).join(' L')}`, 'order-line', { segments: pts.slice(1).map((p, i) => [pts[i], p]), kind: 'order' });
+  const insp = view.inspected;
+  for (const r of rowsMade) {
+    const x = r.x;
+    const yy = ry(r.i);
+    if (r.group) {
+      const gx0 = X(r.group.first.issued);
+      rect(gx0 - 3, yy - 7, 6, 7, 'gauge', { rx: 1.5, mark: true });
+      continue;
+    }
+    const cls = x.repeatOf && !H.repeats ? 'repeat' : m.lateByTick.includes(x) ? 'late' : '';
+    dot(X(x.issued), yy - 3.5, 3.5, `dot ${cls} ${insp && x.key === insp.key ? 'inspect' : ''}`, { key: `row-${x.key}` });
+    if (view.pair?.includes(x.key)) dot(X(x.issued), yy - 3.5, 7, 'ring', { check: false });
+  }
+  // Notes beside a row: placed where they cross no line, dot or word.
+  const note = (r, s, cls) => {
+    const xx = X(r.x.issued);
+    const yy = ry(r.i);
+    for (const [lx, anchor] of [[xx + 10, 'start'], [xx - 10, 'end'], [xx + 22, 'start'], [xx - 22, 'end'], [X(0) + 4, 'start'], [W - pad, 'end']]) {
+      const b = textBox('small', lx, yy, s, anchor);
+      if (b.x0 < X(0) - 2 || b.x1 > W - pad) continue;
+      if (clearBox(b, 2)) {
+        text('small', lx, yy, s, { anchor, cls, kind: 'note' });
+        return true;
+      }
+    }
+    return false;
+  };
+  for (const r of rowsMade) {
+    if (!(r.x.repeatOf && !H.repeats)) continue;
+    const above = rowsMade.find((o) => o.i === r.i - 1);
+    reg.notes.push({ ok: !!above && above.x.id === r.x.id, key: r.x.key });
+    note(r, 'same id as the row above', 'bad') || note(r, 'same id as above', 'bad') || note(r, 'repeat', 'bad');
+  }
+  if (view.pair) {
+    const g1 = rowsMade.find((r) => r.x.key === view.pair[0]);
+    const g2 = rowsMade.find((r) => r.x.key === view.pair[1]);
+    if (g1 && g2) note(g1, `made ${F.ms(g1.x.issued - g2.x.issued)} later, sorts first`, 'acc') || note(g1, 'sorts first', 'acc');
+  }
+  if (!all.length) text('small', pad, top + 12, L.fits ? 'No id yet.' : 'No id: every generator refuses.');
   if (H.burstAfter) {
-    hiddenBox(pad - 2, bottom + 4, W - 2 * pad + 4, 24, 'burstAfter', "G0's later ids are hidden until you answer");
-    bottom += 30;
+    const hy = top + all.length * ROW_H + 4;
+    hiddenBox(pad - 2, hy, W - 2 * pad + 4, top + slotsH - hy, 'burstAfter', "G0's later ids are hidden until the reveal");
   }
-  void hiddenRows;
-  if (!rows.length) text('small', pad, top + 12, L.fits ? 'No id yet.' : 'No id: every generator refuses.');
-  const after = m.sorted.length - made.length;
-  let yy = bottom + 16;
-  if (m.lateByTick.some((x) => x.issued <= t) && !H.repeats) {
-    for (const ln of wrap('small', 'An amber dot is an id made before ids that sort above it: out of time order across ticks.', W - 2 * pad)) {
-      text('small', pad, yy, ln, { cls: 'warn' });
-      yy += 15;
-    }
-  }
-  if (after && view.phase !== 'playing') {
-    text('small', pad, yy, `${F.int(m.after)} more ${m.after === 1 ? 'id' : 'ids'} made after 8 ms ${m.after === 1 ? 'is' : 'are'} not drawn`, { cls: 'warn' });
-    yy += 16;
-  }
-  reg.regions.sorted = { x0: pad - 4, y0: headTop, x1: W - pad + 4, y1: bottom + 4 };
-  return yy;
+  // The foot: reserved lines for the legend and the count past 8 ms, inside the band's region.
+  let fy = axY + 24 + 12;
+  if (m.lateByTick.some((x) => x.issued <= t && x.issued < M.WINDOW_US) && !H.repeats)
+    wrap('small', legend, W - 2 * pad).forEach((ln, i) => text('small', pad, fy + i * 15, ln, { cls: 'warn' }));
+  fy += legendLines * 15;
+  if (m.after && view.phase !== 'playing' && !H.burstAfter) text('small', pad, fy, `${F.int(m.after)} more ${m.after === 1 ? 'id' : 'ids'} made after 8 ms ${m.after === 1 ? 'is' : 'are'} not drawn`, { cls: 'warn' });
+  return bottom;
 }
 
-function drawRandom(W, pad, y, H, narrow) {
-  const s = view.s;
+// --- Band E: random ids, the birthday bound and its pairs. --------------------------------------------------------
+
+function drawRandom(c, y) {
+  const { W, pad, narrow, H, s } = c;
   text('label', pad, y + 9, 'Random ids beside them');
-  const headTop = y - 6;
+  const headTop = y;
   y += 24;
   const side = !narrow && W >= 620;
   const chartW = side ? Math.round((W - 2 * pad) * 0.6) : W - 2 * pad;
-  const axisW = 40;
-  const px0 = pad + axisW;
+  const px0 = pad + 40;
   const px1 = pad + chartW - 4;
   const ptop = y + 18;
   const ph = narrow ? 150 : 170;
@@ -1798,18 +2159,22 @@ function drawRandom(W, pad, y, H, narrow) {
   const xs = (e) => px0 + ((e - 3) / 12) * (px1 - px0);
   const ys = (lp) => ptop + (-lp / 24) * ph;
   for (const e of [0, -6, -12, -18, -24]) {
-    line(px0, ys(e), px1, ys(e), 'grid', { check: false });
+    line(px0, ys(e), px1, ys(e), e === -24 ? 'axis' : 'grid', { kind: 'grid' });
     text('small', px0 - 6, ys(e) + 4, e === 0 ? '1' : `10${F.sup(e)}`, { anchor: 'end' });
   }
-  line(px0, pb, px1, pb, 'axis', { check: false });
   for (const e of [3, 6, 9, 12, 15]) {
     line(xs(e), pb, xs(e), pb + 4, 'axis', { check: false });
     text('small', xs(e), pb + 16, `10${F.sup(e)}`, { anchor: e === 15 ? 'end' : 'middle' });
   }
   text('small', (px0 + px1) / 2, pb + 31, 'ids made', { anchor: 'middle' });
-  reg.regions.chart = { x0: pad - 4, y0: headTop, x1: pad + chartW + 2, y1: pb + 38 };
+  // The chain under the chart: pairs, each pair's chance, the repeats expected, the chance.
+  const chainTop = pb + 50;
+  const chainLines = reserve('pairs', W, () => Math.max(...M.RANDOM_BITS.flatMap((bits) => Array.from({ length: 13 }, (_, k) => wrapSegments('small', M.pairsChain({ ...M.BASE, bits, count: k + 3 }), chartW, '  ').length))));
+  const chartBottom = chainTop + chainLines * 15;
+  reg.regions.chart = { x0: pad, y0: headTop - 12, x1: pad + chartW, y1: chartBottom };
   if (H.chance) {
-    hiddenBox(px0 + 2, ptop + 2, px1 - px0 - 4, ph - 4, 'chance', 'The curves are hidden until you answer');
+    hiddenBox(px0 + 1, ptop - 4, px1 - px0 - 2, ph + 2, 'chance', 'The curves are hidden until you answer', ys(-9) + 4);
+    hiddenBox(pad, chainTop - 12, chartW, chainLines * 15 + 6, 'chance', 'Why is hidden until you answer');
   } else {
     for (const bits of [122, 64]) {
       const pts = [];
@@ -1819,83 +2184,96 @@ function drawRandom(W, pad, y, H, narrow) {
         if (lp < -24) continue;
         pts.push([xs(e), ys(lp)]);
       }
-      const cur = bits === s.bits;
-      path('M' + pts.map((p) => p.map((v) => v.toFixed(1)).join(' ')).join(' L'), `curve ${cur ? 'cur' : ''}`, { points: pts, region: 'chart' });
+      path('M' + pts.map((p) => p.map((v) => v.toFixed(1)).join(' ')).join(' L'), `curve ${bits === s.bits ? 'cur' : ''}`, { points: pts, region: 'chart' });
     }
-    // The square law, drawn as a transform: three decades along, six up.
-    // The current count on the current curve.
     const n = 10 ** s.count;
-    const p = M.birthday(s.bits, n);
-    // The square law, drawn as a transform ending at the marker: three decades along, six up, while the chance is small.
-    const pBack = M.birthday(s.bits, n / 1000);
-    if (s.count >= 6 && p < 0.05 && pBack >= 1e-24 && ys(Math.log10(pBack)) + 18 < pb) {
-      const tx0 = xs(s.count - 3);
-      const tx1 = xs(s.count);
-      const ty0 = ys(Math.log10(pBack));
-      const ty1 = ys(Math.log10(p));
-      el('path', { d: `M${tx0.toFixed(1)} ${ty0.toFixed(1)} H${tx1.toFixed(1)} V${ty1.toFixed(1)}`, class: 'tri' });
-      text('small', (tx0 + tx1) / 2, ty0 + 14, '× 1,000 ids', { anchor: 'middle' });
-      const upTxt = '× 10⁶';
-      text('small', tx1 - 5, (ty0 + ty1) / 2 + 12, upTxt, { anchor: 'end' });
-    }
+    // E5's reveal slides the marker up from the 122-bit chance to the 64-bit one (Reduced motion draws the end).
+    const slide = view.exp === 5 && expState() === 'reveal' && view.frac < 1 && !REDUCED;
+    const p = slide ? 10 ** (Math.log10(M.birthday(122, n)) * (1 - view.frac) + Math.log10(M.birthday(64, n)) * view.frac) : M.birthday(s.bits, n);
     const lp = Math.max(Math.log10(p), -24);
     const cx = xs(s.count);
     const cy = ys(lp);
-    line(cx, ptop, cx, pb, 'now-line', { check: false });
-    if (lp <= -24 && p < 1e-24) {
-      // Cut at the scale's end: a chevron pointing off the chart, its value said beside it.
+    line(cx, ptop, cx, pb, 'now-line', { kind: 'marker' });
+    // The square law as a drawn transform: back from the marker when that leg is on the chart, else forward from it.
+    const pBack = M.birthday(s.bits, n / 1000);
+    const pFwd = M.birthday(s.bits, n * 1000);
+    if (!slide && s.count >= 6 && p < 0.05 && pBack >= 1e-24 && ys(Math.log10(pBack)) + 18 < pb) {
+      const tx0 = xs(s.count - 3);
+      const tx1 = cx - 4;
+      const ty0 = ys(Math.log10(pBack));
+      const ty1 = ys(Math.log10(p)) + 6;
+      path(`M${tx0.toFixed(1)} ${ty0.toFixed(1)} H${tx1.toFixed(1)} V${ty1.toFixed(1)}`, 'tri', { segments: [[[tx0, ty0], [tx1, ty0]], [[tx1, ty0], [tx1, ty1]]] });
+      triLabels((tx0 + tx1) / 2, ty0 + 14, tx1 - 5, (ty0 + ty1) / 2 + 4);
+    } else if (!slide && s.count <= 12 && pFwd < 0.1 && p >= 1e-24) {
+      const tx0 = cx + 7;
+      const tx1 = xs(s.count + 3);
+      const ty0 = cy;
+      const ty1 = ys(Math.log10(pFwd)) + 6;
+      path(`M${tx0.toFixed(1)} ${ty0.toFixed(1)} H${tx1.toFixed(1)} V${ty1.toFixed(1)}`, 'tri', { segments: [[[tx0, ty0], [tx1, ty0]], [[tx1, ty0], [tx1, ty1]]] });
+      triLabels((tx0 + tx1) / 2, ty0 + 14, tx1 + 5, (ty0 + ty1) / 2 + 4, 'start');
+    }
+    function triLabels(ax, ay, ux, uy, upAnchor = 'end') {
+      const along = '× 1,000 ids';
+      const up = '× 10⁶';
+      for (const dy of [0, 4, -18]) {
+        const b = textBox('small', ax, ay + dy, along, 'middle');
+        if (clearBox(b, 2)) {
+          text('small', ax, ay + dy, along, { anchor: 'middle' });
+          break;
+        }
+      }
+      for (const dy of [0, 8, -8, 16, -16]) {
+        const b = textBox('small', ux, uy + dy, up, upAnchor);
+        if (clearBox(b, 2)) {
+          text('small', ux, uy + dy, up, { anchor: upAnchor });
+          break;
+        }
+      }
+    }
+    const below = lp <= -24 && p < 1e-24;
+    if (below) {
       el('path', { d: `M${(cx - 6).toFixed(1)} ${(pb - 9).toFixed(1)} h12 l-6 8 z`, class: 'marker' });
       reg.marks.push({ x0: cx - 6, y0: pb - 9, x1: cx + 6, y1: pb - 1, cls: 'cut' });
     } else dot(cx, cy, 5.5, 'marker', { key: 'current' });
-    const below = lp <= -24 && p < 1e-24;
-    const val = F.chance(p);
-    const wv = measure('smallB', val);
-    const cands = [
-      ...(below ? [[px1 - wv - 4, pb - 20]] : []),
-      [cx + 10, cy + 16],
-      [cx - 10 - wv, cy + 16],
-      [cx + 10, cy - 10],
-      [cx - 10 - wv, cy - 10],
-      [cx + 10, cy + 30],
-      [cx - 10 - wv, cy + 30],
-      [cx + 10, cy + 46],
-      [cx - 10 - wv, cy + 46],
-      [cx - 10 - wv, cy - 26],
-      [cx + 10, pb - 6],
-      [cx - 10 - wv, pb - 6],
-      [cx + 10, cy + 62],
-      [cx - 10 - wv, cy + 62],
-      [px0 + 4, ptop + 12],
-    ].map(([lx, ly]) => [Math.min(Math.max(lx, px0 + 4), px1 - wv), Math.min(Math.max(ly, ptop + 12), pb - 6)]);
-    const clear = (c) => clearAt(c, wv);
-    function clearAt([lx, ly], wv) {
-      const b = { x0: lx, x1: lx + wv, y0: ly - 9, y1: ly + 3 };
-      if (reg.dots.some((d) => d.x + d.r > b.x0 - 3 && d.x - d.r < b.x1 + 3 && d.y + d.r > b.y0 - 3 && d.y - d.r < b.y1 + 3)) return false;
-      if (reg.texts.some((tb) => overlap(tb, b, 6))) return false;
-      return !reg.curves.some((cv) => cv.points.some((q, k) => k > 0 && segHitsBox({ x1: cv.points[k - 1][0], y1: cv.points[k - 1][1], x2: q[0], y2: q[1] }, b)));
+    if (!slide) {
+      const val = F.chance(p);
+      const wv = measure('smallB', val);
+      const cands = [
+        ...(below ? [[px1 - wv - 4, pb - 20]] : []),
+        ...[16, -10, 30, -24, 46, 62].flatMap((dy) => [[cx + 10, cy + dy], [cx - 10 - wv, cy + dy]]),
+        [cx + 10, pb - 8],
+        [cx - 10 - wv, pb - 8],
+        [px0 + 4, ptop + 12],
+      ].map(([lx, ly]) => [Math.min(Math.max(lx, px0 + 4), px1 - wv), Math.min(Math.max(ly, ptop + 12), pb - 8)]);
+      const at = cands.find(([lx, ly]) => clearBox(textBox('smallB', lx, ly, val), 3)) ?? cands[0];
+      text('smallB', at[0], at[1], val, { cls: 'acc' });
+      if (below) {
+        const b = textBox('small', px1 - 4, pb - 8, 'below the chart', 'end');
+        if (clearBox(b, 2)) text('small', px1 - 4, pb - 8, 'below the chart', { anchor: 'end' });
+      }
     }
-    const [lx, ly] = below ? cands[0] : cands.find(clear) ?? cands[0];
-    text('smallB', lx, ly, val, { cls: 'acc' });
-    if (below) text('small', px1 - 4, pb - 6, 'below the chart', { anchor: 'end' });
-    // Curve names, placed after the marker's figure, where they cross no curve and no text.
+    // Curve names: off every curve, grid line, dot and word.
     const name122 = narrow ? '122 bits' : '122 bits, UUIDv4';
-    const end122 = ys(Math.log10(M.birthday(122, 1e15)));
     const w122 = measure('smallB', name122);
-    const c122 = [[px1 - 22 - w122, end122 - 4], [px1 - 4 - w122, end122 + 18]];
-    for (let e = 14.5; e >= 10; e -= 0.5) c122.push([xs(e) - w122 - 4, ys(Math.log10(M.birthday(122, 10 ** e))) - 6]);
-    const p122 = c122.find((c) => clearAt(c, w122)) ?? c122[0];
+    const c122 = [];
+    for (let e = 14.5; e >= 8; e -= 0.25) {
+      const yc = ys(Math.log10(M.birthday(122, 10 ** e)));
+      c122.push([xs(e) - w122 - 4, yc - 6], [xs(e) + 6, yc + 14]);
+    }
+    const p122 = c122.find(([lx, ly]) => lx >= px0 + 2 && lx + w122 <= px1 && ly - 9 > ptop && ly < pb - 4 && clearBox(textBox('smallB', lx, ly, name122), 3)) ?? c122[0];
     text('smallB', p122[0], p122[1], name122, { cls: s.bits === 122 ? 'acc' : 'muted' });
     const w64 = measure('smallB', '64 bits');
-    const c64 = [[px1 - 4 - w64, ys(0) + 14], [xs(11) , ys(0) + 14], [xs(10.2), ys(0) + 14], [px1 - 4 - w64, ys(0) + 28]];
-    const p64 = c64.find((c) => clearAt(c, w64)) ?? c64[0];
+    const c64 = [];
+    for (let e = 14.6; e >= 9; e -= 0.4) c64.push([xs(e) - w64, ys(0) + 14], [xs(e) - w64, ys(0) + 28]);
+    const p64 = c64.find(([lx, ly]) => lx >= px0 + 2 && clearBox(textBox('smallB', lx, ly, '64 bits'), 3)) ?? c64[0];
     text('smallB', p64[0], p64[1], '64 bits', { cls: s.bits === 64 ? 'acc' : 'muted' });
+    if (!slide) wrapSegments('small', M.pairsChain(s), chartW, '  ').forEach((ln, i) => text('small', pad, chainTop + i * 15, ln, { region: 'pairs' }));
   }
-  // Under the chart: what a curve means for an index.
-  let iy = side ? y : pb + 52;
+  const iy = side ? y : chartBottom + 18;
   const ix0 = side ? pad + chartW + 24 : pad;
   const iw = side ? W - pad - ix0 : W - 2 * pad;
-  iy = drawIndex(ix0, iy, iw);
-  return Math.max(side ? pb + 40 : 0, iy);
+  const iEnd = drawIndex(ix0, iy, iw);
+  return Math.max(side ? chartBottom : 0, iEnd);
 }
 
 /** Where 24 new ids land in a key index of 12 leaf pages: an illustration, drawn from a seeded generator. */
@@ -1909,7 +2287,7 @@ function drawIndex(x0, y, w) {
   text('smallB', x0, rowsY[0] - 6, 'Time-ordered ids: the last page');
   text('smallB', x0, rowsY[1] - 6, 'Random ids: any page');
   let seed = 7;
-  const rnd = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
+  const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
   const hits = Array(pages).fill(0);
   for (let i = 0; i < 24; i++) hits[Math.floor(rnd() * pages)]++;
   for (let r = 0; r < 2; r++)
@@ -1922,38 +2300,53 @@ function drawIndex(x0, y, w) {
     }
   const touched = hits.filter((h) => h > 0).length;
   text('small', x0, rowsY[0] + 36, 'all 24 in 1 page, which stays in memory');
-  text('small', x0, rowsY[1] + 36, `24 inserts touch ${touched} of ${pages} pages, each read from disk once the index outgrows memory`.slice(0, 200), { region: 'index' });
   const lines = wrap('small', `24 inserts touch ${touched} of ${pages} pages, each read from disk once the index outgrows memory`, w);
-  out.pop();
-  reg.texts.pop();
   lines.forEach((ln, i) => text('small', x0, rowsY[1] + 36 + i * 14, ln));
   return rowsY[1] + 36 + lines.length * 14 + 4;
 }
 
-let playPos = { x: 0, y: 0 };
-
-/** Focus outlines (solid, around the whole region) and a "Look here" tag at a corner that covers no text. */
+/**
+ * Focus outlines (solid, 6 px clear of their region's words on every side) and a "Look here" tag at the first place,
+ * inside or outside the outline, that covers no word, dot, line or mark of any band.
+ */
 function drawFocus(W, Hh) {
   for (const f of view.focus) {
     const r = reg.regions[f];
     if (!r) continue;
-    const x0 = Math.max(r.x0 - 4, 2);
-    const x1 = Math.min(r.x1 + 4, W - 2);
-    rect(x0, r.y0 - 4, x1 - x0, r.y1 - r.y0 + 8, 'focus-outline', { rx: 10, region: `focus-${f}` });
+    const e = r.exact ? 0 : 8;
+    const x0 = Math.max(r.x0 - e, 2);
+    const x1 = Math.min(r.x1 + e, W - 2);
+    const y0 = r.y0 - e;
+    const y1 = r.y1 + e;
+    rect(x0, y0, x1 - x0, y1 - y0, 'focus-outline', { rx: 10, region: `focus-${f}` });
+    reg.outlines.push({ x0, y0, x1, y1, f });
+  }
+  for (const o of reg.outlines) {
     const tw = measure('look', 'Look here') + 14;
-    const corners = [
-      [x1 - tw - 8, r.y0 - 13],
-      [x0 + 8, r.y0 - 13],
-      [x1 - tw - 8, r.y1 - 5],
-      [x0 + 8, r.y1 - 5],
-    ];
-    for (let cx = x1 - tw - 48; cx > x0 + 8; cx -= 40) corners.push([cx, r.y0 - 13], [cx, r.y1 - 5]);
-    const free = corners.find(([cx, cy]) => !reg.texts.some((tb) => tb.x1 > cx - 2 && tb.x0 < cx + tw + 2 && tb.y1 > cy - 2 && tb.y0 < cy + 20) && cy > 0 && cy + 18 < Hh);
-    const [cx, cy] = free ?? corners[0];
+    const cands = [];
+    for (let cx = o.x1 - tw - 10; cx >= o.x0 + 8; cx -= 24) cands.push([cx, o.y0 - 22], [cx, o.y1 + 4], [cx, o.y0 + 4], [cx, o.y1 - 22]);
+    for (let cy = o.y0 + 4; cy < o.y1 - 22; cy += 12) cands.push([o.x1 - tw - 4, cy], [o.x0 + 4, cy]);
+    const fits = ([cx, cy]) => {
+      const b = { x0: cx, x1: cx + tw, y0: cy, y1: cy + 18 };
+      if (cy < 2 || cy + 18 > Hh - 2 || cx < 2 || cx + tw > W - 2) return false;
+      if (!clearBox(b, 3)) return false;
+      // Not on any outline's stroke (its own or another's).
+      return !reg.outlines.some((q) => strokeHits(q, b, 3));
+    };
+    const [cx, cy] = cands.find(fits) ?? cands[0];
     rect(cx, cy, tw, 18, 'tag', { rx: 9 });
-    text('look', cx + 7, cy + 13, 'Look here', { kind: 'tag', region: `tag-${f}` });
+    reg.marks.push({ x0: cx, y0: cy, x1: cx + tw, y1: cy + 18, cls: 'tag', region: `tag-${o.f}` });
+    text('look', cx + 7, cy + 13, 'Look here', { kind: 'tag', region: `tag-${o.f}` });
     reg.tags = (reg.tags ?? 0) + 1;
   }
+}
+/** Whether box b comes within `gap` of outline o's stroke (its four edges). */
+function strokeHits(o, b, gap) {
+  const outer = { x0: o.x0 - gap, x1: o.x1 + gap, y0: o.y0 - gap, y1: o.y1 + gap };
+  const innerR = { x0: o.x0 + gap, x1: o.x1 - gap, y0: o.y0 + gap, y1: o.y1 - gap };
+  const inOuter = b.x0 < outer.x1 && b.x1 > outer.x0 && b.y0 < outer.y1 && b.y1 > outer.y0;
+  const inInner = b.x0 >= innerR.x0 && b.x1 <= innerR.x1 && b.y0 >= innerR.y0 && b.y1 <= innerR.y1;
+  return inOuter && !inInner;
 }
 
 // ------------------------------------------------------------------------------------------------------------------
@@ -1964,17 +2357,14 @@ function summaryText() {
   const s = view.s;
   let lay = M.layoutSentence(s);
   if (H.lifetime) lay = lay.replace(/The timestamp counts.*?\.(?= There)/, 'How long the timestamp lasts is hidden until you answer.');
-  let mint = mintWords();
   const rnd = H.chance ? 'The chance of a repeat among random ids is hidden until you answer.' : M.randomSentence(s);
-  return `${lay} ${mint} ${rnd}`;
+  return `${lay} ${mintWords()} ${rnd}`;
 }
 
 /** The mint's sentences with the hidden ones replaced: the summary and the reduced-motion story both read this. */
 function mintWords() {
   const H = hiding();
-  const s = view.s;
-  let mint = M.mintSentence(s);
-  const sent = mint.split(/(?<=\.) /);
+  const sent = M.mintSentence(view.s).split(/(?<=\.) /);
   const keep = sent.filter((x) => {
     if (H.repeats && /repeat|stepped back|sort after|sorts after/.test(x)) return false;
     if (H.order && /sort by|sorts? after|sort after/.test(x)) return false;
@@ -1987,17 +2377,20 @@ function mintWords() {
   return keep.join(' ');
 }
 
+/** The live notice: only what changed, never the whole summary (that is the stage's name and Describe). */
 function noticeText() {
   const H = hiding();
-  if (view.exp && STATE === 'ask') return `Experiment ${view.exp}: ${EXPS[view.exp - 1].title}. Make your guess; the part it is about is hidden until you answer.`;
-  if (view.exp && STATE === 'play') return 'Playing your guess. The answer shows when it ends.';
-  if (view.exp && STATE === 'reveal') return EXPS[view.exp - 1].reveal;
+  const st = expState();
+  if (view.exp && st === 'ask') return `Experiment ${view.exp}: ${EXPS[view.exp - 1].title}. Make your guess${anyHidden(H) ? '; the part it is about is hidden until you answer' : ''}.`;
+  if (view.exp && st === 'play') return 'Playing your guess. The answer shows when it ends.';
+  if (view.exp && st === 'reveal') return EXPS[view.exp - 1].reveal;
   if (view.challenge) {
-    const st = M.challengeStatus(view.s);
-    return st.met ? `Goal met. ${M.layoutSentence(view.s)}` : `Challenge: ${M.CHALLENGE.ask} ${M.layoutSentence(view.s)}`;
+    const s = M.challengeStatus(view.s);
+    return s.met ? `Goal met. ${M.changeSentence('gen', view.s)}` : `Challenge: ${M.CHALLENGE.ask}`;
   }
-  void H;
-  return summaryText();
+  if (view.phase === 'playing') return 'Playing the mint: 8 ms of the clock, slowed down.';
+  if (view.lastChange) return M.changeSentence(view.lastChange, view.s);
+  return M.changeSentence('gen', view.s);
 }
 
 function storyText() {
@@ -2005,13 +2398,15 @@ function storyText() {
   return `Reduced motion: the mint is drawn at its end. ${mintWords()}`;
 }
 
+const keepNeeds = (str) => str.replace(/\(need [^)]+\)/g, (m) => `<span class="keep">${m}</span>`);
 function renderDock() {
   const dock = document.getElementById('dock');
+  document.querySelector('.widget').classList.toggle('dock-first', !!(view.exp || view.challenge));
   if (view.challenge) {
     const st = M.challengeStatus(view.s);
     dock.innerHTML = `<p class="eyebrow">Challenge</p><p class="legend">${M.CHALLENGE.ask}</p>
       <p class="status-line ${st.met ? 'met' : ''}">${st.met ? 'Goal met' : `${st.items.filter((i) => i.met).length} of 3 met`}</p>
-      <ul class="status">${st.items.map((i) => `<li class="${i.met ? 'met' : ''}"><span class="state">${i.met ? '✓' : '·'}</span>${i.text}</li>`).join('')}</ul>`;
+      <ul class="status">${st.items.map((i) => `<li class="${i.met ? 'met' : ''}"><span class="state">${i.met ? '✓' : '·'}</span><span>${keepNeeds(i.text)}</span></li>`).join('')}</ul>`;
     return;
   }
   if (!view.exp) {
@@ -2020,13 +2415,12 @@ function renderDock() {
   }
   const e = EXPS[view.exp - 1];
   const truth = e.choices.findIndex((c) => c.value === e.truth);
-  const asking = STATE === 'ask';
-  const playing = STATE === 'play';
+  const st = expState();
   const opts = e.choices
     .map((c, i) => {
       let cls = '';
       let mark = '';
-      if (STATE === 'reveal') {
+      if (st === 'reveal') {
         if (i === truth) {
           cls = 'right';
           mark = i === view.picked ? 'Your guess · right' : 'Right';
@@ -2034,19 +2428,19 @@ function renderDock() {
           cls = 'wrong';
           mark = 'Your guess';
         }
-      } else if (playing && i === view.picked) mark = 'Your guess';
-      return `<li><button type="button" class="g-choice ${cls}" ${asking ? '' : 'disabled'}><span>${c.text}</span>${mark ? `<span class="mark">${mark}</span>` : ''}</button></li>`;
+      } else if (st === 'play' && i === view.picked) mark = 'Your guess';
+      return `<li><button type="button" class="g-choice ${cls}" ${st === 'ask' ? '' : 'disabled'}><span>${c.text}</span>${mark ? `<span class="mark">${mark}</span>` : ''}</button></li>`;
     })
     .join('');
   dock.innerHTML = `<p class="eyebrow">Experiment ${view.exp} of 5 · ${e.title}</p><p class="legend">${e.ask}</p><ul class="options">${opts}</ul>
-    ${playing ? '<p class="held">Your guess is held while the mint plays.</p>' : ''}
-    ${STATE === 'reveal' ? `<p class="reveal">${e.reveal}</p>` : ''}`;
+    ${st === 'play' ? '<p class="held">Your guess is held while the mint plays.</p>' : ''}
+    ${st === 'reveal' ? `<p class="reveal">${e.reveal}</p>` : ''}`;
 }
 
 function renderCards() {
   const items = [...EXPS.map((e, i) => ({ n: i + 1, title: e.title })), { n: 6, title: `Challenge: ${M.CHALLENGE.title.toLowerCase()}` }];
   document.getElementById('cards').innerHTML = items
-    .map((c) => `<li><button class="card-btn" type="button" ${(view.exp === c.n || (view.challenge && c.n === 6)) ? 'aria-current="true"' : ''}><span class="num">${c.n}</span>${c.title}</button></li>`)
+    .map((c) => `<li><button class="card-btn" type="button" ${view.exp === c.n || (view.challenge && c.n === 6) ? 'aria-current="true"' : ''}><span class="num">${c.n}</span>${c.title}</button></li>`)
     .join('');
 }
 
@@ -2059,16 +2453,16 @@ function renderDescribe(stageW) {
   if (disabled) html += '<p class="muted-note">Describe opens after you answer.</p>';
   if (view.describeOpen && !disabled) {
     const compact = stageW < 520;
-    const head = compact ? ['#', 'tick · G · seq', 'made', 'note'] : ['#', 'id', 'made by', 'made at', 'tick', 'sequence', 'waited', 'note'];
+    const head = compact ? ['#', 'timestamp · G · seq', 'made', 'note'] : ['#', 'id', 'made by', 'made at', 'timestamp', 'generator', 'sequence', 'waited', 'note'];
     const rows = m.sorted.slice(0, 40).map((x, i) => {
-      const note = x.repeatOf ? 'same id as an earlier one' : x.issued >= M.WINDOW_US ? 'after 8 ms' : '';
+      const note = x.repeatOf ? 'same id as the row above' : x.issued >= M.WINDOW_US ? 'after 8 ms' : m.lateByTick.includes(x) ? 'made before ids above it' : '';
       const cells = compact
-        ? [i + 1, `${x.tick} · ${x.number} · ${x.seq}`, F.ms(x.issued), note]
-        : [i + 1, x.id.toString(), `G${x.lane}`, F.ms(x.issued), x.tick, x.seq, x.wait ? F.ms(x.wait) : '', note];
-      return `<tr class="${x.repeatOf ? 'bad' : ''}">${cells.map((c, j) => `<td class="${!compact && j === 1 ? 'mono' : ''}">${c}</td>`).join('')}</tr>`;
+        ? [i + 1, `${M.tsShort(x)} · ${x.number} · ${x.seq}`, F.ms(x.issued), note]
+        : [i + 1, F.int(x.id), `G${x.lane}`, F.ms(x.issued), F.int(x.ts), x.number, x.seq, x.wait ? F.ms(x.wait) : '', note];
+      return `<tr class="${x.repeatOf ? 'bad' : ''}">${cells.map((c, j) => `<td class="${!compact && (j === 1 || j === 4) ? 'mono' : ''}">${c}</td>`).join('')}</tr>`;
     });
     const more = m.sorted.length > 40 ? `<p class="muted-note">The first 40 of ${F.int(m.sorted.length)} ids in id order.</p>` : '';
-    html += `<p class="summary">${summaryText()}</p><div class="table-box"><table><caption class="sr-only">The ids in id order</caption><thead><tr>${head.map((h) => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>${more}`;
+    html += `<p class="summary">${summaryText()}</p><div class="table-box"><table><caption class="sr-only">The ids in id order, with each id's fields</caption><thead><tr>${head.map((h) => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>${more}`;
   }
   box.innerHTML = html;
 }
@@ -2083,19 +2477,49 @@ function renderControls() {
   const c = document.getElementById('count');
   c.value = s.count;
   document.getElementById('count-v').textContent = `${F.count(10 ** s.count).replace(/^a /, 'A ')} ids (${F.countFigure(10 ** s.count)})`;
-  const locked = STATE === 'ask' || STATE === 'play';
+  const locked = expState() === 'ask' || expState() === 'play';
   for (const fs of f.querySelectorAll('fieldset')) fs.disabled = locked;
-  document.getElementById('play').disabled = locked;
+  const play = document.getElementById('play');
+  play.disabled = locked;
+  const playing = view.phase === 'playing' && !view.exp;
+  play.setAttribute('aria-label', playing ? 'Pause the mint' : 'Play the mint: 8 ms of the clock, slowed down');
+  document.getElementById('play-glyph').setAttribute('d', playing ? 'M12 10 h3.5 v14 h-3.5 z M18.5 10 h3.5 v14 h-3.5 z' : 'M13 10.5 L24 17 L13 23.5 Z');
   document.getElementById('notice').textContent = noticeText();
 }
 
 // ------------------------------------------------------------------------------------------------------------------
 // Render, report, and the play.
 
+function placeControls(W) {
+  const form = document.getElementById('controls');
+  const well = document.getElementById('well');
+  const narrow = innerWidth < 1000;
+  if (narrow && form.parentElement !== well) {
+    well.appendChild(form);
+    form.classList.add('in-stage');
+  } else if (!narrow && form.parentElement === well) {
+    document.querySelector('.side').insertBefore(form, document.querySelector('.side .heading'));
+    form.classList.remove('in-stage');
+  }
+  if (!narrow) {
+    for (const g of form.querySelectorAll('.cg')) g.removeAttribute('style');
+    return null;
+  }
+  const pad = W < 560 ? 12 : 20;
+  const slots = {};
+  for (const g of form.querySelectorAll('.cg')) {
+    g.style.left = `${pad}px`;
+    g.style.width = `${W - 2 * pad}px`;
+    slots[g.dataset.slot] = Math.ceil(g.offsetHeight);
+  }
+  return slots;
+}
+
 function render() {
   const well = document.getElementById('well');
   const W = Math.floor(well.clientWidth);
-  const b = build(W);
+  const slots = placeControls(W);
+  const b = build(W, slots);
   const svg = document.getElementById('svg');
   svg.setAttribute('width', W);
   svg.setAttribute('height', b.H);
@@ -2104,6 +2528,19 @@ function render() {
   const play = document.getElementById('play');
   play.style.left = `${playPos.x}px`;
   play.style.top = `${playPos.y}px`;
+  const nav = document.getElementById('nav');
+  nav.style.left = `${navPos.x}px`;
+  nav.style.top = `${navPos.y}px`;
+  nav.style.width = `${navPos.w}px`;
+  const narrow = W < 560;
+  document.getElementById('older').textContent = narrow ? '‹' : '‹ Older id';
+  document.getElementById('newer').textContent = narrow ? '›' : 'Newer id ›';
+  const H = hiding();
+  const vis = visibleIds(M.mint(view.s), H, view.phase === 'playing' ? view.t : Infinity);
+  const at = view.inspected ? vis.findIndex((x) => x.key === view.inspected.key) : -1;
+  document.getElementById('older').disabled = H.inspect || at <= 0;
+  document.getElementById('newer').disabled = H.inspect || at < 0 || at >= vis.length - 1;
+  if (slots) for (const g of document.querySelectorAll('#controls .cg')) g.style.top = `${slotPos[g.dataset.slot].y}px`;
   const story = document.getElementById('story');
   const st = storyText();
   story.hidden = !st;
@@ -2124,7 +2561,7 @@ function segHitsBox(l, b) {
   const x1 = b.x1 - 1;
   const y0 = b.y0 + 1;
   const y1 = b.y1 - 1;
-  const steps = 24;
+  const steps = Math.max(24, Math.ceil(Math.hypot(l.x2 - l.x1, l.y2 - l.y1) / 2));
   for (let i = 0; i <= steps; i++) {
     const x = l.x1 + ((l.x2 - l.x1) * i) / steps;
     const y = l.y1 + ((l.y2 - l.y1) * i) / steps;
@@ -2132,10 +2569,16 @@ function segHitsBox(l, b) {
   }
   return false;
 }
-/** The collision report: text on text, labels under 6 px apart on a row, lines and curves through text, marks off the stage, dots on dots. */
+/**
+ * The collision report: text on text, labels under 6 px apart on a row, lines (lane, grid, order, now, arcs, the
+ * triangle, a fault's step) and curves through text, marks off the stage, dots on dots, dots and marks under text,
+ * the play and nav buttons over text, focus outlines within 6 px of any word or dot, tags on anything, words under a
+ * hidden box that is not theirs, and a repeat's note whose row above is not its twin.
+ */
 function report(r, W, H) {
   const c = [];
   const T = r.texts.filter((t) => t.kind !== 'bit');
+  const hiddenText = (t) => t.kind === 'hidden';
   for (let i = 0; i < T.length; i++)
     for (let j = i + 1; j < T.length; j++) {
       const a = T[i];
@@ -2143,7 +2586,8 @@ function report(r, W, H) {
       if (overlap(a, b)) c.push(`text on text: "${a.str}" / "${b.str}"`);
       else if (a.y0 < b.y1 && b.y0 < a.y1 && overlap(a, b, 6)) c.push(`labels under 6 px apart: "${a.str}" / "${b.str}"`);
     }
-  for (const l of r.lines) for (const t of T) if (segHitsBox(l, t)) c.push(`line through "${t.str}"`);
+  // Words in a hidden box sit on its opaque ground, above every line painted before it.
+  for (const l of r.lines) for (const t of T) if (!hiddenText(t) && segHitsBox(l, t)) c.push(`${l.kind} line through "${t.str}"`);
   for (const cv of r.curves)
     for (const t of T)
       for (let k = 1; k < cv.points.length; k++) {
@@ -2162,32 +2606,62 @@ function report(r, W, H) {
       if (Math.hypot(a.x - b.x, a.y - b.y) < a.r + b.r + 1) c.push(`dot on dot: ${a.key} / ${b.key}`);
     }
   for (const d of r.dots) for (const t of T) if (d.x + d.r > t.x0 && d.x - d.r < t.x1 && d.y + d.r > t.y0 && d.y - d.r < t.y1) c.push(`dot under "${t.str}" (${d.key})`);
-  for (const mk of r.marks.filter((m) => m.cls !== 'play')) for (const t of T) if (overlap(mk, t) && !t.onFill) c.push(`mark (${mk.cls}) under "${t.str}"`);
-  const play = r.marks.find((m) => m.cls === 'play');
-  if (play) for (const t of T) if (overlap(play, t)) c.push(`play button over "${t.str}"`);
+  for (const mk of r.marks)
+    for (const t of T) {
+      if (mk.cls === 'tag' && t.kind === 'tag' && mk.region === t.region) continue;
+      if (mk.cls === 'controls') {
+        if (overlap(mk, t)) c.push(`control group over "${t.str}"`);
+        continue;
+      }
+      if (overlap(mk, t) && !t.onFill) c.push(`mark (${mk.cls}) under "${t.str}"`);
+    }
+  for (const mk of r.marks.filter((m) => m.cls === 'tag')) {
+    for (const d of r.dots) if (d.x + d.r > mk.x0 - 2 && d.x - d.r < mk.x1 + 2 && d.y + d.r > mk.y0 - 2 && d.y - d.r < mk.y1 + 2) c.push(`tag on dot ${d.key}`);
+    for (const l of r.lines) if (segHitsBox(l, { x0: mk.x0 - 2, x1: mk.x1 + 2, y0: mk.y0 - 2, y1: mk.y1 + 2 })) c.push(`tag on a ${l.kind} line`);
+    for (const m2 of r.marks) if (m2 !== mk && m2.cls !== 'tag' && overlap(m2, mk)) c.push(`tag on mark ${m2.cls}`);
+  }
+  for (const o of r.outlines) {
+    for (const t of T) if (!(t.kind === 'tag') && strokeHits(o, t, 6)) c.push(`outline within 6 px of "${t.str}"`);
+    for (const d of r.dots) if (strokeHits(o, { x0: d.x - d.r, x1: d.x + d.r, y0: d.y - d.r, y1: d.y + d.r }, 4)) c.push(`outline on dot ${d.key}`);
+  }
+  for (const h of r.hidden) {
+    for (const t of T) if (t.region !== `hidden-${h.region}` && overlap(h, t)) c.push(`hidden box (${h.region}) over "${t.str}"`);
+    for (const d of r.dots) if (d.x + d.r > h.x0 && d.x - d.r < h.x1 && d.y + d.r > h.y0 && d.y - d.r < h.y1) c.push(`hidden box over dot ${d.key}`);
+  }
+  for (const n of r.notes) if (!n.ok) c.push(`repeat note on ${n.key} names a row above that is not its twin`);
   return { collisions: [...new Set(c)], texts: T.length, dots: r.dots.length, nodes: out.length, tags: r.tags ?? 0 };
 }
 
+let raf = 0;
 function playMint() {
+  if (view.phase === 'playing') {
+    cancelAnimationFrame(raf);
+    view.phase = 'rest';
+    view.t = M.WINDOW_US;
+    render();
+    return;
+  }
   if (REDUCED) {
     view.phase = 'rest';
     render();
     return;
   }
   view.phase = 'playing';
+  view.inspectKey = null;
   const start = performance.now();
   const dur = 8000;
   const step = (now) => {
     view.t = Math.min(((now - start) / dur) * M.WINDOW_US, M.WINDOW_US);
     render();
-    if (view.t < M.WINDOW_US && !document.hidden) requestAnimationFrame(step);
+    if (view.t < M.WINDOW_US && !document.hidden) raf = requestAnimationFrame(step);
     else {
       view.phase = 'rest';
       view.t = M.WINDOW_US;
+      view.lastChange = 'load';
       render();
     }
   };
-  requestAnimationFrame(step);
+  raf = requestAnimationFrame(step);
 }
 
 function wire() {
@@ -2196,11 +2670,13 @@ function wire() {
     const tgt = ev.target;
     if (tgt.name in M.BASE) view.s[tgt.name] = Number(tgt.value);
     if (tgt.id === 'guard') view.s.guard = tgt.checked ? 1 : 0;
+    view.lastChange = tgt.id === 'guard' ? 'guard' : tgt.name;
     view.ghost = null;
     render();
   });
   document.getElementById('count').addEventListener('input', (ev) => {
     view.s.count = Number(ev.target.value);
+    view.lastChange = 'count';
     render();
   });
   for (const b of f.querySelectorAll('[data-step]'))
@@ -2209,9 +2685,18 @@ function wire() {
       const before = { ...view.s };
       view.s[k] = Math.min(Math.max(view.s[k] + Number(b.dataset.d), 0), M.BITS_MAX);
       view.ghost = before;
+      view.lastChange = k;
       render();
     });
   document.getElementById('play').addEventListener('click', playMint);
+  for (const [id, d] of [['older', -1], ['newer', 1]])
+    document.getElementById(id).addEventListener('click', () => {
+      const vis = visibleIds(M.mint(view.s), hiding(), view.phase === 'playing' ? view.t : Infinity);
+      const at = vis.findIndex((x) => x.key === view.inspected?.key);
+      const next = vis[Math.min(Math.max(at + d, 0), vis.length - 1)];
+      if (next) view.inspectKey = next.key;
+      render();
+    });
   document.getElementById('describe').addEventListener('click', (ev) => {
     if (ev.target.id === 'desc-btn') {
       view.describeOpen = !view.describeOpen;
@@ -2221,11 +2706,13 @@ function wire() {
   addEventListener('resize', render);
 }
 
-Promise.all(Object.values(ROLES).map((r) => document.fonts.load(r.font))).then(() => document.fonts.ready).then(() => {
-  wire();
-  render();
-  document.body.dataset.ready = '1';
-});
+Promise.all(Object.values(ROLES).map((r) => document.fonts.load(r.font)))
+  .then(() => document.fonts.ready)
+  .then(() => {
+    wire();
+    render();
+    document.body.dataset.ready = '1';
+  });
 </script>
   </body>
 </html>
