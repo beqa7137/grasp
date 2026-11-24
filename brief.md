@@ -160,9 +160,11 @@ settings' line counts only (no play changes it); see the heights at the end of t
   (polite, atomic) sits at the foot of the controls at wide and is read out only below it.
 - **Layout.** Wide (page ≥ 1000 px): stage column `minmax(0, 1fr)`, a 320 px side column holding the dock (when an
   experiment or the challenge is open), the controls and the experiment cards, sticky. Narrow: stage, dock, controls,
-  Describe, cards. Stage heights at the default, from the mockup: see `shoot.cjs`'s last line, quoted at the end of
-  `changes.md`; the builder measures its own into `widget-heights.ts` at 320, 360, 375, 390, 412 and 430 px and sweeps
-  300 to 1,300.
+  Describe, cards. The builder measures its own heights into `widget-heights.ts` at 320, 360, 375, 390, 412 and 430 px and
+  sweeps 300 to 1,300. The mockup's default heights: 1,676 px at 300, 1,628 at 320, 1,598 at 360 to 390, 1,582 at 412,
+  1,567 at 430, 1,463 at 600, 1,245 at 800, 1,293 at 1000 (the stage column narrows when the side column appears) and
+  1,260 at 1280. A setting changes the height only through its line counts (two bit rows under 560 px, a third gutter
+  line when a fault meets ids after 8 ms, a repeat's note), so the placeholder holds the default's.
 
 **Motion.** Play runs the 8 ms of the stated clock in 8 s on one monotone play clock (`t` from 0 to 8,000 µs), paused
 by the widget host's visibility, never by one band's. Marks appear as their events arrive and never before: a dot at

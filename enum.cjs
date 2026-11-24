@@ -249,13 +249,13 @@ for (const s of [...all, ...[3, 6, 9, 12, 15].flatMap((count) => M.RANDOM_BITS.m
     sentences += 1;
     check(!/^\d/.test(sentence), `sentence opens on a numeral: ${sentence}`);
     check(!/NaN|Infinity|undefined|null/.test(sentence), `bad value: ${sentence}`);
-    check(!/—| /.test(sentence), `em dash or nbsp: ${sentence}`);
+    check(!/\u2014|\u00a0/.test(sentence), `em dash or nbsp: ${sentence}`);
     check(!NUMBER_NO_COMMA.test(sentence.replace(YEAR_OK, '')), `thousands separator: ${sentence}`);
     check(!/\b1 (ids|generators|ticks|numbers|bits)\b/.test(sentence), `plural after 1: ${sentence}`);
     check(!/\b([02-9]|\d{2,}) (id|generator|tick|number|request)(?![a-z]| bit)/.test(sentence.replace(/,/g, '')), `singular after many: ${sentence}`);
   }
 }
-for (const e of exps) for (const t of [e.ask, e.reveal, ...e.choices.map((c) => c.text)]) check(!/—/.test(t) && !/^\d/.test(t), `experiment text: ${t}`);
+for (const e of exps) for (const t of [e.ask, e.reveal, ...e.choices.map((c) => c.text)]) check(!/\u2014/.test(t) && !/^\d/.test(t), `experiment text: ${t}`);
 
 // --- Print. -------------------------------------------------------------------------------------------------------
 console.log('Layouts');

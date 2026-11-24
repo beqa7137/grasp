@@ -1253,6 +1253,8 @@ function build(W) {
   if (H.inspect) hiddenBox(pad - 2, barTop - 2, inner + 4, rows * cellH + (rows - 1) * 22 + 4, 'inspect', 'This id is hidden until you answer', barTop + cellH / 2 + 4);
   // Field names over their spans: the longest form that fits, else the bit count alone.
   const spanList = Object.values(spans);
+  // A field too narrow for even its count beside its neighbour's name is named only in the ledger below.
+  const placedNames = [];
   for (const sp of spanList) {
     if (sp.field === 'sign') continue;
     const n = { time: L.timeBits, gen: L.genBits, seq: L.seqBits }[sp.field];
@@ -1264,6 +1266,9 @@ function build(W) {
     if (!form) continue;
     const ly = sp.row === 0 ? labelRowY : sp.y - 7;
     const cx = Math.min(Math.max((sp.x0 + sp.x1) / 2, pad + measure('smallB', form) / 2), W - pad - measure('smallB', form) / 2);
+    const fw = measure('smallB', form);
+    if (placedNames.some((p) => p.ly === ly && cx - fw / 2 < p.x1 + 6 && cx + fw / 2 > p.x0 - 6)) continue;
+    placedNames.push({ ly, x0: cx - fw / 2, x1: cx + fw / 2 });
     el('g', { class: FIELD_CLASS[sp.field] }, '');
     out.pop();
     out.push(`<g class="${FIELD_CLASS[sp.field]}">`);
@@ -1540,7 +1545,7 @@ function drawMint(W, pad, y, m, L, H, t, narrow, inspectId) {
     if (!lane.runs) {
       const why =
         lane.why === 'overflow'
-          ? 'refuses to mint: the clock is past the timestamp'
+          ? "refuses: the clock is past the timestamp's end"
           : `no number: ${plural(L.genBits, 'generator bit')} ${L.genBits === 1 ? 'gives' : 'give'} only ${plural(L.generators, 'number')}`;
       const lines = wrap('small', why, x1 - x0 - 8);
       text('small', x0 + 6, ly - 4 + (lines.length > 1 ? -4 : 0), lines[0], { cls: 'bad' });
@@ -1700,7 +1705,12 @@ function drawSorted(W, pad, y, m, L, H, t, narrow, X, inspectId, groups) {
   const inBig = new Map();
   for (const g of groups) if (!g.single) for (const x of m.lanes[g.lane].ids.filter((x) => x.tick === g.tick && x.column === g.column)) inBig.set(x.key, g);
   const seenGroup = new Set();
+  let hiddenRows = 0;
   for (const x of made) {
+    if (H.burstAfter && x.lane === 0 && x.column > 0) {
+      hiddenRows++;
+      continue;
+    }
     const g = inBig.get(x.key);
     if (g) {
       if (seenGroup.has(g.key)) continue;
@@ -1721,11 +1731,6 @@ function drawSorted(W, pad, y, m, L, H, t, narrow, X, inspectId, groups) {
     const ry = top + i * rowH + rowH / 2 + 4;
     const x = r.x;
     if (i % 2 === 0) rect(pad - 4, ry - rowH / 2 - 4, W - 2 * pad + 8, rowH, 'lane-bg');
-    const hideThis = H.burstAfter && x.lane === 0 && x.column > 0;
-    if (hideThis) {
-      text('small', pad, ry, '?', {});
-      return;
-    }
     const sep = narrow ? '·' : ' · ';
     const fields = r.group ? `${x.tick}${sep}${x.number}${sep}${r.group.seqFrom}–${F.int(r.group.seqTo)}` : `${x.tick}${sep}${x.number}${sep}${x.seq}`;
     const idColW = measure('monoR', '0'.repeat(19)) + 14;
@@ -1753,8 +1758,13 @@ function drawSorted(W, pad, y, m, L, H, t, narrow, X, inspectId, groups) {
     el('polyline', { points: pts.map((p) => p.map((v) => v.toFixed(1)).join(',')).join(' '), class: 'order-line' });
     out.splice(lineAt, 0, out.pop());
   }
-  const bottom = top + rows.length * rowH;
-  if (!rows.length) text('small', pad, top + 12, 'No id yet.');
+  let bottom = top + rows.length * rowH;
+  if (H.burstAfter) {
+    hiddenBox(pad - 2, bottom + 4, W - 2 * pad + 4, 24, 'burstAfter', "G0's later ids are hidden until you answer");
+    bottom += 30;
+  }
+  void hiddenRows;
+  if (!rows.length) text('small', pad, top + 12, L.fits ? 'No id yet.' : 'No id: every generator refuses.');
   const after = m.sorted.length - made.length;
   let yy = bottom + 16;
   if (m.lateByTick.some((x) => x.issued <= t) && !H.repeats) {
