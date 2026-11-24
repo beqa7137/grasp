@@ -79,6 +79,8 @@
       /** The stated clock's timestamp fits the field: a generator may mint. */
       fits: nowTicks < 2 ** timeBits,
       usedFraction: elapsedMs / lifetimeMs,
+      /** What is left from the stated clock to the timestamp's end (the challenge's bound: the epoch counts). */
+      yearsLeft: (endMs - NOW_MS) / YEAR_MS,
       generators,
       perTick,
       ticksPerSecond,
@@ -228,7 +230,8 @@
     }
     const all = lanes.flatMap((l) => l.ids);
     const byMade = [...all].sort((a, b) => a.issued - b.issued || a.lane - b.lane);
-    const sorted = [...all].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : a.lane - b.lane));
+    // Equal ids sort in the order they were made, so a repeat always sits directly below the id it copies.
+    const sorted = [...all].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : a.issued - b.issued || a.lane - b.lane));
     const seen = new Map();
     for (const x of byMade) {
       const k = x.id.toString();
@@ -270,9 +273,12 @@
     };
   }
 
+  /** Ids of one tick stay dots only while they are made at least this far apart; closer, the tick is a gauge. */
+  const DOT_GAP_US = 400;
   /**
    * The mint's ids as the lanes and the sorted list draw them: one group per generator, tick and column, so a burst
-   * is a gauge per tick and never 5,000 marks. A group of three or fewer keeps its ids as dots.
+   * is a gauge per tick and never 5,000 marks. A group keeps its ids as dots while they were made at different
+   * moments at least 0.4 ms apart (seven ids in one 10 ms tick stay seven dots).
    */
   function groups(m) {
     const out = [];
@@ -283,15 +289,56 @@
           cur.seqTo = x.seq;
           cur.count += 1;
           cur.last = x;
-          cur.ids.length < 4 && cur.ids.push(x);
+          cur.ids.push(x);
         } else {
           cur = { key: x.key, lane: lane.lane, tick: x.tick, column: x.column, seqFrom: x.seq, seqTo: x.seq, count: 1, first: x, last: x, ids: [x] };
           out.push(cur);
         }
       }
     }
-    // A group stays dots only while its ids are made at different moments; a burst's tick is always a gauge.
-    out.forEach((gr) => (gr.single = gr.count <= 3 && new Set(gr.ids.map((x) => x.issued)).size === gr.count));
+    // A group stays dots only while its ids are made far enough apart to draw; a burst's tick is always a gauge.
+    out.forEach((gr) => (gr.single = gr.ids.every((x, i) => i === 0 || x.issued - gr.ids[i - 1].issued >= DOT_GAP_US)));
+    return out;
+  }
+
+  /** The rows of the sorted list: an id each, or one row for a tick drawn as a gauge. Only ids made in the window. */
+  function rows(m) {
+    const big = new Map();
+    for (const g of groups(m)) if (!g.single) for (const x of g.ids) big.set(x.key, g);
+    const seen = new Set();
+    const out = [];
+    for (const x of m.sorted) {
+      if (x.issued >= WINDOW_US) continue;
+      const g = big.get(x.key);
+      if (g) {
+        if (seen.has(g.key)) continue;
+        seen.add(g.key);
+        out.push({ key: g.key, group: g, x, made: g.first.issued });
+      } else out.push({ key: x.key, x, made: x.issued });
+    }
+    return out;
+  }
+  /** The sorted list always keeps this many row slots, the most any setting makes (enum.cjs checks it). */
+  const ROW_SLOTS = 21;
+
+  /** A generator's clock reading at true time t (µs), for the lanes' own tick scales. */
+  function clockAt(s, g, t) {
+    return reading(clockPieces(s, g), t);
+  }
+  /** The stretches of true time in which generator g's own clock reads each tick, within the drawn window. */
+  function ownTicks(s, g) {
+    const tickUs = s.tick * 1000;
+    const out = [];
+    for (const p of clockPieces(s, g)) {
+      const from = Math.max(p.from, 0);
+      const to = Math.min(p.to, WINDOW_US);
+      if (from >= to) continue;
+      for (let k = Math.floor((from + p.off) / tickUs); k * tickUs - p.off < to; k++) {
+        const a = Math.max(from, k * tickUs - p.off);
+        const b = Math.min(to, (k + 1) * tickUs - p.off);
+        if (b > a) out.push({ tick: k, from: a, to: b });
+      }
+    }
     return out;
   }
 
@@ -466,6 +513,43 @@
     return sci(x);
   }
 
+  /** Why the chance is what it is, as segments: the pairs, each pair's chance, the repeats expected, the chance. */
+  function pairsChain(s) {
+    const n = 10 ** s.count;
+    const pairs = (n * (n - 1)) / 2;
+    const expect = expectedPairs(s.bits, n);
+    const expectTxt = expect >= 1000 || expect < 0.001 ? sci(expect) : expect >= 10 ? int(expect) : expect.toPrecision(2);
+    return [
+      `${pow10(s.count)} ids`,
+      `→ about ${sci(pairs)} pairs`,
+      `× 1 in ${sci(2 ** s.bits)} each`,
+      `≈ ${expectTxt} repeats expected`,
+      `→ chance ${chance(birthday(s.bits, n))}`,
+    ];
+  }
+
+  /** The moment an id says it was made, read back from its bits: the epoch plus its timestamp in ticks. */
+  function idTime(L, x) {
+    const msAt = L.epochMs + Number(x.ts) * L.tick;
+    const d = new Date(msAt);
+    const pad = (v, n = 2) => String(v).padStart(n, '0');
+    return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}.${pad(d.getUTCMilliseconds(), 3)} UTC on ${date(msAt)}`;
+  }
+  /** What anyone holding the id learns from it. */
+  const leakLine = (L, x) => `Anyone holding this id can read when it was made (${idTime(L, x)}, to the tick) and which generator made it (number ${int(x.number)}).`;
+  /** The id's timestamp field, shortened to its last digits for the sorted list. */
+  const tsShort = (x) => `…${String(x.ts).slice(-3)}`;
+
+  /** What a control change says in the live notice: only what changed. */
+  function changeSentence(key, s) {
+    const L = layout(s);
+    if (key === 'gen' || key === 'seq')
+      return `The layout now has ${plural(L.genBits, 'generator bit', 'generator bits')} and ${plural(L.seqBits, 'sequence bit', 'sequence bits')}: ${plural(L.generators, 'generator', 'generators')}, ${int(L.perSecond)} ids a second each; the timestamp keeps ${L.timeBits} bits and lasts ${years(L.years)}.`;
+    if (key === 'tick' || key === 'epoch') return layoutSentence(s).split(/(?<=\.) /).slice(1).join(' ');
+    if (key === 'bits' || key === 'count') return randomSentence(s).split(/(?<=\.) /)[0];
+    return mintSentence(s);
+  }
+
   const summary = (s) => `${layoutSentence(s)} ${mintSentence(s)} ${randomSentence(s)}`;
 
   // ---------------------------------------------------------------------------------------------------------------
@@ -473,8 +557,8 @@
 
   const setup = {
     lifetime: { ...BASE },
-    burst: { ...BASE, seq: 10 },
-    order: { ...BASE },
+    burst: { ...BASE, gen: 12, seq: 10 },
+    order: { ...BASE, fault: FAULT.skew },
     clock: { ...BASE, guard: 0 },
     random: { ...BASE, bits: 122, count: 9 },
     challenge: { ...BASE },
@@ -487,7 +571,9 @@
     const burst = mint({ ...setup.burst, load: LOAD_BURST });
     const last = burst.lastBurst;
     const orderM = mint(setup.order);
-    const tick7 = orderM.sorted.filter((x) => x.tick === 7);
+    const skewG2 = orderM.lanes[2].ids.find((x) => x.issued === 3700);
+    const skewG1 = orderM.lanes[1].ids.find((x) => x.issued === 4400);
+    const firstOfTwo = skewG1.rank < skewG2.rank ? skewG1 : skewG2;
     const clockM = mint({ ...setup.clock, fault: FAULT.stepBack });
     const guarded = mint({ ...setup.clock, fault: FAULT.stepBack, guard: 1 });
     const gWait = guarded.lanes[1].ids.find((x) => x.wait > 0 && x.issued > STEP_AT_US);
@@ -505,7 +591,7 @@
           { text: `About ${years(lifeAfter.years)}`, value: lifeAfter.years },
         ],
         truth: lifeAfter.years,
-        reveal: `The timestamp now holds ${pow2(lifeAfter.timeBits)} ticks, and ${pow2(lifeAfter.timeBits)} × 1 ms is ${years(lifeAfter.years)}, ending on ${endWords(lifeAfter)} instead of ${endWords(lifeBefore)}. A bit is a doubling, so every bit moved out of the timestamp halves its lifetime, and every bit moved in doubles it: the marker on the ruler steps one bit left.`,
+        reveal: `The timestamp now holds ${pow2(lifeAfter.timeBits)} ticks, and ${pow2(lifeAfter.timeBits)} × 1 ms is ${years(lifeAfter.years)}, ending on ${endWords(lifeAfter)} instead of ${endWords(lifeBefore)}. A bit is a doubling, so every bit moved out of the timestamp halves its lifetime, and every bit moved in doubles it: on the ruler the marker steps one bit left of its ghost.`,
         focus: ['ledgerTime'],
         hide: ['lifetime'],
       },
@@ -530,15 +616,16 @@
         title: 'Which id sorts first',
         setup: setup.order,
         act: { run: 'mint' },
-        ask: `In the tick at 7 ms, G2 makes an id at ${ms(tick7.find((x) => x.lane === 2).issued)} and G0 makes one at ${ms(tick7.find((x) => x.lane === 0).issued)}. Which id is smaller, so it sorts first?`,
+        ask: `G2's clock runs ${ms(SKEW_US)} ahead. G2 makes an id at ${ms(skewG2.issued)} and G1 makes one at ${ms(skewG1.issued)}, by true time. Which id is smaller, so it sorts first?`,
         choices: [
           { text: "G2's: it was made first", value: 2 },
-          { text: "G0's: its generator number is lower", value: 0 },
+          { text: "G1's: its timestamp is lower", value: 1 },
           { text: 'Whichever has the lower sequence number', value: -1 },
         ],
-        truth: tick7[0].lane,
-        reveal: `Both ids carry the same timestamp, the tick at 7 ms. The next bits are the generator's number, and 0 is below 2, so G0's id sorts first although it was made ${ms(tick7.find((x) => x.lane === 0).issued - tick7.find((x) => x.lane === 2).issued)} later; the sequence bits come last and only break ties within one generator. Ids sort by time only to the tick.`,
+        truth: firstOfTwo.lane,
+        reveal: `G2's clock read ${ms(skewG2.clock)} when it made its id, so its timestamp is the tick at ${ms(skewG2.tick * 1000)}; G1's id carries the tick at ${ms(skewG1.tick * 1000)}. The timestamp is the high bits, so G1's id sorts first although it was made ${ms(skewG1.issued - skewG2.issued)} later. Each generator stamps ids with its own clock, so across machines ids are only as time-ordered as their clocks agree.`,
         focus: ['sorted'],
+        pair: [skewG1.key, skewG2.key],
         hide: ['order'],
       },
       {
@@ -561,7 +648,7 @@
         id: 'birthday',
         title: 'A billion random ids',
         setup: setup.random,
-        act: { set: { bits: 64 }, run: 'random' },
+        act: { set: { bits: 64 }, run: 'reveal' },
         ask: `A billion ids, each 64 random bits: ${pow2(64)} values, about 18 billion billion. What is the chance that any two are equal?`,
         choices: [
           { text: `About 1 in ${countWords(2 ** 64 / 1e9)}`, value: 1e9 / 2 ** 64 },
@@ -579,11 +666,16 @@
   const CHALLENGE = {
     id: 'challenge',
     title: 'Size the layout',
-    ask: 'Design the layout for up to 1,000 generators, each able to make 1,000,000 ids a second on its own, lasting at least 200 years.',
+    ask: 'Design the layout for up to 1,000 generators, each able to make 1,000,000 ids a second on its own, lasting at least 200 years from today.',
     bounds: [
-      { metric: 'generators', atLeast: 1000, words: (L) => `${int(L.generators)} generators (need 1,000)` },
-      { metric: 'perSecond', atLeast: 1e6, words: (L) => `${int(L.perSecond)} ids a second each (need 1,000,000)` },
-      { metric: 'years', atLeast: 200, words: (L) => `lasts ${years(L.years)} (need 200)` },
+      { metric: 'generators', atLeast: 1000, need: '1,000', words: (L) => `${int(L.generators)} generators (need 1,000)` },
+      { metric: 'perSecond', atLeast: 1e6, need: '1,000,000', words: (L) => `${int(L.perSecond)} ids a second each (need 1,000,000)` },
+      {
+        metric: 'yearsLeft',
+        atLeast: 200,
+        need: '200 years',
+        words: (L) => (L.yearsLeft > 0 ? `lasts ${years(L.yearsLeft)} from today (need 200 years)` : `already ran out (need 200 years)`),
+      },
     ],
   };
   function challengeStatus(s) {
@@ -621,6 +713,16 @@
     bits,
     mint,
     groups,
+    rows,
+    ROW_SLOTS,
+    DOT_GAP_US,
+    clockAt,
+    ownTicks,
+    pairsChain,
+    idTime,
+    leakLine,
+    tsShort,
+    changeSentence,
     birthday,
     birthdayExact,
     evenOdds,

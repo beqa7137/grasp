@@ -62,7 +62,7 @@ for (const s of all.filter((s) => s.load === 0 || (s.gen === 10 && s.epoch === 0
     check(x.seq < L.perTick && x.number < L.generators, 'fields within their widths');
   }
   // Sorting: the id's order is the order of (timestamp, generator, sequence) compared field by field.
-  const lex = [...m.ids].sort((a, b) => a.ts - b.ts || a.number - b.number || a.seq - b.seq || a.lane - b.lane);
+  const lex = [...m.ids].sort((a, b) => a.ts - b.ts || a.number - b.number || a.seq - b.seq || a.issued - b.issued || a.lane - b.lane);
   check(
     lex.every((x, i) => x.id === m.sorted[i].id),
     `numeric order is field order at ${JSON.stringify(s)}`,
@@ -77,6 +77,21 @@ for (const s of all.filter((s) => s.load === 0 || (s.gen === 10 && s.epoch === 0
     firsts.add(k);
   }
   check(pairs === m.repeats.length, `repeats counted at ${JSON.stringify(s)}`);
+  // "Same id as the row above": the row above every repeat holds the id it copies, made earlier.
+  for (const x of m.repeats) {
+    const above = m.sorted[x.rank - 1];
+    check(above && above.id === x.id && above.issued <= x.issued, `repeat sits below its first copy at ${JSON.stringify(s)}`);
+  }
+  // The sorted list's reserved slots hold every row any setting draws.
+  check(M.rows(m).length <= M.ROW_SLOTS, `rows fit the ${M.ROW_SLOTS} slots at ${JSON.stringify(s)} (${M.rows(m).length})`);
+  // Every dot lies in the band of its own tick: the lane's own-clock band that holds its moment carries its tick.
+  for (const lane of m.lanes) {
+    const bands = M.ownTicks(s, lane.lane);
+    for (const x of lane.ids.filter((x) => x.issued < M.WINDOW_US)) {
+      const b = bands.find((b) => x.issued >= b.from && x.issued < b.to);
+      check(b && b.tick === x.tick, `dot in its own tick's band at ${JSON.stringify(s)} ${x.key}`);
+    }
+  }
   // No repeats unless a generator trusted a clock that stepped back, or two generators share a number.
   const canRepeat = (s.fault === M.FAULT.stepBack && !s.guard) || s.fault === M.FAULT.shared;
   if (!canRepeat) check(m.repeats.length === 0, `no repeats at ${JSON.stringify(s)}`);
@@ -230,13 +245,28 @@ check(burst.lastBurst.wait === 3950, 'E2 last request waits 3.95 ms');
 const clockM = M.mint({ ...M.setup.clock, fault: M.FAULT.stepBack });
 check(clockM.repeats.length === 2 && clockM.repeats.every((x) => x.lane === 1), 'E4 G1 makes two ids twice');
 const orderM = M.mint(M.setup.order);
-check(orderM.sorted.filter((x) => x.tick === 7)[0].lane === 0, 'E3 G0 sorts first in tick 7');
+const g1 = orderM.lanes[1].ids.find((x) => x.issued === 4400);
+const g2 = orderM.lanes[2].ids.find((x) => x.issued === 3700);
+check(g1.tick === 4 && g2.tick === 5 && g1.rank < g2.rank, 'E3 G1 made later sorts first under skew');
+// E3's answer is not settled by the rest view: with no fault the earlier-made id sorts first.
+const rest = M.mint(M.BASE);
+check(rest.lanes[2].ids.find((x) => x.issued === 3700).rank < rest.lanes[1].ids.find((x) => x.issued === 4400).rank, 'E3 rest order is time order');
+// No experiment's setup or act passes the challenge, so no experiment hands over its answer.
+for (const e of exps) {
+  check(!M.challengeStatus(e.setup).met, `${e.id} setup does not pass the challenge`);
+  check(!M.challengeStatus({ ...e.setup, ...(e.act.set ?? {}) }).met, `${e.id} act does not pass the challenge`);
+}
 // E3's and E4's setups at rest must not show their answers: the stage at E4's setup has no repeats.
 check(M.mint(M.setup.clock).repeats.length === 0, 'E4 setup shows no repeats');
 
 // --- 7. The challenge, by enumeration over every layout. --------------------------------------------------------
+const withEpochs = all.filter((s) => s.load === 0 && s.fault === 0 && s.guard === 1);
 const passing = layouts.filter((s) => M.challengeStatus(s).met);
 check(passing.length === 1 && passing[0].gen === 10 && passing[0].seq === 10 && passing[0].tick === 1, `challenge passes once (${passing.length})`);
+// The bound counts from today, so the epoch matters, yet the same one layout passes on either epoch.
+const passingAny = withEpochs.filter((s) => M.challengeStatus(s).met);
+check(passingAny.length === 2 && passingAny.every((s) => s.gen === 10 && s.seq === 10 && s.tick === 1), `challenge on both epochs (${passingAny.length})`);
+check(near(M.layout({ ...M.BASE, gen: 10, seq: 10, epoch: 1 }).yearsLeft, M.layout({ ...M.BASE, gen: 10, seq: 10, epoch: 1 }).years - 56.9, 0.01), 'years left on 1970');
 check(!M.challengeStatus(M.BASE).met, 'challenge not met at the default');
 
 // --- 8. Words, at every setting, by rule. ---------------------------------------------------------------------------
@@ -256,6 +286,16 @@ for (const s of [...all, ...[3, 6, 9, 12, 15].flatMap((count) => M.RANDOM_BITS.m
   }
 }
 for (const e of exps) for (const t of [e.ask, e.reveal, ...e.choices.map((c) => c.text)]) check(!/\u2014/.test(t) && !/^\d/.test(t), `experiment text: ${t}`);
+// The pairs chain, the id's leak line and the notices: true words at every setting.
+for (const bits of M.RANDOM_BITS)
+  for (let count = M.COUNT_EXP.min; count <= M.COUNT_EXP.max; count++) {
+    const segs = M.pairsChain({ ...M.BASE, bits, count });
+    check(segs.every((x) => !/NaN|Infinity|undefined/.test(x)), `pairs chain ${bits} ${count}`);
+  }
+const leak0 = M.mint(M.BASE).lanes[2].ids.find((x) => x.seq === 1);
+check(M.leakLine(M.layout(M.BASE), leak0).includes('12:00:00.002 UTC on 24 November 2026'), 'leak line reads the time back from the bits');
+for (const key of ['gen', 'seq', 'tick', 'epoch', 'load', 'fault', 'guard', 'bits', 'count'])
+  for (const s of [M.BASE, { ...M.BASE, gen: 16 }, { ...M.BASE, epoch: 1, gen: 16 }]) check(!/NaN|undefined|^\d/.test(M.changeSentence(key, s)) && M.changeSentence(key, s).length > 10, `change sentence ${key}`);
 
 // --- Print. -------------------------------------------------------------------------------------------------------
 console.log('Layouts');
