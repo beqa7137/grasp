@@ -314,7 +314,8 @@ console.log(`   answer positions ${positions.join(', ')}`);
   check(a3.edgeShare === b3.edgeShare, 'E3 edge does not move');
   check(b3.originRps < base.originRps, 'E3 fewer than 20 locations without a shield');
   check(b3.meanMs < a3.meanMs, 'E3 mean falls');
-  check(Math.abs(M.scenario({ ...M.afterAct(e3), pops: 20 }).originRps / b3.originRps - 1) < 0.1, 'E3 about what 20 locations and a shield send');
+  // With a shield, origin load equals one cache seeing all the traffic: (1 - h_edge)(1 - h_shield) = 1 / (1 + rT) per key.
+  for (const s of M.SETTINGS.filter((x) => x.shield)) check(Math.abs(M.scenario(s).originShare - M.scenario({ ...s, pops: 1, shield: 0 }).originShare) < 1e-9, `shield equals one cache ${JSON.stringify(s)}`);
   check(b3.shieldKnee > 50 * b3.edgeKnee, 'E3 the shield keeps far more warm');
   const b4 = M.scenario(M.afterAct(e4));
   check(b4.originRps > base.originRps && b4.originRps < 5 * base.originRps, 'E4 more, far fewer than tenfold');

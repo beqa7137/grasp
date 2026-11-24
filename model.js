@@ -378,7 +378,7 @@
         { text: 'About {less}: fewer than with {pops20} locations and no shield', right: true },
       ],
       reveal:
-        'About {less}: {originRps2} a second. The edge hit rate does not move ({edgeShare}), but the shield\'s one cache sees the misses of all {pops} locations combined, {missRps} a second, so it keeps warm objects that no single location is asked for often enough: it answers {shieldShare2} of all requests, and its half-hit rank is the {shieldKnee2}, against the edge\'s {knee}. That is about what {pops20} locations and a shield send the origin ({at20Shield} a second): with a shield, origin load hardly depends on the number of locations. A shield hit costs {shieldMsExtra} more than an edge hit, but the mean response falls from {meanMs} to {meanMs2}, because far fewer requests cross to the origin.',
+        'About {less}: {originRps2} a second. The edge hit rate does not move ({edgeShare}), but the shield\'s one cache sees the misses of all {pops} locations combined, {missRps} a second, so it keeps warm objects that no single location is asked for often enough: it answers {shieldShare2} of all requests, and its half-hit rank is the {shieldKnee2}, against the edge\'s {knee}. That is what a single cache seeing all the traffic would send: with a shield the origin\'s load no longer depends on the number of locations ({at20Shield} a second at {pops20} too), since an object leaves the shield once per TTL however many locations ask. A shield hit costs {shieldMsExtra} more than an edge hit, but the mean response falls from {meanMs} to {meanMs2}, because far fewer requests cross to the origin.',
       focus: ['tiers', 'square'],
     },
     {
