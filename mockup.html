@@ -1,0 +1,2707 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Durability widget mockup</title>
+    <style>
+      @font-face {
+        font-family: 'Inter Variable';
+        src: url(fonts/inter-latin-wght-normal.woff2) format('woff2');
+        font-weight: 100 900;
+        font-display: block;
+      }
+      @font-face {
+        font-family: 'JetBrains Mono Variable';
+        src: url(fonts/jetbrains-mono-latin-wght-normal.woff2) format('woff2');
+        font-weight: 100 800;
+        font-display: block;
+      }
+      /* The app's tokens (apps/app/src/_theme.scss, styles.scss): light is the base, dark overrides. */
+      :root {
+        color-scheme: light;
+        --g-bg: #f4f5f9;
+        --g-surface: #ffffff;
+        --g-raised: #ffffff;
+        --g-sunken: #eef0f5;
+        --g-line: #dfe2ea;
+        --g-line-strong: #c6cbd6;
+        --g-stroke: #707889;
+        --g-text: #161a23;
+        --g-text-rgb: 22, 26, 35;
+        --g-muted: #4a5263;
+        --g-faint: #5c6477;
+        --g-on-fill: #ffffff;
+        --g-warn-ink: #6e4200;
+        --g-danger-ink: #9d1630;
+        --g-found-ink: #02583f;
+        --g-accent: #5846dc;
+        --g-accent-rgb: 88, 70, 220;
+        --g-accent-soft: rgba(88, 70, 220, 0.14);
+        --g-found: #036b4c;
+        --g-danger: #c3203d;
+        --g-warn: #945800;
+        --g-success-ink: var(--g-found-ink);
+        --g-success-line: var(--g-found);
+        --g-success-soft: rgba(3, 107, 76, 0.12);
+        --g-danger-soft: rgba(195, 32, 61, 0.12);
+        --g-warn-soft: rgba(148, 88, 0, 0.12);
+        --g-viz-stage: #f7f8fb;
+        --g-viz-current: #0b74ad;
+        --g-viz-current-soft: rgba(11, 116, 173, 0.16);
+        --g-viz-considering: #c77700;
+        --g-viz-considering-soft: rgba(199, 119, 0, 0.14);
+        --g-viz-final-soft: rgba(18, 146, 95, 0.14);
+        --g-viz-final: #12925f;
+        --g-viz-final-ink: var(--g-found-ink);
+        --g-viz-discarded-ink: #687082;
+        --g-viz-critical: #d42a49;
+        --g-viz-track: #d3d7e0;
+        --g-shadow: 0 1px 2px rgba(var(--g-text-rgb), 0.06), 0 3px 10px rgba(var(--g-text-rgb), 0.07);
+        --g-shadow-raised: 0 1px 2px rgba(var(--g-text-rgb), 0.08);
+        --g-radius-xs: 6px;
+        --g-radius-sm: 10px;
+        --g-radius-md: 14px;
+        --g-radius-pill: 999px;
+        --g-text-title-m: 1.0625rem;
+        --g-text-title-s: 0.9375rem;
+        --g-text-body: 0.875rem;
+        --g-text-body-s: 0.8125rem;
+        --g-text-label: 0.6875rem;
+        --g-font: 'Inter Variable', system-ui, sans-serif;
+        --g-font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+        --g-focus-ring: 2px solid var(--g-accent);
+      }
+      :root.dark {
+        color-scheme: dark;
+        --g-bg: #0b0d12;
+        --g-surface: #141824;
+        --g-raised: #1c2130;
+        --g-sunken: #0f121a;
+        --g-line: #252a37;
+        --g-line-strong: #343b4d;
+        --g-stroke: #6b7387;
+        --g-text: #e9ebf2;
+        --g-text-rgb: 233, 235, 242;
+        --g-muted: #8b93a8;
+        --g-faint: #828a9e;
+        --g-on-fill: #0b0d12;
+        --g-warn-ink: #f3e6b3;
+        --g-danger-ink: #ffb3bd;
+        --g-found-ink: #3ddc97;
+        --g-accent: #9d8cff;
+        --g-accent-rgb: 157, 140, 255;
+        --g-accent-soft: rgba(157, 140, 255, 0.14);
+        --g-found: #3ddc97;
+        --g-danger: #ff5d73;
+        --g-warn: #ffb547;
+        --g-success-soft: rgba(61, 220, 151, 0.12);
+        --g-danger-soft: rgba(255, 93, 115, 0.12);
+        --g-warn-soft: rgba(255, 181, 71, 0.12);
+        --g-viz-stage: #0e1118;
+        --g-viz-current: #1f9fd0;
+        --g-viz-current-soft: rgba(31, 159, 208, 0.16);
+        --g-viz-considering: #c08420;
+        --g-viz-considering-soft: rgba(192, 132, 32, 0.18);
+        --g-viz-final-soft: rgba(34, 173, 116, 0.18);
+        --g-viz-final: #22ad74;
+        --g-viz-final-ink: var(--g-found);
+        --g-viz-discarded-ink: var(--g-muted);
+        --g-viz-critical: #e5485f;
+        --g-viz-track: #2a3040;
+        --g-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        --g-shadow-raised: var(--g-shadow);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--g-bg);
+        color: var(--g-text);
+        font: 400 var(--g-text-body) / 1.5 var(--g-font);
+        font-variant-ligatures: none;
+        -webkit-font-smoothing: antialiased;
+        overflow-wrap: break-word;
+      }
+      button {
+        font-size: 0.8333rem;
+      }
+      .page {
+        max-width: 1048px;
+        margin: 0 auto;
+        padding: 20px 16px 40px;
+      }
+      .eyebrow {
+        margin: 0;
+        font: 600 var(--g-text-label) var(--g-font);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--g-muted);
+      }
+      h1 {
+        margin: 4px 0 14px;
+        font: 600 1.25rem/1.3 var(--g-font);
+      }
+      .panel {
+        border: 1px solid var(--g-line);
+        border-radius: var(--g-radius-md);
+        background: var(--g-surface);
+        box-shadow: var(--g-shadow);
+        padding: 16px;
+      }
+      /* Narrow: one column, the controls as the stage's first rows, then the stage, the question, Describe, the cards. */
+      .widget {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 12px;
+      }
+      .main,
+      .experiments {
+        display: contents;
+      }
+      .controls {
+        order: 1;
+      }
+      .stage {
+        order: 2;
+        min-width: 0;
+      }
+      .dock {
+        order: 3;
+      }
+      .describe {
+        order: 4;
+      }
+      .heading,
+      .cards {
+        order: 5;
+      }
+      .controls {
+        padding: 12px 12px 0;
+        border: 1px solid var(--g-line);
+        border-bottom: 0;
+        border-radius: var(--g-radius-md) var(--g-radius-md) 0 0;
+        background: var(--g-viz-stage);
+        display: grid;
+        gap: 10px;
+        min-width: 0;
+      }
+      .stage {
+        margin-top: -12px;
+      }
+      .stage .well {
+        border-top: 0;
+        border-radius: 0 0 var(--g-radius-md) var(--g-radius-md);
+      }
+      @media (min-width: 1000px) {
+        .widget {
+          grid-template-columns: minmax(0, 1fr) 340px;
+          grid-template-rows: auto 1fr;
+          align-items: start;
+          column-gap: 20px;
+        }
+        .main {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr);
+          gap: 12px;
+          grid-column: 1;
+          grid-row: 1 / span 2;
+          min-width: 0;
+        }
+        .controls {
+          grid-column: 2;
+          grid-row: 1;
+          padding: 0;
+          border: 0;
+          background: none;
+        }
+        .experiments {
+          display: block;
+          grid-column: 2;
+          grid-row: 2;
+          min-width: 0;
+        }
+        .stage {
+          margin-top: 0;
+        }
+        .stage .well {
+          border-top: 1px solid var(--g-line);
+          border-radius: var(--g-radius-md);
+        }
+        .dock {
+          margin-top: 12px;
+        }
+      }
+      .well {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid var(--g-line);
+        border-radius: var(--g-radius-md);
+        background-color: var(--g-viz-stage);
+        background-image: radial-gradient(circle, rgba(var(--g-text-rgb), 0.09) 1px, transparent 1.5px);
+        background-size: 24px 24px;
+        background-position: 11px 11px;
+      }
+      /* Every fieldset.group carries the same zero padding; a control's own class only adds to it (the R41 padding bug). */
+      fieldset.group {
+        margin: 0;
+        padding: 0;
+        border: 0;
+        min-width: 0;
+      }
+      .control-label {
+        font: 600 var(--g-text-label) var(--g-font);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--g-muted);
+        padding: 0;
+        margin-bottom: 4px;
+      }
+      .segments {
+        display: flex;
+        gap: 4px;
+      }
+      .segment {
+        position: relative;
+        flex: 1 1 0;
+        min-width: 0;
+      }
+      .segment input {
+        position: absolute;
+        inset: 0;
+        margin: 0;
+        opacity: 0;
+        cursor: pointer;
+      }
+      .segment span {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        min-height: 44px;
+        padding: 0 6px;
+        border-radius: var(--g-radius-sm);
+        border: 1px solid var(--g-line-strong);
+        background: var(--g-raised);
+        box-shadow: var(--g-shadow-raised);
+        color: var(--g-text);
+        font: 500 var(--g-text-body) / 1.15 var(--g-font);
+        text-align: center;
+      }
+      .segment input:checked + span {
+        background: var(--g-accent-soft);
+        border-color: var(--g-accent);
+        box-shadow: inset 0 0 0 1px var(--g-accent);
+        font-weight: 600;
+      }
+      fieldset:disabled .segment span,
+      .segment input:disabled + span {
+        opacity: 0.55;
+      }
+      .control-label .why {
+        font-weight: 500;
+        letter-spacing: normal;
+        text-transform: none;
+      }
+      .segment small {
+        font: 500 var(--g-text-label) var(--g-font);
+        color: var(--g-muted);
+      }
+      .toggles {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px;
+      }
+      .toggles .segment span {
+        flex-direction: column;
+        gap: 0;
+        font-size: var(--g-text-body-s);
+      }
+      .notice {
+        margin: 0;
+        min-height: 2lh;
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+      }
+      /* Below wide the notice would sit over the stage and push it down as it speaks: read out only (_widget-controls.scss). */
+      @media (max-width: 999px) {
+        .notice {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          min-height: 0;
+          overflow: hidden;
+          clip-path: inset(50%);
+        }
+        .controls {
+          padding-bottom: 12px;
+        }
+      }
+      .caption {
+        margin: 0;
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+      }
+      .play {
+        position: absolute;
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        border: 0;
+        background: none;
+        cursor: pointer;
+        z-index: 2;
+      }
+      .play svg {
+        display: block;
+        width: 36px;
+        height: 36px;
+        margin: 4px;
+      }
+      .play circle {
+        fill: var(--g-raised);
+        stroke: var(--g-accent);
+        stroke-width: 1.5;
+      }
+      .play path {
+        fill: var(--g-accent);
+      }
+      .play:disabled {
+        cursor: default;
+        opacity: 0.55;
+      }
+      .handle {
+        position: absolute;
+        width: 44px;
+        height: 44px;
+        display: grid;
+        place-items: center;
+        cursor: ew-resize;
+        z-index: 2;
+      }
+      .handle .knob {
+        width: 14px;
+        height: 26px;
+        border-radius: var(--g-radius-pill);
+        background: var(--g-raised);
+        border: 2px solid var(--g-accent);
+        box-shadow: var(--g-shadow-raised);
+      }
+      .handle[aria-disabled='true'] {
+        cursor: default;
+      }
+      .handle[aria-disabled='true'] .knob {
+        opacity: 0.55;
+      }
+      /* Drawing roles: text sits on a stage-coloured halo; small text is measured as drawn (no tabular digits). */
+      svg.draw {
+        position: absolute;
+        left: 0;
+        top: 0;
+        display: block;
+        overflow: visible;
+      }
+      svg.draw text {
+        paint-order: stroke;
+        stroke: var(--g-viz-stage);
+        stroke-width: 3px;
+        stroke-linejoin: round;
+      }
+      svg.draw text.on-box {
+        stroke: var(--g-raised);
+      }
+      svg.draw text.on-chip {
+        stroke: none;
+      }
+      svg.draw text.on-sunken {
+        stroke: var(--g-sunken);
+      }
+      .t-label {
+        font: 600 var(--g-text-label) var(--g-font);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        fill: var(--g-muted);
+      }
+      .t-cap {
+        font: 500 var(--g-text-body-s) var(--g-font);
+        fill: var(--g-muted);
+      }
+      .t-capB {
+        font: 600 var(--g-text-body-s) var(--g-font);
+        fill: var(--g-text);
+      }
+      .t-small {
+        font: 500 var(--g-text-label) var(--g-font);
+        fill: var(--g-muted);
+      }
+      .t-smallB {
+        font: 700 var(--g-text-label) var(--g-font);
+        fill: var(--g-text);
+      }
+      .t-mono {
+        font: 600 var(--g-text-label) var(--g-font-mono);
+        fill: var(--g-text);
+      }
+      .t-nameS {
+        font: 600 13px var(--g-font-mono);
+        fill: var(--g-text);
+      }
+      .t-head {
+        font: 600 var(--g-text-title-m) var(--g-font-mono);
+        fill: var(--g-text);
+      }
+      .ink {
+        fill: var(--g-text);
+      }
+      .muted {
+        fill: var(--g-muted);
+      }
+      .bad {
+        fill: var(--g-danger-ink);
+      }
+      .wait-ink {
+        fill: var(--g-warn-ink);
+      }
+      .cur-ink {
+        fill: var(--g-viz-current);
+      }
+      .crit-ink {
+        fill: var(--g-viz-critical);
+      }
+      .rule {
+        stroke: var(--g-line);
+      }
+      .t-unit {
+        text-transform: none;
+      }
+      /* The chain: wires are structure (3:1 on the stage), the request's path is the current tone. */
+      .wire {
+        fill: none;
+        stroke: var(--g-stroke);
+        stroke-width: 1.25;
+      }
+      .wire.soft {
+        stroke-opacity: 0.6;
+      }
+      .path {
+        fill: none;
+        stroke: var(--g-viz-current);
+        stroke-width: 2.75;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .path-hidden {
+        fill: none;
+        stroke: var(--g-stroke);
+        stroke-width: 1.25;
+        stroke-dasharray: 4 3;
+      }
+      .box {
+        fill: var(--g-raised);
+        stroke: var(--g-line-strong);
+        stroke-width: 1.25;
+      }
+      .box.serving {
+        stroke: var(--g-viz-current);
+        stroke-width: 2;
+      }
+      .box.next {
+        fill: var(--g-viz-current-soft);
+        stroke: var(--g-viz-current);
+      }
+      .box.down {
+        fill: url(#hatch);
+        stroke: var(--g-viz-discarded-ink);
+        stroke-width: 1.25;
+      }
+      .hatch-fill {
+        fill: var(--g-sunken);
+      }
+      .hatch-line {
+        stroke: var(--g-viz-discarded-ink);
+        stroke-opacity: 0.4;
+        stroke-width: 1.5;
+      }
+      .xmark {
+        stroke: var(--g-viz-critical);
+        stroke-width: 2;
+        stroke-linecap: round;
+        fill: none;
+      }
+      .xground {
+        fill: var(--g-viz-stage);
+      }
+      .stop {
+        fill: var(--g-viz-critical);
+        stroke: var(--g-viz-stage);
+        stroke-width: 1.5;
+        paint-order: stroke;
+      }
+      .xground.on-box {
+        fill: var(--g-raised);
+      }
+      .ok-ring {
+        fill: var(--g-viz-stage);
+        stroke: var(--g-viz-final);
+        stroke-width: 1.75;
+      }
+      .ok-mark {
+        fill: none;
+        stroke: var(--g-viz-final);
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .bad-ring {
+        fill: var(--g-viz-stage);
+        stroke: var(--g-viz-critical);
+        stroke-width: 1.75;
+      }
+      .q-ring {
+        fill: var(--g-viz-stage);
+        stroke: var(--g-stroke);
+        stroke-width: 1.25;
+        stroke-dasharray: 3 2.5;
+      }
+      .start-dot {
+        fill: var(--g-viz-current);
+      }
+      .start-dot.hidden {
+        fill: var(--g-stroke);
+      }
+      /* The year: a copy's outage is a neutral tick; what reaches the request is critical. */
+      .row-track {
+        stroke: var(--g-line);
+      }
+      .strip-track {
+        stroke: var(--g-line-strong);
+      }
+      .tick-copy {
+        fill: var(--g-text);
+        fill-opacity: 0.62;
+      }
+      .tick-fail {
+        fill: var(--g-viz-critical);
+      }
+      .tick-bypassed {
+        fill: none;
+        stroke: var(--g-stroke);
+        stroke-width: 1;
+      }
+      .req-hidden {
+        fill: none;
+        stroke: var(--g-stroke);
+        stroke-dasharray: 4 3;
+      }
+      .req-band {
+        fill: rgba(var(--g-text-rgb), 0.04);
+      }
+      .axis {
+        stroke: var(--g-line-strong);
+      }
+      .gridline {
+        stroke: var(--g-line);
+      }
+      .moment {
+        stroke: var(--g-text);
+        stroke-opacity: 0.4;
+      }
+      .moment-head {
+        fill: var(--g-text);
+        fill-opacity: 0.7;
+      }
+      .ring {
+        fill: none;
+        stroke: var(--g-text);
+        stroke-width: 1.5;
+      }
+      .playhead {
+        stroke: var(--g-text);
+        stroke-width: 1.5;
+      }
+      /* The nines scale: a solid length is what the model gives; the soft length beyond it is the paper's promise. */
+      .bar {
+        fill: var(--g-viz-current);
+      }
+      /* What the paper promised: outlined in the current tone (its edge carries it, 3:1), the fill only a tint. */
+      .bar.paper {
+        fill: color-mix(in srgb, var(--g-viz-current) 22%, var(--g-viz-stage));
+        stroke: var(--g-viz-current);
+        stroke-width: 1;
+      }
+      .key-paper {
+        fill: var(--g-viz-current);
+        fill-opacity: 0.22;
+        stroke: var(--g-viz-current);
+        stroke-width: 1;
+      }
+      .key-solid {
+        fill: var(--g-viz-current);
+      }
+      .goal-line {
+        stroke: var(--g-muted);
+        stroke-width: 1.5;
+      }
+      .goal-line.met {
+        stroke: var(--g-viz-final);
+      }
+      .ghost-caret {
+        fill: none;
+        stroke: var(--g-text);
+        stroke-width: 1.25;
+        stroke-linejoin: round;
+      }
+      .n-ring {
+        fill: var(--g-viz-stage);
+        stroke: var(--g-stroke);
+        stroke-width: 1.25;
+      }
+      .inuse {
+        fill: var(--g-viz-current);
+      }
+      .tick-shared {
+        fill: var(--g-text);
+        fill-opacity: 0.62;
+      }
+      .split-shared {
+        fill: var(--g-viz-critical);
+      }
+      .split-failover {
+        fill: var(--g-viz-critical);
+      }
+      .split-chance {
+        fill: var(--g-text);
+      }
+      .split-track {
+        stroke: var(--g-line-strong);
+      }
+      .inset-down {
+        fill: var(--g-text);
+        fill-opacity: 0.62;
+      }
+      .inset-up {
+        stroke: var(--g-viz-current);
+        stroke-width: 2;
+      }
+      .inset-frame {
+        fill: none;
+        stroke: var(--g-line-strong);
+      }
+      .bar.optional {
+        fill: var(--g-viz-discarded-ink);
+        fill-opacity: 0.45;
+      }
+      .bar.request {
+        fill: var(--g-text);
+        fill-opacity: 0.82;
+      }
+      .bar-hidden {
+        fill: none;
+        stroke: var(--g-stroke);
+        stroke-dasharray: 4 3;
+      }
+      .notch {
+        fill: var(--g-viz-stage);
+      }
+      .capline {
+        stroke: var(--g-viz-critical);
+        stroke-width: 1.5;
+      }
+      .capend {
+        fill: var(--g-viz-critical);
+      }
+      .ghost-tick {
+        fill: var(--g-viz-stage);
+        stroke: var(--g-stroke);
+        stroke-width: 1.25;
+      }
+      .key-copy {
+        fill: var(--g-text);
+        fill-opacity: 0.62;
+      }
+      .key-fail {
+        fill: var(--g-viz-critical);
+      }
+      .ok-ink {
+        fill: var(--g-viz-final-ink);
+      }
+      /* Steppers and toggles (kit: g-stepper, the house toggle). */
+      .steppers {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px 8px;
+      }
+      .stepper {
+        display: grid;
+        grid-template-columns: 44px minmax(0, 1fr) 44px;
+        align-items: center;
+        border: 1px solid var(--g-line-strong);
+        border-radius: var(--g-radius-sm);
+        background: var(--g-raised);
+        box-shadow: var(--g-shadow-raised);
+      }
+      .stepper button {
+        width: 44px;
+        height: 44px;
+        border: 0;
+        background: none;
+        color: var(--g-text);
+        font: 500 1.125rem/1 var(--g-font);
+        cursor: pointer;
+      }
+      .stepper button:disabled {
+        opacity: 0.35;
+        cursor: default;
+      }
+      .stepper output {
+        display: grid;
+        justify-items: center;
+        line-height: 1.15;
+        font: 600 var(--g-text-body) var(--g-font-mono);
+      }
+      .stepper output small {
+        font: 500 var(--g-text-label) var(--g-font);
+        color: var(--g-muted);
+      }
+      fieldset:disabled .stepper {
+        opacity: 0.55;
+      }
+      .toggles3 {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 4px;
+      }
+      .toggles3 .segment span {
+        flex-direction: column;
+        gap: 0;
+        min-height: 48px;
+        font-size: var(--g-text-body-s);
+        font-weight: 600;
+      }
+      .toggles3 .segment small {
+        font: 500 var(--g-text-label) var(--g-font);
+        color: var(--g-muted);
+      }
+      /* A checked toggle keeps its weight and size: only its colours change, and a check glyph takes its reserved corner. */
+      .toggles3 .segment span {
+        position: relative;
+      }
+      .toggles3 .segment input:checked + span {
+        font-weight: 600;
+      }
+      .toggles3 .segment input:checked + span::after {
+        content: '';
+        position: absolute;
+        top: 5px;
+        right: 6px;
+        width: 8px;
+        height: 4px;
+        border-left: 2px solid var(--g-accent);
+        border-bottom: 2px solid var(--g-accent);
+        transform: rotate(-45deg);
+      }
+      /* The phone's readout of the request, inside the controls, so a press and its result share a screen. */
+      .readout {
+        margin: 0;
+        min-height: 2lh;
+        font: 600 var(--g-text-body-s) / 1.45 var(--g-font);
+        color: var(--g-text);
+      }
+      .readout .q {
+        color: var(--g-muted);
+      }
+      @media (min-width: 1000px) {
+        .readout {
+          display: none;
+        }
+      }
+      .note {
+        order: 4;
+      }
+      .caption {
+        order: 2;
+      }
+      .note,
+      .caption {
+        margin: 0;
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+      }
+      .strip-band {
+        fill: var(--g-sunken);
+        stroke: var(--g-line-strong);
+        stroke-width: 1;
+      }
+      .nowrap {
+        white-space: nowrap;
+      }
+      .focus-outline {
+        fill: none;
+        stroke: var(--g-accent);
+        stroke-width: 2;
+        stroke-dasharray: 6 4;
+      }
+      .tag {
+        fill: var(--g-viz-stage);
+        stroke: var(--g-accent);
+        stroke-width: 1.5;
+      }
+      .t-look {
+        font: 600 var(--g-text-label) var(--g-font);
+        fill: var(--g-accent);
+      }
+      /* The experiment dock and cards (experiment-dock.component.ts, widget-check.component.ts). */
+      .dock {
+        padding: 12px 16px;
+        border-radius: var(--g-radius-md);
+        border: 1px solid var(--g-line);
+        border-left: 3px solid var(--g-accent);
+        background: var(--g-surface);
+      }
+      .dock:empty {
+        display: none;
+      }
+      .legend {
+        margin: 0 0 4px;
+        font-weight: 600;
+        line-height: 1.45;
+      }
+      .options {
+        list-style: none;
+        margin: 8px 0 0;
+        padding: 0;
+        display: grid;
+        gap: 8px;
+      }
+      .g-choice {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        padding: 10px 14px;
+        border-radius: 12px;
+        border: 1px solid var(--g-line-strong);
+        background: var(--g-raised);
+        color: var(--g-text);
+        font: 500 0.90625rem/1.45 var(--g-font);
+        text-align: left;
+      }
+      button.g-choice {
+        box-shadow: var(--g-shadow-raised);
+        cursor: pointer;
+      }
+      .g-choice.right {
+        border-color: var(--g-success-line);
+        background: var(--g-success-soft);
+      }
+      .g-choice.wrong {
+        border-color: var(--g-danger);
+        background: var(--g-danger-soft);
+      }
+      .mark {
+        flex: none;
+        width: 20px;
+        height: 20px;
+      }
+      .held {
+        margin: 10px 0 0;
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+      }
+      .reveal {
+        margin: 10px 0 0;
+        line-height: 1.55;
+        font-size: 0.90625rem;
+      }
+      .status-line {
+        margin: 8px 0 4px;
+        font: 600 var(--g-text-body) var(--g-font);
+        color: var(--g-muted);
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .status-line.met {
+        color: var(--g-success-ink);
+      }
+      .status {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        gap: 4px;
+        font: 600 var(--g-text-body-s) var(--g-font);
+        font-variant-numeric: tabular-nums;
+        color: var(--g-muted);
+      }
+      .status li {
+        display: flex;
+        gap: 8px;
+        align-items: baseline;
+      }
+      .status li.met {
+        color: var(--g-success-ink);
+      }
+      .status .state {
+        flex: none;
+        width: 16px;
+      }
+      .heading {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font: 600 var(--g-text-title-s) var(--g-font);
+        margin: 20px 0 8px;
+      }
+      .heading svg {
+        color: var(--g-accent);
+      }
+      .cards {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 8px;
+      }
+      .card-btn {
+        width: 100%;
+        min-height: 48px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 12px;
+        border: 1px solid var(--g-line-strong);
+        border-radius: var(--g-radius-sm);
+        background: var(--g-raised);
+        box-shadow: var(--g-shadow-raised);
+        color: var(--g-text);
+        font: 500 var(--g-text-body) var(--g-font);
+        text-align: left;
+      }
+      .card-btn[aria-current] {
+        border-color: var(--g-accent);
+        box-shadow: inset 0 0 0 1px var(--g-accent);
+        background: var(--g-accent-soft);
+      }
+      .card-btn .num {
+        flex: none;
+        display: grid;
+        place-items: center;
+        width: 26px;
+        height: 26px;
+        border-radius: var(--g-radius-pill);
+        background: var(--g-sunken);
+        font: 600 var(--g-text-body-s) var(--g-font-mono);
+        color: var(--g-muted);
+      }
+      /* Describe: a minmax(0, 1fr) grid, its table scrolling inside its own box; compact on narrow stages. */
+      .describe {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 8px;
+        justify-items: start;
+      }
+      .describe .muted-note {
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+        margin: 0;
+      }
+      .describe p.summary {
+        margin: 0;
+        font-size: var(--g-text-body-s);
+      }
+      .g-btn {
+        appearance: none;
+        border: 1px solid var(--g-line-strong);
+        background: var(--g-raised);
+        box-shadow: var(--g-shadow-raised);
+        color: var(--g-text);
+        border-radius: var(--g-radius-sm);
+        padding: 9px 14px;
+        min-height: 44px;
+        font: 500 var(--g-text-body) / 1 var(--g-font);
+      }
+      .g-btn:disabled {
+        opacity: 0.55;
+      }
+      .table-box {
+        justify-self: stretch;
+        overflow: auto;
+        border-top: 1px solid var(--g-line);
+      }
+      tbody tr {
+        height: 28px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font: 500 var(--g-text-body-s) var(--g-font);
+        font-variant-numeric: tabular-nums;
+      }
+      th,
+      td {
+        text-align: right;
+        padding: 4px 8px;
+        white-space: nowrap;
+      }
+      th:first-child,
+      td:first-child {
+        text-align: left;
+      }
+      th {
+        font: 600 var(--g-text-label) var(--g-font);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--g-muted);
+        position: sticky;
+        top: 0;
+        background: var(--g-surface);
+        vertical-align: bottom;
+      }
+      td {
+        border-top: 1px solid var(--g-line);
+      }
+      tr.now td {
+        background: var(--g-accent-soft);
+        font-weight: 600;
+      }
+      .compact th,
+      .compact td {
+        padding-inline: 4px;
+      }
+      .compact th {
+        letter-spacing: normal;
+        white-space: normal;
+      }
+      th .unit {
+        text-transform: none;
+      }
+      tbody th {
+        font: 600 var(--g-text-body-s) var(--g-font);
+        letter-spacing: normal;
+        text-transform: none;
+        color: var(--g-text);
+        position: static;
+        background: none;
+        border-top: 1px solid var(--g-line);
+        text-align: left;
+        white-space: nowrap;
+        padding: 4px 8px;
+      }
+      thead th {
+        white-space: normal;
+      }
+      tr.now th {
+        background: var(--g-accent-soft);
+      }
+      tbody th small {
+        display: block;
+        font: 500 var(--g-text-label) var(--g-font);
+        color: var(--g-danger-ink);
+      }
+      .held-choice {
+        border-style: dashed;
+      }
+      .describe .summary + .summary {
+        margin-top: -2px;
+      }
+
+      /* ---------- Durability: the pieces, the race and the steps. */
+      .segments4 {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 4px;
+      }
+      .segments5 {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 4px;
+      }
+      .segments2 {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 4px;
+      }
+      /* A checked segment keeps its weight: only its colours change (prevention 20). */
+      .segment input:checked + span {
+        font-weight: 500;
+      }
+      .segment input:focus-visible + span {
+        outline: var(--g-focus-ring);
+        outline-offset: 2px;
+      }
+      .controls-grid {
+        display: grid;
+        gap: 10px;
+      }
+      .pill {
+        position: absolute;
+        height: 44px;
+        padding: 0;
+        border: 0;
+        background: none;
+        cursor: pointer;
+        z-index: 2;
+        font: 500 var(--g-text-body-s) var(--g-font);
+        color: var(--g-text);
+      }
+      .pill span {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 34px;
+        margin: 5px 0;
+        padding: 0 12px;
+        border-radius: var(--g-radius-pill);
+        border: 1px solid var(--g-line-strong);
+        background: var(--g-raised);
+        box-shadow: var(--g-shadow-raised);
+        white-space: nowrap;
+      }
+      .pill[aria-pressed='true'] span {
+        border-color: var(--g-viz-critical);
+        box-shadow: inset 0 0 0 1px var(--g-viz-critical);
+      }
+      .pill:disabled {
+        cursor: default;
+        opacity: 0.55;
+      }
+      .disk {
+        fill: var(--g-raised);
+        stroke: var(--g-line-strong);
+        stroke-width: 1.25;
+      }
+      .disk.copy,
+      .disk.data {
+        fill: var(--g-viz-current-soft);
+        stroke: var(--g-viz-current);
+      }
+      .disk.parity {
+        fill: var(--g-viz-considering-soft);
+        stroke: var(--g-viz-considering);
+      }
+      .disk.down {
+        fill: url(#hatch);
+        stroke: var(--g-viz-discarded-ink);
+      }
+      .disk.spare {
+        fill: var(--g-raised);
+        stroke: var(--g-stroke);
+      }
+      .disk.rebuilt {
+        fill: var(--g-viz-final-soft);
+        stroke: var(--g-viz-final);
+        stroke-width: 2;
+      }
+      .fill-rebuild {
+        fill: var(--g-viz-final);
+        fill-opacity: 0.55;
+      }
+      .rack {
+        fill: none;
+        stroke: var(--g-line-strong);
+        stroke-width: 1;
+      }
+      .rack.struck {
+        stroke: var(--g-viz-critical);
+        stroke-width: 1.75;
+      }
+      .seg-copy,
+      .seg-data {
+        fill: var(--g-viz-current);
+      }
+      .seg-parity {
+        fill: var(--g-viz-considering);
+      }
+      .seg-down {
+        fill: url(#hatch);
+        stroke: var(--g-viz-discarded-ink);
+        stroke-width: 1;
+      }
+      .obj {
+        fill: var(--g-text);
+        fill-opacity: 0.78;
+      }
+      .read {
+        fill: none;
+        stroke: var(--g-viz-current);
+        stroke-width: 1.5;
+        stroke-linejoin: round;
+      }
+      .read-head {
+        fill: var(--g-viz-current);
+      }
+      .read-dot {
+        fill: var(--g-viz-current);
+        stroke: var(--g-viz-stage);
+        stroke-width: 1.5;
+      }
+      .band {
+        fill: var(--g-viz-current-soft);
+        stroke: var(--g-viz-current);
+        stroke-width: 1;
+      }
+      .band-fill {
+        fill: var(--g-viz-current);
+      }
+      .band.lost {
+        fill: var(--g-danger-soft);
+        stroke: var(--g-viz-critical);
+      }
+      .track {
+        stroke: var(--g-line-strong);
+      }
+      .step-arrow {
+        stroke: var(--g-viz-current);
+        stroke-width: 2;
+        fill: none;
+      }
+      .step-arrow.up {
+        stroke: var(--g-viz-considering);
+      }
+      .step-arrow.first {
+        stroke: var(--g-text);
+        stroke-opacity: 0.7;
+      }
+      .head-cur {
+        fill: var(--g-viz-current);
+      }
+      .head-up {
+        fill: var(--g-viz-considering);
+      }
+      .head-first {
+        fill: var(--g-text);
+        fill-opacity: 0.7;
+      }
+      .from-tick {
+        stroke: var(--g-text);
+        stroke-opacity: 0.55;
+        stroke-width: 1.25;
+      }
+      .dot-final {
+        fill: var(--g-text);
+      }
+      .dot-rack {
+        fill: var(--g-viz-critical);
+      }
+      .bar-final {
+        fill: var(--g-text);
+        fill-opacity: 0.82;
+      }
+      .bar-final.rack {
+        fill: var(--g-viz-critical);
+      }
+      .bar-rack {
+        fill: var(--g-viz-critical);
+        fill-opacity: 0.85;
+      }
+      .gridline.nine {
+        stroke: var(--g-line-strong);
+        stroke-width: 1.25;
+      }
+      .goal-line.met {
+        stroke: var(--g-viz-final);
+      }
+      .lost-ink {
+        fill: var(--g-danger-ink);
+      }
+      .staged-tag {
+        fill: var(--g-danger-soft);
+        stroke: var(--g-viz-critical);
+        stroke-width: 1;
+      }
+      svg.draw text.on-tag {
+        stroke: none;
+      }
+      .note-list {
+        order: 4;
+        margin: 0;
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+      }
+      .readout {
+        min-height: 3lh;
+      }
+      .controls-grid .segment span {
+        padding: 0 3px;
+        white-space: nowrap;
+        font-size: var(--g-text-body-s);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <p class="eyebrow">System design · Durability &amp; Erasure Coding</p>
+      <h1>Try it</h1>
+      <section class="panel widget" id="widget"></section>
+    </main>
+    <script src="model.js"></script>
+    <script>
+'use strict';
+const M = window.DurabilityModel;
+const params = new URLSearchParams(location.search);
+document.documentElement.classList.toggle('dark', params.get('theme') === 'dark');
+
+// ---------- Text measurement, with the fonts the app ships (stage text uses proportional digits, measured as drawn).
+// The label role is set in capitals, but a unit after a number keeps its case ("24 h", "20 TB").
+const ROLE = {
+  label: { css: '600 11px "Inter Variable"', size: 11, track: 0.12, upper: true },
+  cap: { css: '500 13px "Inter Variable"', size: 13 },
+  capB: { css: '600 13px "Inter Variable"', size: 13 },
+  small: { css: '500 11px "Inter Variable"', size: 11 },
+  smallB: { css: '700 11px "Inter Variable"', size: 11 },
+  mono: { css: '600 11px "JetBrains Mono Variable"', size: 11 },
+  tiny: { css: '600 10px "JetBrains Mono Variable"', size: 10 },
+  head: { css: '600 17px "JetBrains Mono Variable"', size: 17 },
+  look: { css: '600 11px "Inter Variable"', size: 11 },
+};
+const UNIT_AFTER_NUMBER = /(?<=\d )(h|TB|PB|MB|Gb\/s)\b/;
+const upperKeepUnits = (t) => t.toUpperCase().replace(/(?<=\d )(H|TB|PB|MB|GB\/S)\b/g, (u) => (u === 'H' ? 'h' : u === 'GB/S' ? 'Gb/s' : u));
+const ctx = document.createElement('canvas').getContext('2d');
+const widthCache = new Map();
+function tw(text, role) {
+  const key = role + '|' + text;
+  if (widthCache.has(key)) return widthCache.get(key);
+  const f = ROLE[role];
+  ctx.font = f.css;
+  const s = f.upper ? upperKeepUnits(text) : text;
+  const w = Math.ceil(ctx.measureText(s).width + (f.track ? f.track * f.size * s.length : 0)) + 1;
+  widthCache.set(key, w);
+  return w;
+}
+const partsWidth = (parts) => parts.reduce((s, [t, role, , dx = 0]) => s + tw(t, role) + dx, 0);
+/** The keep rule (g-code-text's, extended): a number keeps its unit, "1 in 18,000" stays whole, "6 + 3" stays whole,
+ * "× 56" keeps its factor, a piece's name keeps its number. */
+const KEEP = [
+  [/\b1 in (\d[\d.,]*)( (?:thousand|million|billion|trillion|quadrillion|quintillion|sextillion))?/g, (m) => m.replace(/ /g, '\u0001')],
+  [/(\d+) \+ (\d+)/g, '$1\u0001+\u0001$2'],
+  [/(\d[\d.,]*%?) (h|TB|PB|MB|Gb\/s|nines|copies|copy|pieces|piece|years|disks|ways|million|billion|trillion)\b/g, '$1\u0001$2'],
+  [/× (\d)/g, '×\u0001$1'],
+  [/(\d) ×/g, '$1\u0001×'],
+  [/\b(every) (\d)/g, '$1\u0001$2'],
+];
+const keepJoin = (text) => KEEP.reduce((t, [re, to]) => t.replace(re, to), text);
+function wrap(text, role, width) {
+  const words = keepJoin(text).split(' ');
+  const lines = [];
+  let line = '';
+  for (const w of words) {
+    const next = line ? line + ' ' + w : w;
+    if (tw(next.replace(/\u0001/g, ' '), role) <= width || !line) line = next;
+    else {
+      lines.push(line);
+      line = w;
+    }
+  }
+  if (line) lines.push(line);
+  return lines.map((l) => l.replace(/\u0001/g, ' '));
+}
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const labelInner = (t) =>
+  esc(t)
+    .split(UNIT_AFTER_NUMBER)
+    .map((p, i) => (i % 2 ? `<tspan class="t-unit">${p}</tspan>` : p))
+    .join('');
+/** HTML learner text: the same keep rule as the stage, as g-code-text applies it. */
+const codeText = (t) =>
+  keepJoin(esc(t))
+    .split(' ')
+    .map((w) => (w.includes('\u0001') ? `<span class="nowrap">${w.replace(/\u0001/g, ' ')}</span>` : w))
+    .join(' ');
+const r1 = (v) => Math.round(v * 10) / 10;
+const plural = M.plural;
+const cap1 = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+const pick = (forms, fits) => forms.find(fits) ?? forms[forms.length - 1];
+
+// ---------- The drawing: SVG parts in layers, and the boxes placement checks against (the house Draw).
+class Draw {
+  constructor(W) {
+    this.W = W;
+    this.layers = { back: [], grid: [], links: [], marks: [], dots: [], text: [], top: [] };
+    this.texts = [];
+    this.marks = [];
+    this.links = [];
+    this.hits = [];
+    this.regions = {};
+    this.missing = [];
+    this.meta = {};
+  }
+  add(layer, s) {
+    this.layers[layer].push(s);
+  }
+  textBox(x, y, w, role, anchor = 'start') {
+    const fs = ROLE[role].size;
+    const x0 = anchor === 'middle' ? x - w / 2 : anchor === 'end' ? x - w : x;
+    return { x0, x1: x0 + w, y0: y - 0.74 * fs, y1: y + 0.22 * fs };
+  }
+  text(x, y, parts, o = {}) {
+    if (typeof parts === 'string') parts = [[parts, o.role ?? 'small', o.cls ?? '']];
+    const anchor = o.anchor ?? 'start';
+    const w = partsWidth(parts);
+    const role = parts.reduce((a, p) => (ROLE[p[1]].size > ROLE[a].size ? p[1] : a), parts[0][1]);
+    const box = this.textBox(x, y, w, role, anchor);
+    box.owner = o.owner ?? '';
+    box.s = parts.map((p) => p[0]).join('');
+    this.texts.push(box);
+    const spans = parts.map(([t, r, cls = '', dx = 0]) => `<tspan class="t-${r} ${cls}"${dx ? ` dx="${dx}"` : ''}>${r === 'label' ? labelInner(t) : esc(t)}</tspan>`).join('');
+    const attrs = `x="${r1(x)}" y="${r1(y)}" text-anchor="${anchor}"${o.owner ? ` data-owner="${o.owner}"` : ''}${o.ground ? ' data-ground="1"' : ''}${o.data ?? ''}`;
+    this.add(o.layer ?? 'text', `<text class="${o.textCls ?? ''}" ${attrs}>${spans}</text>`);
+    return box;
+  }
+  mark(box, owner = '') {
+    this.marks.push({ ...box, owner });
+  }
+  link(points, owner = '') {
+    this.links.push({ points, owner });
+  }
+  hit(kind, x, y, w, h, extra = {}) {
+    this.hits.push({ kind, x, y, w, h, ...extra });
+  }
+  region(id, box) {
+    (this.regions[id] ??= []).push(box);
+  }
+  free(box, ignoreOwner = '', margin = 2) {
+    const b = { x0: box.x0 - margin, x1: box.x1 + margin, y0: box.y0 - margin, y1: box.y1 + margin };
+    const hit = (o) => !(o.x1 <= b.x0 || o.x0 >= b.x1 || o.y1 <= b.y0 || o.y0 >= b.y1);
+    const mine = (o) => ignoreOwner && o.owner && o.owner.split(' ').some((t) => ignoreOwner.split(' ').includes(t));
+    if (this.texts.some((t) => hit(t) && !mine(t))) return false;
+    if (this.marks.some((m) => hit(m) && !mine(m))) return false;
+    if (this.hits.some((h) => hit({ x0: h.x, x1: h.x + h.w, y0: h.y, y1: h.y + h.h }))) return false;
+    for (const l of this.links) {
+      if (mine(l)) continue;
+      if (l.points.some(([x, y]) => x > b.x0 && x < b.x1 && y > b.y0 && y < b.y1)) return false;
+    }
+    return b.x0 >= 2 && b.x1 <= this.W - 2;
+  }
+  /** Puts a text at the first candidate where it covers nothing; records it as missing when none is free. */
+  place(cands, parts, o = {}) {
+    if (typeof parts === 'string') parts = [[parts, o.role ?? 'small', o.cls ?? '']];
+    for (const [x, y, anchor = 'start'] of cands) {
+      const w = partsWidth(parts);
+      const role = parts.reduce((a, p) => (ROLE[p[1]].size > ROLE[a].size ? p[1] : a), parts[0][1]);
+      const box = this.textBox(x, y, w, role, anchor);
+      if (box.y0 < (o.minY ?? 0) || box.y1 > (o.maxY ?? Infinity) || box.x0 < (o.minX ?? 2) || box.x1 > (o.maxX ?? this.W - 2)) continue;
+      if (!this.free(box, o.ignore ?? '', o.margin ?? 2)) continue;
+      return this.text(x, y, parts, { ...o, anchor });
+    }
+    if (!o.optional) this.missing.push(parts.map((p) => p[0]).join(''));
+    return null;
+  }
+  line(x1, y1, x2, y2, cls, o = {}) {
+    this.add(o.layer ?? 'links', `<line class="${cls}" x1="${r1(x1)}" y1="${r1(y1)}" x2="${r1(x2)}" y2="${r1(y2)}"${o.owner ? ` data-owner="${o.owner}"` : ''}${o.data ?? ''}/>`);
+    if (o.solid !== false) this.link(sampleLine(x1, y1, x2, y2), o.owner ?? cls);
+  }
+  rect(x, y, w, h, cls, o = {}) {
+    this.add(o.layer ?? 'marks', `<rect class="${cls}" x="${r1(x)}" y="${r1(y)}" width="${r1(Math.max(0, w))}" height="${r1(Math.max(0, h))}"${o.rx ? ` rx="${o.rx}"` : ''}${o.owner ? ` data-owner="${o.owner}"` : ''}${o.data ?? ''}/>`);
+    if (o.mark !== false) this.mark({ x0: x, x1: x + w, y0: y, y1: y + h }, o.owner ?? cls);
+  }
+  para(x, y, lines, role, lh, o = {}) {
+    lines.forEach((l, i) => this.text(x, y + i * lh, [[l, role, o.cls ?? '']], o));
+  }
+  svg(H, label) {
+    const L = this.layers;
+    return `<svg class="draw" width="${this.W}" height="${H}" viewBox="0 0 ${this.W} ${H}" role="img" aria-label="${esc(label)}">
+<defs>
+<pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" class="hatch-fill"/><line class="hatch-line" x1="0" y1="0" x2="0" y2="6"/></pattern>
+</defs>
+<g>${L.back.join('')}</g><g>${L.grid.join('')}</g><g>${L.links.join('')}</g><g>${L.marks.join('')}</g><g>${L.dots.join('')}</g><g>${L.text.join('')}</g><g>${L.top.join('')}</g></svg>`;
+  }
+}
+const sampleLine = (x1, y1, x2, y2, step = 3) => {
+  const n = Math.max(2, Math.ceil(Math.hypot(x2 - x1, y2 - y1) / step));
+  return Array.from({ length: n + 1 }, (_, i) => [x1 + ((x2 - x1) * i) / n, y1 + ((y2 - y1) * i) / n]);
+};
+function xGlyph(D, cx, cy, owner, s = 4, ground = '') {
+  D.add('dots', `<circle class="xground ${ground}" cx="${r1(cx)}" cy="${r1(cy)}" r="${s + 2.5}"/><path class="xmark" data-owner="${owner}" d="M${r1(cx - s)} ${r1(cy - s)}l${2 * s} ${2 * s}M${r1(cx + s)} ${r1(cy - s)}l${-2 * s} ${2 * s}"/>`);
+  D.mark({ x0: cx - s - 2, x1: cx + s + 2, y0: cy - s - 2, y1: cy + s + 2 }, owner);
+}
+function checkGlyph(D, cx, cy, owner, r = 6) {
+  D.add('dots', `<circle class="ok-ring" cx="${r1(cx)}" cy="${r1(cy)}" r="${r}"/><path class="ok-mark" d="M${r1(cx - 3)} ${r1(cy + 0.2)}l2.2 2.3 4-4.4"/>`);
+  D.mark({ x0: cx - r - 1, x1: cx + r + 1, y0: cy - r - 1, y1: cy + r + 1 }, owner);
+}
+
+// ---------- What an open question hides, on every surface: one map (prevention 1). A question names its regions in
+// its own `hide` list. `steps`, while it asks and plays, hides the model's factors (the staircase's rows, the window's
+// chance in the race sentence, Describe); `after`, while the answer plays, hides everything the model says at the act's
+// new setting: the steps, the yearly loss (the headline's nines, the last row, the summary's numbers), and the rebuild's
+// reads (the stubs, the read dots, their words, the cost sentence). No ghost of an earlier setting shows while a question
+// asks or plays, Describe waits, and Play, Stage a loss and every setting are disabled.
+function hidingCore(view) {
+  const asking = view.phase === 'asking';
+  const playing = view.phase === 'playing';
+  const h = view.hide ?? [];
+  const after = playing && h.includes('after');
+  return {
+    steps: (asking || playing) && (h.includes('steps') || after),
+    loss: after,
+    reads: after,
+    ghost: asking || playing,
+    waits: asking || playing,
+  };
+}
+/** The map every surface reads; a planted leak swaps it for one that forgets a region (plantedLeaks). */
+function hiding(view) {
+  return window.__hidingOverride ? window.__hidingOverride(view) : hidingCore(view);
+}
+
+// ---------- Words. Every sentence is computed for its setting; nothing is spliced from a control's text.
+const SC = (m) => m.scheme.short;
+const pieceWord = (m, n = 2) => (m.replicas ? plural(n, 'copy', 'copies') : plural(n, 'piece', 'pieces'));
+const failedName = (m) => M.pieces(m)[M.failedIndex(m)].id;
+function storedWords(m) {
+  if (m.replicas) return `${m.n} full copies, ${M.formatX(m.overhead)} its size`;
+  return `${m.n} pieces, ${m.scheme.data} of data and ${m.scheme.parity} of parity, each a ${m.scheme.data === 6 ? 'sixth' : 'tenth'} of its size: ${M.formatX(m.overhead)} in all`;
+}
+function placeWords(m) {
+  return m.settings.rack ? `every ${pieceWord(m, 1)} on its own disk, all in one rack` : `every ${pieceWord(m, 1)} on its own disk in its own rack`;
+}
+function lossWords(m) {
+  return `${M.formatNines(m.nines)} nines, a yearly loss chance of ${M.oneIn(m.loss)}: among a billion such objects, ${M.formatBillion(m.perBillion)}`;
+}
+function summary(m, hid) {
+  const s = m.settings;
+  const a = `One object stored as ${SC(m)}${m.replicas ? '' : ' erasure coding'}: ${storedWords(m)}, ${placeWords(m)}. Disks fail independently at ${M.formatPct(s.afr)} a year, and a lost ${pieceWord(m, 1)} is rebuilt in ${M.formatHours(s.repair)}. It survives any ${m.t} lost ${pieceWord(m, m.t)}.`;
+  if (hid.loss) return `${a} The model’s yearly loss shows after your answer.`;
+  return `${a} The model gives ${lossWords(m)}.`;
+}
+function settingSentence(m) {
+  const s = m.settings;
+  return `${cap1(SC(m))}${m.replicas ? '' : ' erasure coding'} at ${M.formatPct(s.afr)} a year with ${M.formatHours(s.repair)} repairs${s.rack ? ', all in one rack' : ''}: ${M.formatNines(m.nines)} nines, ${M.formatBillion(m.perBillion)} among a billion objects, at ${M.formatX(m.overhead)} storage.`;
+}
+/** The rebuild's reads, in words: the stubs on the stage say the same. */
+function readWords(m, form = 0) {
+  const what = m.replicas ? `1 copy` : `${m.repairRead} pieces`;
+  const forms = [`the rebuild reads ${what}: ${m.repairRead} × ${M.formatTB(M.DISK_TB)} = ${M.formatTB(m.rebuildTB)} for a disk`, `reads ${what}: ${M.formatTB(m.rebuildTB)} a disk`, `reads ${what}`];
+  return forms[form];
+}
+/** The race's sentence: what the drawn repair is, and what a loss would take. */
+function raceSentence(m, ps, kind, hid) {
+  const s = m.settings;
+  const f = failedName(m);
+  const others = m.n - 1;
+  if (kind === 'staged' && s.rack) {
+    if (!ps.lost) return `Staged, not sampled: a rack event is coming.`;
+    return `Staged, not sampled: a rack event destroys the one rack and every ${pieceWord(m, 1)} in it at once, before any repair can start. A rack event is assumed here once in ${M.formatCount(1 / M.RACK_EVENT)} years.`;
+  }
+  if (kind === 'staged') {
+    const names = ps.stagedDown.map((i) => M.pieces(m)[i].id);
+    if (!ps.failed) return `Staged, not sampled: a loss is coming.`;
+    if (!ps.lost) return `Staged, not sampled: ${f} fails, and its repair starts.${names.length ? ` Then ${M.listOf(names)} ${names.length === 1 ? 'fails' : 'fail'} too.` : ''}`;
+    const left = m.n - 1 - names.length;
+    const chance = hid.steps ? '' : ` A first failure leads here about once in ${M.bigCount(1 / m.tail)} times.`;
+    return m.replicas
+      ? `Staged, not sampled: ${f} fails, and before its ${M.formatHours(s.repair)} repair ends ${M.listOf(names)} ${names.length === 1 ? 'fails' : 'fail'} too. No copy is left: the object is lost.${chance}`
+      : `Staged, not sampled: ${f} fails, and before its ${M.formatHours(s.repair)} repair ends ${M.listOf(names)} fail too. Only ${left} pieces are left, and any rebuild needs ${m.need}: the object is lost.${chance}`;
+  }
+  if (!ps.failed) return `Every ${pieceWord(m, 1)} is whole. Play a repair: a disk fails, and its ${pieceWord(m, 1)} is rebuilt on a spare.`;
+  const reads = hid.reads ? '' : `, read from ${m.replicas ? 'a surviving copy' : `${m.repairRead} of the others`}`;
+  const head = ps.rebuilt ? `${f} is rebuilt on the spare in ${M.formatHours(s.repair)}${reads}.` : `${f} fails, and it is being rebuilt on the spare${reads}.`;
+  const need = m.t === m.n - 1 ? (m.t === 1 ? `the other copy` : `all ${others} others`) : `${m.t} of the ${others} others`;
+  const chance = hid.steps ? ` The chance of that shows after your answer.` : ` Each fails within ${M.formatHours(s.repair)} with chance ${M.oneIn(m.p)}, so in a typical repair none does.`;
+  const rack = s.rack ? ` All ${m.n} share one rack: a rack event would take them at once.` : '';
+  return `${head} A loss would need ${need} to fail before it ends.${chance}${rack}`;
+}
+function factsSentence(m, hid, ghostM) {
+  const s = m.settings;
+  const cost = `A billion 1 MB objects, ${M.formatTB(M.DATA_TB)}, take ${M.formatTB(m.rawTB)} on ${M.formatCount(m.disks)} disks of ${M.formatTB(M.DISK_TB)}; at ${M.formatPct(s.afr)} about ${M.bigCount(m.failsYear)} of them fail a year.`;
+  const reads = hid.reads ? ` The rebuild’s reads show after your answer.` : ` Each rebuild reads ${M.formatTB(m.rebuildTB)}: ${M.formatGbps(m.rebuildGbps)} to finish in ${M.formatHours(s.repair)}.`;
+  const ghost = ghostM && !hid.ghost ? ` Before this change: ${M.formatNines(ghostM.nines)} nines.` : '';
+  return cost + reads + ghost;
+}
+
+// ---------- The stage. Heights depend only on its width: every wrapped text reserves its longest form at that width.
+const reserveCache = new Map();
+function reserved(W) {
+  if (reserveCache.has(W)) return reserveCache.get(W);
+  const L = layoutConsts(W);
+  let race = 0;
+  let facts = 0;
+  const none = { steps: false, loss: false, reads: false, ghost: false };
+  for (const s of M.ALL_SETTINGS) {
+    const m = M.run(s);
+    for (const kind of ['repair', 'staged']) {
+      const plan = M.playPlan(s, kind);
+      for (const tau of [0, plan.fail + 0.01, plan.winStart + plan.win * 0.95, null]) {
+        const ps = M.playState(s, kind, tau);
+        for (const hid of [none, { ...none, steps: true, reads: true }]) race = Math.max(race, wrap(raceSentence(m, ps, kind, hid), 'cap', L.IW).length);
+      }
+    }
+    facts = Math.max(facts, wrap(factsSentence(m, none, m), 'cap', L.IW).length);
+  }
+  const out = { race, facts };
+  reserveCache.set(W, out);
+  return out;
+}
+function layoutConsts(W) {
+  const wide = W >= 520;
+  const pad = wide ? 20 : 12;
+  return { wide, pad, X0: pad, X1: W - pad, IW: W - 2 * pad, LH: 17 };
+}
+
+/** The nines scale: from -0.6 (a rate above 1 a year, the first failures of 14 pieces at 10%) to 25. */
+const NMIN = -0.6;
+const NMAX = 25;
+
+function buildStage(W, m, view) {
+  const D = new Draw(W);
+  const L = layoutConsts(W);
+  const { wide, X0, X1, IW, LH } = L;
+  const hid = hiding(view);
+  const s = m.settings;
+  const kind = view.playKind ?? 'repair';
+  const ps = M.playState(s, kind, view.tau);
+  D.meta.ps = ps;
+  const res = reserved(W);
+  const pcs = M.pieces(m);
+  const free = view.phase !== 'asking' && view.phase !== 'playing';
+
+  // Header: Play a repair, and Stage a loss.
+  D.hit('play', X0 - 4, 8, 44, 44);
+  const stageForms = ['Stage a loss', 'Stage loss'];
+  const playing = view.tau !== null && view.tau !== undefined && !ps.done;
+  const playForms = playing ? (kind === 'staged' ? ['Staging a loss', 'Staging'] : ['Repairing', 'Repairing']) : view.reduced ? [stepLabel(view).label, 'Next step'] : ['Play a repair', 'Repair'];
+  const pillW = (t) => tw(t, 'cap') + 26;
+  let fi = 0;
+  while (fi < 1 && X0 + 46 + tw(playForms[fi], 'capB') + 12 > X1 - pillW(stageForms[fi])) fi++;
+  const pw = pillW(stageForms[fi]);
+  D.hit('stage', X1 - pw, 8, pw, 44, { text: stageForms[fi] });
+  D.text(X0 + 46, 35, [[playForms[fi], 'capB']], { owner: 'play' });
+
+  // A: the object and what is stored, the cost drawn as a transform: one bar of the object, then its pieces to scale.
+  let y = 80;
+  D.text(X0, y, [[wide ? 'The object, and what is stored' : 'Object and what is stored', 'label']]);
+  const storedLabel = (mm) => (mm.replicas ? `stored: ${mm.n} × 1 = ${M.formatX(mm.overhead)}` : `stored: ${mm.n} × 1/${mm.scheme.data} = ${M.formatX(mm.overhead)}`);
+  const U = Math.min(wide ? 150 : 120, Math.floor(Math.min(...[0, 1, 2, 3].map((i) => (IW - 10 - tw(storedLabel(M.run({ ...s, scheme: i })), 'small')) / M.run({ ...s, scheme: i }).overhead))));
+  const yObj = y + 10;
+  D.rect(X0, yObj, U, 12, 'obj', { rx: 2, owner: 'obj' });
+  D.text(X0 + U + 8, yObj + 10, [['the object, 1 MB', 'small']]);
+  if (ps.lost) xGlyph(D, X0 + U / 2, yObj + 6, 'obj', 4.5);
+  const ySt = yObj + 20;
+  const segW = U / (m.replicas ? 1 : m.scheme.data);
+  pcs.forEach((p, i) => {
+    const down = (ps.failed && i === M.failedIndex(m) && !ps.rebuilt) || ps.stagedDown.includes(i) || ps.rackDown;
+    const x = X0 + i * segW;
+    D.rect(x + 0.6, ySt, segW - 1.2, 12, down ? 'seg-down' : `seg-${p.kind}`, { owner: 'stored', mark: false });
+  });
+  D.mark({ x0: X0, x1: X0 + m.n * segW, y0: ySt, y1: ySt + 12 }, 'stored');
+  D.text(X0 + m.n * segW + 8, ySt + 10, [[storedLabel(m), 'small']]);
+  // The key, always reserved: what the colours of the pieces mean.
+  const yKey = ySt + 30;
+  const keyItems = m.replicas ? [['seg-copy', `${m.n} full copies`]] : [['seg-data', `${m.scheme.data} data pieces`], ['seg-parity', `${m.scheme.parity} parity pieces`]];
+  let kx = X0;
+  for (const [cls, t] of keyItems) {
+    D.rect(kx, yKey - 8, 10, 10, cls, { rx: 2, owner: 'key' });
+    D.text(kx + 15, yKey + 1, [[t, 'small']], { owner: 'key' });
+    kx += 15 + tw(t, 'small') + 16;
+  }
+  y = yKey;
+
+  // B: the pieces on their disks, the spare, and the rebuild's reads.
+  const yB = y + 36;
+  const secB = m.settings.rack ? (wide ? `On ${m.n} disks, all in one rack` : `${m.n} disks, one rack`) : wide ? `On ${m.n} disks, each in its own rack` : `${m.n} disks, a rack each`;
+  D.text(X0, yB, [[secB, 'label']]);
+  const gapSpare = 12;
+  const slot = Math.min(wide ? 52 : 44, Math.floor((IW - gapSpare) / (m.n + 1)));
+  const diskW = slot - (s.rack ? 4 : 7);
+  const labels = slot >= 24;
+  const yName = yB + 22;
+  const yDisk = yName + 6;
+  const diskH = wide ? 44 : 36;
+  const diskX = (i) => X0 + (i < m.n ? i * slot : m.n * slot + gapSpare) + (slot - diskW) / 2;
+  const srcs = M.sources(m);
+  // Racks: a frame per disk, or one frame round every piece; the spare stands in a rack of its own.
+  if (s.rack) D.rect(X0 + 1, yDisk - 4, m.n * slot - 2, diskH + 8, `rack${ps.rackDown ? ' struck' : ''}`, { rx: 6, owner: 'rack', mark: false });
+  for (let i = 0; i <= m.n; i++) if (!s.rack || i === m.n) D.rect(diskX(i) - 2.5, yDisk - 3, diskW + 5, diskH + 6, 'rack', { rx: 5, owner: 'rack', mark: false });
+  pcs.forEach((p, i) => {
+    const down = (ps.failed && i === M.failedIndex(m)) || ps.stagedDown.includes(i) || ps.rackDown;
+    const x = diskX(i);
+    D.rect(x, yDisk, diskW, diskH, `disk ${down ? 'down' : p.kind}`, { rx: 3, owner: `disk${i}` });
+    if (down) xGlyph(D, x + diskW / 2, yDisk + diskH / 2, `disk${i}`, Math.min(4, diskW / 2 - 1.5), 'on-box');
+    if (labels || down) {
+      const nm = p.id;
+      D.place([[x + diskW / 2, yName, 'middle'], [x + diskW / 2 - 3, yName, 'middle'], [x + diskW / 2 + 3, yName, 'middle']], [[nm, 'tiny', down ? 'muted' : '']], { owner: `disk${i}`, optional: !down, margin: 2.5 });
+    }
+  });
+  // The spare: empty, filling as the rebuild runs, then holding the rebuilt piece.
+  const xs = diskX(m.n);
+  const rebuilding = ps.failed && !ps.rackDown && !ps.lost && !ps.rebuilt && ps.progress > 0;
+  D.rect(xs, yDisk, diskW, diskH, `disk ${ps.rebuilt ? 'rebuilt' : 'spare'}`, { rx: 3, owner: 'spare' });
+  if (rebuilding) D.rect(xs + 1.5, yDisk + diskH - 1.5 - (diskH - 3) * ps.progress, diskW - 3, (diskH - 3) * ps.progress, 'fill-rebuild', { owner: 'spare', mark: false });
+  D.place([[xs + diskW / 2, yName, 'middle'], [xs + diskW - 1, yName, 'end']], [[ps.rebuilt ? failedName(m) : 'spare', 'tiny', ps.rebuilt ? 'ok-ink' : 'muted']], { owner: 'spare', margin: 1 });
+  // The rebuild's reads: a stub from every piece it reads, down to one bus, then up into the spare.
+  const yBus = yDisk + diskH + 14;
+  const yReadText = yBus + 20;
+  const showReads = ps.failed && !ps.rackDown;
+  if (hid.reads) {
+    const bx = X0;
+    D.add('marks', `<rect class="bar-hidden" x="${r1(bx)}" y="${r1(yDisk + diskH + 5)}" width="${r1(IW)}" height="19" rx="3"/>`);
+    D.text(X0 + 8, yDisk + diskH + 18.5, [[tw('the rebuild’s reads show after your answer', 'small') <= IW - 16 ? 'the rebuild’s reads show after your answer' : 'its reads show after your answer', 'small']], { owner: 'reads' });
+  } else if (showReads) {
+    const xsC = xs + diskW / 2;
+    const left = Math.min(...srcs.map((i) => diskX(i) + diskW / 2));
+    for (const i of srcs) {
+      const cx = diskX(i) + diskW / 2;
+      D.line(cx, yDisk + diskH + 3, cx, yBus, 'read', { owner: 'reads' });
+    }
+    D.add('links', `<path class="read" d="M${r1(left)} ${r1(yBus)}H${r1(xsC)}V${r1(yDisk + diskH + 8)}" data-owner="reads"/>`);
+    D.link([...sampleLine(left, yBus, xsC, yBus), ...sampleLine(xsC, yBus, xsC, yDisk + diskH + 8)], 'reads');
+    D.add('marks', `<path class="read-head" d="M${r1(xsC - 3.5)} ${r1(yDisk + diskH + 9)}l3.5 -5 3.5 5z"/>`);
+    // While the rebuild runs, one dot a source travels its stub, the bus and into the spare (bounded by the sources).
+    if (rebuilding && !view.reducedFrame) {
+      const phase = ((view.tau ?? 0) * 0.9) % 1;
+      for (const [j, i] of srcs.entries()) {
+        const cx = diskX(i) + diskW / 2;
+        const segs = [
+          [cx, yDisk + diskH + 3, cx, yBus],
+          [cx, yBus, xsC, yBus],
+          [xsC, yBus, xsC, yDisk + diskH + 8],
+        ];
+        const lens = segs.map(([a, b, c, d]) => Math.hypot(c - a, d - b));
+        const tot = lens.reduce((a, b) => a + b, 0);
+        let d = ((phase + j * 0.13) % 1) * tot;
+        for (let k = 0; k < 3; k++) {
+          if (d <= lens[k]) {
+            const [a, b, c, e] = segs[k];
+            const f = lens[k] ? d / lens[k] : 0;
+            D.add('dots', `<circle class="read-dot" cx="${r1(a + (c - a) * f)}" cy="${r1(b + (e - b) * f)}" r="2.6"/>`);
+            break;
+          }
+          d -= lens[k];
+        }
+      }
+    }
+    D.place([[X0, yReadText], [X0, yReadText]], [[readWords(m, 0), 'small']], { owner: 'reads', optional: true }) ??
+      D.place([[X0, yReadText]], [[readWords(m, 1), 'small']], { owner: 'reads', optional: true }) ??
+      D.place([[X0, yReadText]], [[readWords(m, 2), 'small']], { owner: 'reads' });
+  } else if (!ps.failed) {
+    D.text(X0, yReadText, [['no repair is running', 'small']], { owner: 'reads' });
+  } else {
+    D.text(X0, yReadText, [['nothing is left to rebuild from', 'small', 'lost-ink']], { owner: 'reads' });
+  }
+  D.region('pieces', { x: X0 - 6, y: yB - 22, w: IW + 12, h: yReadText + 10 - (yB - 22) });
+
+  // C: the repair race on one week's axis: the window, the rebuild filling it, the other pieces' failures (staged only).
+  const yC = yReadText + 34;
+  const fname = failedName(m);
+  D.text(X0, yC, [[wide ? `After ${fname} fails: the repair race` : `After ${fname} fails`, 'label']]);
+  const tx = (h) => X0 + (h / 168) * IW;
+  const yRep = yC + 22;
+  const bandY = yRep + 8;
+  const repLabel = wide ? `Repair of ${fname}, from its failure at 0` : `Repair of ${fname}`;
+  D.text(X0, yRep, [[repLabel, 'small']], { owner: 'replabel' });
+  const yOth = bandY + 32;
+  const lineY = yOth + 12;
+  D.text(X0, yOth, [[m.t === m.n - 1 && m.n === 2 ? 'The other copy' : `The ${m.n - 1} others`, 'small']]);
+  const yAx = lineY + 16;
+  for (const h of [0, 24, 48, 72, 96, 120, 144, 168]) D.line(tx(h), yRep + 4, tx(h), yAx, 'gridline', { layer: 'grid', solid: false });
+  D.line(X0, yAx, X1, yAx, 'axis', { layer: 'grid', solid: false });
+  const axisLabels = wide ? [0, 24, 48, 72, 96, 120, 144, 168] : [0, 24, 72, 168];
+  for (const h of axisLabels) D.text(tx(h), yAx + 14, [[h === 0 ? '0' : `${h} h`, 'small']], { anchor: h === 0 ? 'start' : h === 168 ? 'end' : 'middle', data: ' data-xtick="race"', ground: true });
+  D.line(X0, lineY, X1, lineY, 'track', { layer: 'grid', solid: false });
+  if (ps.failed && !ps.rackDown) {
+    const wx = tx(s.repair);
+    D.rect(X0, bandY, Math.max(2, wx - X0), 10, `band${ps.lost ? ' lost' : ''}`, { rx: 2, owner: 'band', mark: false });
+    D.mark({ x0: X0, x1: Math.max(X0 + 2, wx), y0: bandY, y1: bandY + 10 }, 'band');
+    if (ps.progress > 0) D.rect(X0, bandY, Math.max(1.5, (wx - X0) * ps.progress), 10, 'band-fill', { rx: 2, owner: 'band', mark: false });
+    const lead = ps.rebuilt ? [[`rebuilt in ${M.formatHours(s.repair)}`, 'small', 'ok-ink']] : ps.lost ? [['stopped: too few left', 'small', 'lost-ink']] : [[`repair ${M.formatHours(s.repair)}`, 'small']];
+    const endX = ps.rebuilt ? wx + 10 : wx + 4;
+    if (ps.rebuilt) checkGlyph(D, wx + 1, bandY + 5, 'band', 5.5);
+    D.place([[endX + 4, bandY + 9], [X1, yRep, 'end'], [X0 + tw(repLabel, 'small') + 10, yRep]], lead, { owner: 'band' });
+    // Staged failures of the others, each at its moment, inside the window.
+    if (kind === 'staged') {
+      M.stagedFailures(m).forEach((piece, j) => {
+        if (!ps.stagedDown.includes(piece)) return;
+        const hx = tx(s.repair * M.stagedAt(j, m.t));
+        xGlyph(D, hx, lineY, `st${j}`, 3.5);
+        D.place([[hx, lineY - 9, 'middle'], [hx + 7, lineY - 9], [hx - 7, lineY - 9, 'end']], [[pcs[piece].id, 'tiny']], { owner: `st${j}`, optional: true });
+      });
+      if (ps.lost) {
+        const lx = tx(s.repair * M.stagedAt(M.stagedFailures(m).length - 1, m.t));
+        D.place([[lx + 9, lineY - 5], [lx - 9, lineY - 5, 'end']], [['lost', 'smallB', 'lost-ink']], { owner: 'lost', optional: true });
+      }
+    } else if (ps.rebuilt) {
+      D.place([[X1, lineY - 5, 'end'], [X1, yOth, 'end']], [['none failed', 'small']], { owner: 'others', optional: true });
+    }
+    // The playhead, while the window runs.
+    if (playing && ps.progress > 0 && ps.progress < 1 && !ps.lost) {
+      const hx = X0 + (wx - X0) * ps.progress;
+      D.line(hx, bandY - 3, hx, bandY + 13, 'playhead', { layer: 'top', solid: false });
+      D.line(hx, lineY - 5, hx, lineY + 5, 'playhead', { layer: 'top', solid: false });
+    }
+  } else if (ps.rackDown) {
+    D.rect(X0, bandY, 6, 10, 'band lost', { rx: 2, owner: 'band' });
+    D.place([[X0 + 12, bandY + 9]], [['no repair: every piece went at once', 'small', 'lost-ink']], { owner: 'band' });
+  }
+  if (kind === 'staged') {
+    const tag = 'STAGED, NOT SAMPLED';
+    const tw0 = tw(tag, 'smallB') + 12;
+    const tagX = X1 - tw0;
+    if (X0 + 8 < tagX && D.free({ x0: tagX, x1: X1, y0: yC - 11, y1: yC + 4 })) {
+      D.rect(tagX, yC - 11, tw0, 15, 'staged-tag', { rx: 7.5, owner: 'stagedtag' });
+      D.text(tagX + 6, yC + 0.5, [[tag, 'smallB', 'lost-ink']], { owner: 'stagedtag', textCls: 'on-tag' });
+    }
+  }
+  const raceText = raceSentence(m, ps, kind, hid);
+  const yRaceText = yAx + 36;
+  D.para(X0, yRaceText, wrap(raceText, 'cap', IW), 'cap', LH, { owner: 'racetext' });
+  D.meta.raceText = raceText;
+  D.region('race', { x: X0 - 6, y: yC - 22, w: IW + 12, h: yAx + 22 - (yC - 22) });
+  const yRule = yRaceText + (res.race - 1) * LH + 22;
+  D.line(0, yRule, W, yRule, 'rule', { solid: false });
+
+  // D: the model. Headline, then the steps as a walk along a nines scale, then the billion-object conversion.
+  const yT = yRule + 28;
+  D.text(X0, yT, [[wide ? 'The yearly chance of losing it, from the model' : 'Yearly loss, from the model', 'capB']]);
+  const yH = yT + 24;
+  const cols = [
+    ['Stored', M.formatX(m.overhead)],
+    ['Survives', `any ${m.t}`],
+    ['Nines', hid.loss ? '?' : M.formatNines(m.nines)],
+  ];
+  const cw = IW / 3;
+  cols.forEach(([k, v], i) => {
+    D.text(X0 + i * cw, yH, [[k, 'label']]);
+    D.text(X0 + i * cw, yH + 21, [[v, 'head', v === '?' ? 'muted' : '']], { owner: 'headline' });
+  });
+  D.region('headline', { x: X0 - 6, y: yH - 17, w: IW + 12, h: 47 });
+  const yAxT = yH + 78;
+  const nx = (n) => X0 + ((Math.max(NMIN, Math.min(NMAX, n)) - NMIN) / (NMAX - NMIN)) * IW;
+  const ROW = 30;
+  const rowsShown = [];
+  const rows = [];
+  m.steps.forEach((st) => rows.push(st));
+  if (s.rack) rows.push({ kind: 'rack', level: M.RACK_EVENT });
+  rows.push({ kind: 'final', level: m.loss });
+  const plotTop = yAxT + 10;
+  const nRows = rows.length;
+  const plotBottom = plotTop + (hid.steps ? 2 * ROW + (s.rack ? 0 : 0) : (nRows - 1) * ROW) + ROW + 4;
+  D.text(X0, yAxT - 14, [[wide ? 'Nines, each step right is 10× less likely' : 'Nines · a step is 10× less likely', 'label']]);
+  const ticks = wide ? [0, 3, 6, 9, 12, 15, 18, 21, 24] : [0, 6, 9, 12, 18, 24];
+  for (const n of [0, 3, 6, 9, 12, 15, 18, 21, 24]) D.line(nx(n), plotTop - 4, nx(n), plotBottom, `gridline${n === 9 ? ' nine' : ''}`, { layer: 'grid', solid: false });
+  for (const n of ticks) D.text(nx(n), yAxT, [[String(n), 'small']], { anchor: 'middle', data: ' data-xtick="nines"', ground: true });
+  // Rows, each a step on the walk: a dot at its level, an arrow from the row before.
+  const levelN = (lv) => -Math.log10(lv);
+  const tFmt = M.formatHours(s.repair);
+  function rowLabel(row) {
+    if (row.kind === 'first') return [`First failures: ${m.n} ${pieceWord(m, m.n)} × ${M.formatPct(s.afr)} a year`, `First failures: ${m.n} × ${M.formatPct(s.afr)}`];
+    if (row.kind === 'window') {
+      if (row.i === 1) return [`A given other ${pieceWord(m, 1)} fails before the ${tFmt} repair ends`, `Another fails within ${tFmt}`, `One more within ${tFmt}`];
+      return [`And a ${M.ordinal(row.i)} given ${pieceWord(m, 1)}`, `And a ${M.ordinal(row.i)}`];
+    }
+    if (row.kind === 'ways') return m.ways === 1 ? [`Only one choice of ${m.t} ${pieceWord(m, m.t)}: the ${m.t === 1 ? 'other' : `${m.t} others`}`, `One choice: the ${m.t === 1 ? 'other' : 'others'}`] : [`Any ${m.t} of the ${m.n - 1} others will do`, `Any ${m.t} of the ${m.n - 1}`];
+    if (row.kind === 'rack') return [`Or a rack event takes every ${pieceWord(m, 1)} at once (assumed)`, `Or a rack event (assumed)`];
+    return hid.loss ? ['Lost in a year'] : [`Lost in a year: ${M.oneIn(m.loss)}`, `Lost a year: ${M.oneIn(m.loss)}`];
+  }
+  function rowValue(row, prevLevel, ghostRow) {
+    if (row.kind === 'first') return M.formatRate(row.level);
+    if (row.kind === 'window') return `× ${M.oneIn(row.factor)}${ghostRow ? ` (was ${M.oneIn(ghostRow.factor)})` : ''}`;
+    if (row.kind === 'ways') return `× ${M.formatCount(row.factor)}`;
+    if (row.kind === 'rack') return `${M.formatPct(M.RACK_EVENT * 100)} a year`;
+    return `${M.formatNines(m.nines)} nines`;
+  }
+  const ghostM = view.ghost && !hid.ghost ? M.run(view.ghost) : null;
+  const showRow = (row) => (row.kind === 'final' ? ps.rows.final || !playing : row.kind === 'first' ? ps.rows.first || !playing : row.kind === 'window' ? ps.rows.steps >= row.i || !playing : row.kind === 'ways' ? ps.rows.ways || !playing : ps.rows.rack || !playing);
+  let yr = plotTop;
+  let prev = null;
+  if (hid.steps) {
+    // One box whatever the scheme, so its height does not tell how many steps a loss needs.
+    D.add('marks', `<rect class="bar-hidden" x="${r1(X0)}" y="${r1(yr)}" width="${r1(IW)}" height="${2 * ROW - 6}" rx="4"/>`);
+    D.text(X0 + IW / 2, yr + ROW - 3 + 4, [['The steps show after your answer', 'small']], { anchor: 'middle', owner: 'stepsq' });
+    yr += 2 * ROW;
+  }
+  if (view.phase === 'challenge') {
+    const gx = nx(-Math.log10(M.CHALLENGE_BOUNDS.perBillion / M.OBJECTS));
+    const fy = plotTop + (rows.length - 1) * ROW + 26;
+    D.line(gx, fy - 9, gx, fy + 9, `goal-line${view.met ? ' met' : ''}`, { owner: 'goal' });
+    D.meta.goal = { gx, fy };
+  }
+  const drawRows = hid.steps ? rows.filter((r) => r.kind === 'final') : rows;
+  for (const row of drawRows) {
+    const ly = yr + 11;
+    const ay = row.kind === 'final' ? yr + 26 : yr + 21;
+    const forms = rowLabel(row);
+    const isFinal = row.kind === 'final';
+    const shown = showRow(row);
+    const finalHidden = isFinal && hid.loss;
+    D.text(X0, ly, [[pick(forms, (f) => tw(f, isFinal ? 'smallB' : 'small') <= IW), isFinal ? 'smallB' : 'small']], { owner: `row-${row.kind}${row.i ?? ''}` });
+    if (finalHidden) {
+      D.add('marks', `<rect class="bar-hidden" x="${r1(X0)}" y="${r1(ay - 7)}" width="${r1(IW)}" height="14" rx="3"/>`);
+      D.text(X0 + IW - 6, ay + 4, [['after your answer', 'small']], { anchor: 'end', owner: 'finalq' });
+    } else if (shown) {
+      const lvN = levelN(row.level);
+      const x = nx(lvN);
+      if (row.kind === 'first') {
+        D.line(nx(0), ay, x, ay, 'step-arrow first', { owner: `row-${row.kind}` });
+        D.add('dots', `<circle class="head-first" cx="${r1(x)}" cy="${r1(ay)}" r="3.5"/>`);
+        D.mark({ x0: x - 4, x1: x + 4, y0: ay - 4, y1: ay + 4 }, 'row-first');
+      } else if (row.kind === 'window' || row.kind === 'ways') {
+        const px = nx(levelN(prev.level));
+        const right = x >= px;
+        D.line(px, ay - 5, px, ay + 5, 'from-tick', { owner: `row-${row.kind}${row.i ?? ''}` });
+        const hx = right ? x - 5 : x + 5;
+        if (Math.abs(x - px) >= 7) {
+          D.line(px, ay, hx, ay, `step-arrow${right ? '' : ' up'}`, { owner: `row-${row.kind}${row.i ?? ''}` });
+          D.add('dots', `<path class="${right ? 'head-cur' : 'head-up'}" d="M${r1(x)} ${r1(ay)}L${r1(hx)} ${r1(ay - 4)}L${r1(hx)} ${r1(ay + 4)}z"/>`);
+        }
+        D.mark({ x0: Math.min(px, x) - 1, x1: Math.max(px, x) + 1, y0: ay - 5, y1: ay + 5 }, `row-${row.kind}${row.i ?? ''}`);
+      } else if (row.kind === 'rack') {
+        D.rect(nx(0), ay - 3, x - nx(0), 6, 'bar-rack', { rx: 1.5, owner: 'row-rack' });
+      } else {
+        D.rect(nx(0), ay - 4, x - nx(0), 8, `bar-final${s.rack ? ' rack' : ''}`, { rx: 2, owner: 'row-final' });
+        D.add('dots', `<circle class="dot-final" cx="${r1(x)}" cy="${r1(ay)}" r="5"/>`);
+        D.mark({ x0: x - 5, x1: x + 5, y0: ay - 5, y1: ay + 5 }, 'row-final');
+      }
+      if (isFinal && ghostM && Math.abs(ghostM.nines - m.nines) > 0.04) {
+        const gx = nx(ghostM.nines);
+        D.add('top', `<path class="ghost-caret" d="M${r1(gx - 4)} ${r1(ay - 12)}L${r1(gx)} ${r1(ay - 7)}L${r1(gx + 4)} ${r1(ay - 12)}"/>`);
+        D.mark({ x0: gx - 5, x1: gx + 5, y0: ay - 13, y1: ay - 6 }, 'ghost');
+        D.place([[gx + 7, ay - 6], [gx - 7, ay - 6, 'end']], [[`before ${M.formatNines(ghostM.nines)}`, 'small']], { owner: 'ghost', optional: true });
+      }
+      const gRow = ghostM && row.kind === 'window' ? ghostM.steps.find((g) => g.kind === 'window' && g.i === row.i && Math.abs(g.factor - row.factor) > 1e-15) : null;
+      const val = rowValue(row, prev, gRow);
+      const lo = Math.min(x, prev && row.kind !== 'final' && row.kind !== 'rack' ? nx(levelN(prev.level)) : nx(0));
+      const hi = Math.max(x, prev && row.kind !== 'final' && row.kind !== 'rack' ? nx(levelN(prev.level)) : nx(0));
+      const role = isFinal ? 'smallB' : 'small';
+      D.place(
+        [
+          [hi + 9, ay + 4],
+          [lo - 9, ay + 4, 'end'],
+          [X1, ly, 'end'],
+        ],
+        [[val, role, isFinal ? '' : 'ink']],
+        { owner: `val-${row.kind}${row.i ?? ''}`, optional: !!gRow },
+      ) ?? (gRow ? D.place([[hi + 9, ay + 4], [lo - 9, ay + 4, 'end'], [X1, ly, 'end']], [[rowValue(row, prev, null), role, 'ink']], { owner: `val-${row.kind}${row.i ?? ''}` }) : null);
+    }
+    if (!hid.steps || isFinal) rowsShown.push(row.kind);
+    prev = row;
+    yr += ROW + (isFinal ? 5 : 0);
+  }
+  // The challenge's goal on the last row: a mark at 10 nines.
+  if (view.phase === 'challenge') {
+    const gx = nx(-Math.log10(M.CHALLENGE_BOUNDS.perBillion / M.OBJECTS));
+    const met = view.met;
+    const { fy } = D.meta.goal;
+    D.place([[gx + 6, fy - 11], [gx - 6, fy - 11, 'end'], [gx + 6, fy + 4], [gx - 6, fy + 4, 'end'], [X1, fy - 15, 'end']], [['goal: 10 nines', 'small', met ? 'ok-ink' : '']], { owner: 'goal' });
+  }
+  const yBot = Math.max(yr, plotTop + 3 * ROW + 5) + 4;
+  D.line(X0, yBot, X1, yBot, 'axis', { layer: 'grid', solid: false });
+  // The billion-object conversion, drawn: the same axis, read as objects lost a year among a billion.
+  const conv = wide
+    ? [
+        [3, '1 million'],
+        [6, '1,000'],
+        [9, '1'],
+        [12, '0.001'],
+        [15, '0.000001'],
+      ]
+    : [
+        [6, '1,000'],
+        [9, '1'],
+        [12, '0.001'],
+      ];
+  for (const [n, t] of conv) D.text(nx(n), yBot + 14, [[t, n === 9 ? 'smallB' : 'small']], { anchor: 'middle', data: ' data-xtick="billion"', ground: true });
+  D.text(X0, yBot + 32, [[wide ? 'Objects lost a year, among a billion' : 'Lost a year, of a billion', 'label']]);
+  D.region('steps', { x: X0 - 6, y: yAxT - 38, w: IW + 12, h: yBot + 40 - (yAxT - 38) });
+  // Facts at the foot, lines reserved there.
+  const yF = yBot + 60;
+  D.para(X0, yF, wrap(factsSentence(m, hid, ghostM), 'cap', IW), 'cap', LH, { owner: 'facts' });
+  const maxBot = plotTop + 8 * ROW + 9;
+  const H = Math.round(maxBot + 60 + (res.facts + 1) * LH + 14);
+  D.meta.rowsShown = rowsShown;
+  D.label = summary(m, hid);
+  return { D, H };
+}
+
+// ---------- Focus outlines and their "Look here" tags (the house rule: one tag per outline, on its edge first).
+function focusOutlines(D, ids, H) {
+  const TAG = { w: 72, h: 16 };
+  const boxes = ids.flatMap((id) => (D.regions[id] ?? []).map((b) => ({ ids: [id], x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h })));
+  boxes.sort((a, b) => a.y0 - b.y0);
+  const groups = [];
+  for (const b of boxes) {
+    const g = groups[groups.length - 1];
+    if (g && b.y0 - g.y1 < TAG.h + 4) Object.assign(g, { ids: [...g.ids, ...b.ids], x0: Math.min(g.x0, b.x0), x1: Math.max(g.x1, b.x1), y1: Math.max(g.y1, b.y1) });
+    else groups.push({ ...b });
+  }
+  D.focusGroups = groups.length;
+  for (const g of groups) {
+    const x = Math.max(3, g.x0);
+    const yy = Math.max(3, g.y0);
+    const w = Math.min(D.W - 3, g.x1) - x;
+    const h = Math.min(H - 3, g.y1) - yy;
+    const own = `focus-${g.ids.join('-')}`;
+    D.add('top', `<rect class="focus-outline" data-focus="${g.ids.join(' ')}" x="${r1(x)}" y="${r1(yy)}" width="${r1(w)}" height="${r1(h)}" rx="10"/>`);
+    D.link([...sampleLine(x, yy, x + w, yy), ...sampleLine(x + w, yy, x + w, yy + h), ...sampleLine(x, yy + h, x + w, yy + h), ...sampleLine(x, yy, x, yy + h)], own);
+    const across = [];
+    for (let ax = x + w - TAG.w - 16; ax >= x + 16; ax -= 8) across.push(ax);
+    const xs = [x + w - TAG.w - 16, x + 16, ...across];
+    const ys = [yy - TAG.h / 2, yy + h - TAG.h / 2, yy + 4, yy + h - TAG.h - 4, yy + 22, yy + h - TAG.h - 22, yy + 40];
+    let placed = false;
+    for (const [tx, ty] of ys.flatMap((t) => xs.map((sx) => [sx, t]))) {
+      const tb = { x0: tx, x1: tx + TAG.w, y0: ty, y1: ty + TAG.h };
+      if (tx < 3 || tx + TAG.w > D.W - 3 || ty < 3 || ty + TAG.h > H - 3) continue;
+      if (!D.free(tb, own, 1)) continue;
+      D.add('top', `<rect class="tag" data-tag="${own}" x="${r1(tx)}" y="${r1(ty)}" width="${TAG.w}" height="${TAG.h}" rx="8"/>`);
+      D.add('top', `<text x="${r1(tx + TAG.w / 2)}" y="${r1(ty + 12)}" text-anchor="middle" data-owner="look" data-ground="1"><tspan class="t-look">LOOK HERE</tspan></text>`);
+      D.mark(tb, 'look');
+      placed = true;
+      break;
+    }
+    if (!placed) D.missingTags = (D.missingTags ?? 0) + 1;
+  }
+}
+
+// ---------- Mockup states.
+const B = M.BASE;
+const STATES = {
+  default: { s: B },
+  copies2: { s: { ...B, scheme: 0 } },
+  ec63: { s: { ...B, scheme: 2 }, ghost: B },
+  ec104: { s: { ...B, scheme: 3 } },
+  slow: { s: { ...B, repair: 168 }, ghost: B },
+  batch: { s: { scheme: 3, afr: 10, repair: 168, rack: 0 } },
+  rack: { s: { ...B, rack: 1 }, ghost: B },
+  before: { s: B, frac: 0.03 },
+  playing: { s: B, frac: 0.45 },
+  playing104: { s: { ...B, scheme: 3 }, frac: 0.5 },
+  staging: { s: { ...B, scheme: 2 }, kind: 'staged', frac: 0.62 },
+  staged: { s: B, kind: 'staged' },
+  staged104: { s: { ...B, scheme: 3, afr: 10, repair: 168 }, kind: 'staged' },
+  rackevent: { s: { ...B, rack: 1 }, kind: 'staged' },
+  describe: { s: B, describe: true },
+  reduced: { s: B, reduced: true, step: 1 },
+  ask: { exp: 0, phase: 'asking' },
+  reveal: { exp: 0, phase: 'revealed' },
+  challenge: { exp: 5, phase: 'challenge' },
+};
+const actSettings = (spec) => ({ ...spec.setup, ...(spec.act?.set ?? {}) });
+function viewOf(name) {
+  const st = STATES[name] ?? STATES.default;
+  const expParam = params.get('exp');
+  const expIdx = expParam !== null && st.exp !== undefined ? Number(expParam) - 1 : st.exp;
+  if (expIdx === undefined) {
+    const kind = st.kind ?? 'repair';
+    const plan = M.playPlan(st.s, kind);
+    const tau = st.frac !== undefined ? st.frac * plan.total : st.step !== undefined ? stepTau(st.s, kind, st.step) : null;
+    return { s: st.s, hide: [], phase: 'rest', ghost: st.ghost ?? null, tau, playKind: kind, describe: !!st.describe, reduced: !!st.reduced, step: st.step ?? null, frozen: st.step !== undefined };
+  }
+  const spec = M.EXPERIMENTS[expIdx];
+  if (spec.goal) return expView(spec, params.get('start') === '1' ? 'start' : 'challenge');
+  const phase = params.get('phase') === 'playing' && st.phase === 'asking' ? 'playing' : st.phase;
+  return expView(spec, phase, Number(params.get('frac') ?? 0.6));
+}
+/** One experiment's view: asking (from whatever came before, which leaves no trace), its answer's play at a fraction of
+ * its clock, revealed, or the challenge met or at its start. */
+function expView(spec, phase, frac = 0.6) {
+  const e = M.renderExperiment(spec);
+  if (spec.goal) {
+    const s = phase === 'start' ? spec.setup : M.CHALLENGE_SOLUTION;
+    const met = M.goalMet(spec.goal, s);
+    return { s, hide: [], exp: e, spec, phase: 'challenge', met, focus: met ? spec.focus : [], ghost: met ? spec.setup : null, tau: null, playKind: 'repair' };
+  }
+  const after = actSettings(spec);
+  const kind = spec.act.run;
+  return {
+    s: phase === 'asking' ? spec.setup : after,
+    hide: phase === 'revealed' ? [] : spec.hide,
+    exp: e,
+    spec,
+    phase,
+    chosen: e.answer === 0 ? 1 : 0,
+    focus: phase === 'revealed' ? spec.focus : [],
+    ghost: phase === 'revealed' ? spec.setup : null,
+    playKind: phase === 'asking' ? 'repair' : kind,
+    tau: phase === 'playing' ? frac * M.playPlan(after, kind).total : null,
+  };
+}
+window.expView = expView;
+/** Reduced motion: Play steps the repair's three moments (the failure, mid-repair, rebuilt), then rests. */
+function stepTau(s, kind, k) {
+  const plan = M.playPlan(s, kind);
+  return [plan.fail + 0.05, plan.winStart + plan.win * 0.55, null][k];
+}
+function stepLabel(view) {
+  const k = view.step === null || view.step === undefined ? 0 : (view.step + 1) % 3;
+  return { k, label: `Next moment, ${k + 1} of 3` };
+}
+
+// ---------- The page around the stage.
+const SCHEME_LABELS = ['2 copies', '3 copies', '6 + 3', '10 + 4'];
+function controlsHtml(m, view) {
+  const s = m.settings;
+  const hid = hiding(view);
+  const dis = hid.waits ? ' disabled' : '';
+  const group = (name, legend, cls, opts, cur, keepNote = '', locked = false) =>
+    `<fieldset class="group ${name}-control"${dis}><legend class="control-label">${legend}${keepNote}</legend><div class="${cls}" role="radiogroup">${opts
+      .map(([v, t, aria]) => `<label class="segment"><input type="radio" name="${name}" value="${v}" aria-label="${esc(aria ?? t)}" ${v === cur ? 'checked' : ''}${locked ? ' disabled' : ''}/><span>${esc(t)}</span></label>`)
+      .join('')}</div></fieldset>`;
+  const keep = view.phase === 'challenge' ? '<span class="why"> · the goal keeps 5%</span>' : '';
+  return `<div class="controls-grid">${group(
+    'scheme',
+    'Stored as',
+    'segments4',
+    SCHEME_LABELS.map((t, i) => [i, t, i < 2 ? t : `${t} erasure coding`]),
+    s.scheme,
+  )}${group('afr', 'Disks failing a year', 'segments4', M.AFRS.map((a) => [a, `${a}%`, `${a}% of disks fail a year`]), s.afr, keep, view.phase === 'challenge')}${group(
+    'repair',
+    'Repair time',
+    'segments5',
+    M.REPAIRS.map((h) => [h, `${h} h`, h === 168 ? '168 h, a week' : `${h} h`]),
+    s.repair,
+  )}${group('rack', 'Placement', 'segments2', [[0, 'A rack each', 'Each piece in its own rack'], [1, 'One rack', 'Every piece in one rack']], s.rack)}</div>
+<p class="readout" id="readout">${codeText(readoutText(m, hid)).replace(/\?/g, '<span class="q">?</span>')}</p>
+<p class="notice" role="status" aria-live="polite" aria-atomic="true">${codeText(noticeOf(m, view))}</p>`;
+}
+function readoutText(m, hid) {
+  return `${cap1(SC(m))}: ${M.formatX(m.overhead)} stored · ${hid.loss ? '? nines' : `${M.formatNines(m.nines)} nines, ${M.formatBillion(m.perBillion)} among a billion`}`;
+}
+function noticeOf(m, view) {
+  if (view.phase === 'asking' || view.phase === 'playing') return 'Play, Stage a loss and the settings wait for your answer.';
+  if (view.step !== null && view.step !== undefined && view.frozen) return raceSentence(m, M.playState(m.settings, view.playKind, view.tau), view.playKind, hiding(view));
+  return settingSentence(m);
+}
+const NOTE = (s) =>
+  `The model: disks fail independently at a constant rate, a lost piece is rebuilt in a fixed window, and the object is lost only when more pieces fail inside that window than the scheme tolerates. Real failures come together: a rack, a power event, a bad batch of disks or a software bug can take many pieces at once, which makes real losses far likelier than these nines. And durability is not backup: a delete or a bad overwrite reaches every piece.${
+    s.rack ? ` Here every piece shares one rack, and a rack event, assumed once in ${M.formatCount(1 / M.RACK_EVENT)} years, destroys them all.` : ''
+  }`;
+const ICON_RIGHT = '<svg class="mark" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="var(--g-success-line)"/><path d="M6 10.2l2.6 2.6 5.2-5.6" fill="none" stroke="var(--g-surface)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const ICON_WRONG = '<svg class="mark" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="var(--g-danger)"/><path d="M7 7l6 6M13 7l-6 6" fill="none" stroke="var(--g-surface)" stroke-width="2" stroke-linecap="round"/></svg>';
+/** The challenge's status, each bound in the ask's own terms and its state in words. */
+function goalChecks(m) {
+  const b = M.CHALLENGE_BOUNDS;
+  const said = (met) => (met ? 'met' : 'not yet');
+  const a = m.perBillion < b.perBillion;
+  const o = m.overhead < b.overhead;
+  const g = m.rebuildGbps < b.rebuildGbps;
+  return [
+    { met: a, text: `${M.formatBillion(m.perBillion)} among a billion, fewer than 1 in 10 years: ${said(a)}` },
+    { met: o, text: `${M.formatX(m.overhead)} stored, at most 1.5×: ${said(o)}` },
+    { met: g, text: `a rebuild reads ${M.formatGbps(m.rebuildGbps)}, under 10 Gb/s: ${said(g)}` },
+  ];
+}
+const stateJoined = (html) => html.replace(/(\S+(?:<\/span>)?: (?:met|not yet))$/, '<span class="nowrap">$1</span>');
+function dockHtml(m, view) {
+  const e = view.exp;
+  if (!e) return '';
+  if (view.phase === 'challenge') {
+    const checks = goalChecks(m);
+    const kept = M.goalKept(view.spec.goal, m.settings);
+    const status = view.met ? 'Goal met:' : kept ? '' : 'The goal keeps disks failing at 5% a year.';
+    return `<p class="legend">${codeText(e.ask)}</p>${status ? `<p class="status-line${view.met ? ' met' : ''}" role="status">${view.met ? ICON_RIGHT : ''}${esc(status)}</p>` : ''}<ul class="status">${checks
+      .map((c) => `<li class="${c.met ? 'met' : ''}"><span class="state" aria-hidden="true">${c.met ? '✓' : '·'}</span><span>${stateJoined(codeText(c.text))}</span></li>`)
+      .join('')}</ul>${view.met ? `<p class="reveal" aria-live="polite" aria-atomic="true">${codeText(e.reveal)}</p>` : ''}`;
+  }
+  if (view.phase === 'asking') {
+    return `<fieldset style="border:0;padding:0;margin:0"><legend class="legend">${codeText(e.ask)}</legend><div class="options">${e.choices.map((c) => `<button class="g-choice"><span>${codeText(c)}</span></button>`).join('')}</div></fieldset>`;
+  }
+  const marked = e.choices
+    .map((c, i) => {
+      const right = view.phase === 'revealed' && i === e.answer;
+      const wrong = view.phase === 'revealed' && i === view.chosen && !right;
+      const chosen = view.phase === 'playing' && i === view.chosen;
+      return `<li class="g-choice${right ? ' right' : wrong ? ' wrong' : ''}${chosen ? ' held-choice' : ''}"><span>${codeText(c)}${chosen ? ' <small>(your guess)</small>' : ''}</span>${right ? ICON_RIGHT : wrong ? ICON_WRONG : ''}</li>`;
+    })
+    .join('');
+  if (view.phase === 'playing') return `<p class="legend">${codeText(e.ask)}</p><ul class="options">${marked}</ul><p class="held">Watch the picture: the answer plays out on it.</p>`;
+  return `<p class="legend">${codeText(e.ask)}</p><ul class="options">${marked}</ul><p class="reveal" aria-live="polite" aria-atomic="true">${codeText(e.reveal)}</p>`;
+}
+function cardsHtml(view) {
+  return `<h3 class="heading"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8zM19 14l.9 2.6 2.6.9-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9z"/></svg>Experiments</h3>
+<ol class="cards">${M.EXPERIMENTS.map((s, i) => `<li><button class="card-btn"${view.exp && view.exp.id === s.id ? ' aria-current="step"' : ''}><span class="num">${s.goal ? '⚑' : i + 1}</span><span>${esc(s.title)}</span></button></li>`).join('')}</ol>`;
+}
+/** Describe: a row per step of the model, and the yearly loss; compact under a 600 px stage. */
+function describeRows(m, compact) {
+  const s = m.settings;
+  const head = compact ? ['Step', 'Factor', 'Nines'] : ['Step', 'Factor', 'Chance a year', 'Nines'];
+  const rows = [];
+  for (const st of m.steps) {
+    const name =
+      st.kind === 'first' ? (compact ? 'First failures' : `First failures, ${m.n} × ${M.formatPct(s.afr)}`) : st.kind === 'window' ? (compact ? `Fails within ${M.formatHours(s.repair)}` : `A ${M.ordinal(st.i)} given piece fails within ${M.formatHours(s.repair)}`) : compact ? `Any ${m.t} of ${m.n - 1}` : `Any ${m.t} of the ${m.n - 1} others`;
+    const factor = st.kind === 'first' ? M.formatRate(st.factor) : st.kind === 'window' ? `× ${M.oneIn(st.factor)}` : `× ${M.formatCount(st.factor)}`;
+    rows.push({ cells: compact ? [name, factor, M.formatNines(-Math.log10(st.level))] : [name, factor, st.level >= 0.01 ? M.formatRate(st.level) : M.oneIn(st.level), M.formatNines(-Math.log10(st.level))] });
+  }
+  if (s.rack) rows.push({ cells: compact ? ['Rack event', '0.1% a year', M.formatNines(3)] : ['Or a rack event (assumed)', 'once in 1,000 years', '0.1% a year', M.formatNines(3)] });
+  rows.push({ now: true, cells: compact ? ['Lost in a year', M.oneIn(m.loss), M.formatNines(m.nines)] : ['Lost in a year', '', M.oneIn(m.loss), M.formatNines(m.nines)] });
+  return { head, rows };
+}
+function describeHtml(m, view, compact) {
+  const waits = view.phase === 'asking' || view.phase === 'playing' || (view.phase === 'challenge' && !view.met);
+  const open = !!view.describe && !waits;
+  const btn = `<button class="g-btn" aria-expanded="${open}"${waits ? ' disabled' : ''}>${open ? 'Hide the description' : 'Describe'}</button>`;
+  if (waits) return `${btn}<p class="muted-note">${view.phase === 'challenge' ? 'Describe waits until you meet the goal.' : 'Describe waits for your answer.'}</p>`;
+  if (!open) return btn;
+  const { head, rows } = describeRows(m, compact);
+  const ps = M.playState(m.settings, view.playKind ?? 'repair', view.tau);
+  const none = hiding({ phase: 'rest' });
+  return `${btn}<p class="summary">${codeText(summary(m, none))}</p><p class="summary">${codeText(raceSentence(m, ps, view.playKind ?? 'repair', none))} ${codeText(factsSentence(m, none, null))} The steps multiply the leading term of the model; its exact sum adds the rarer cases of more failures, under 1.5% here.</p><div class="table-box${compact ? ' compact' : ''}" tabindex="0" role="region" aria-label="The model's steps to the yearly loss"><table><thead><tr>${head.map((h) => `<th scope="col">${h}</th>`).join('')}</tr></thead><tbody>${rows
+    .map((r) => `<tr${r.now ? ' class="now"' : ''}>${r.cells.map((c, i) => (i === 0 ? `<th scope="row">${esc(c)}</th>` : `<td>${esc(c)}</td>`)).join('')}</tr>`)
+    .join('')}</tbody></table></div>`;
+}
+const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches || params.get('motion') === 'off';
+function overlaysHtml(D, view) {
+  const asking = view.phase === 'asking' || view.phase === 'playing';
+  const ps = D.meta.ps;
+  const freePlaying = view.phase !== 'playing' && view.tau !== null && view.tau !== undefined && !ps.done && !view.frozen;
+  const stepping = view.reduced || reducedMotion();
+  const glyph = freePlaying ? '<rect x="12.5" y="11" width="4" height="14" rx="1"/><rect x="19.5" y="11" width="4" height="14" rx="1"/>' : '<path d="M14 11v14l11-7z"/>';
+  const label = asking ? 'Play a repair, after your answer' : freePlaying ? 'Stop' : stepping ? stepLabel(view).label : 'Play a repair';
+  return D.hits
+    .map((h) => {
+      if (h.kind === 'play') return `<button class="play hit" data-owner="play" style="left:${h.x}px;top:${h.y}px" aria-label="${label}"${asking ? ' disabled' : ''}><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="16"/>${glyph}</svg></button>`;
+      const pressed = view.playKind === 'staged';
+      return `<button class="pill hit" data-owner="stage" style="left:${h.x}px;top:${h.y}px;width:${h.w}px" aria-pressed="${pressed}" aria-label="${asking ? 'Stage a loss, after your answer' : 'Stage a loss: play a loss, staged and named as staged'}"${asking ? ' disabled' : ''}><span>${esc(h.text)}</span></button>`;
+    })
+    .join('');
+}
+
+function render(name) {
+  return renderView(viewOf(name));
+}
+function renderView(view) {
+  const m = M.run(view.s);
+  const root = document.getElementById('widget');
+  root.innerHTML = `<div class="controls">${controlsHtml(m, view)}</div>
+<div class="main"><div class="stage" role="group" aria-roledescription="visualization" aria-label="Durability: one object's pieces on their disks, a repair racing further failures, and the model's yearly chance of a loss"><div class="well" id="well"></div></div>
+<p class="note">${codeText(NOTE(m.settings))}</p><div class="describe" id="describe"></div></div>
+<div class="experiments"><section class="dock" aria-label="Experiment">${dockHtml(m, view)}</section>${cardsHtml(view)}</div>`;
+  const r = drawStage(view, m);
+  document.getElementById('describe').innerHTML = describeHtml(m, view, r.W < 600);
+  wire(view, m);
+  return { ...r, view, m };
+}
+function drawStage(view, m) {
+  const well = document.getElementById('well');
+  const W = well.clientWidth;
+  const { D, H } = buildStage(W, m, view);
+  if (view.focus?.length) focusOutlines(D, view.focus, H);
+  well.style.height = H + 'px';
+  well.innerHTML = D.svg(H, D.label) + overlaysHtml(D, view);
+  window.__stage = { W, H, missingTags: D.missingTags ?? 0, summary: D.label, missing: D.missing };
+  return { W, H, D };
+}
+
+// ---------- Live: the controls, Play, Stage a loss, the cards and the choices work, so the motion can be judged.
+let running = 0;
+function animate(view, m, total, done) {
+  const id = ++running;
+  const t0 = performance.now();
+  const frame = (now) => {
+    if (id !== running) return;
+    const tau = Math.min(total, (now - t0) / 1000);
+    drawStage({ ...view, tau }, m);
+    const play = document.querySelector('.play');
+    if (play && view.phase !== 'playing') play.onclick = () => stopPlay(view);
+    if (tau < total) requestAnimationFrame(frame);
+    else done();
+  };
+  requestAnimationFrame(frame);
+}
+function stopPlay(view) {
+  running++;
+  renderView({ ...view, tau: null });
+}
+function wire(view, m) {
+  const s = m.settings;
+  const change = (next) => {
+    running++;
+    if (view.phase === 'challenge') {
+      const met = M.goalMet(view.spec.goal, next);
+      renderView({ ...view, s: next, met, focus: met ? view.spec.focus : [], ghost: view.spec.setup, tau: null });
+    } else renderView({ s: next, hide: [], phase: 'rest', ghost: s, tau: null, playKind: 'repair', describe: view.describe });
+  };
+  for (const key of ['scheme', 'afr', 'repair', 'rack'])
+    document.querySelectorAll(`input[name="${key}"]`).forEach((el) => {
+      el.onchange = () => change({ ...s, [key]: Number(el.value) });
+    });
+  const play = document.querySelector('.play[data-owner="play"]');
+  const stage = document.querySelector('.pill[data-owner="stage"]');
+  const start = (kind) => {
+    if (reducedMotion() || view.reduced) {
+      const k = view.playKind === kind && view.step !== null && view.step !== undefined ? (view.step + 1) % 3 : 0;
+      return renderView({ ...view, playKind: kind, step: k, tau: stepTau(s, kind, k), frozen: k < 2, focus: [] });
+    }
+    const free = { ...view, phase: view.phase === 'revealed' ? 'revealed' : view.phase === 'challenge' ? 'challenge' : 'rest', focus: [], tau: 0, playKind: kind, step: null, frozen: false };
+    animate(free, m, M.playPlan(s, kind).total, () => renderView({ ...free, tau: null, focus: view.focus }));
+  };
+  if (play && !play.disabled) play.onclick = () => (view.tau !== null && view.tau !== undefined && !view.frozen ? stopPlay(view) : start('repair'));
+  if (stage && !stage.disabled) stage.onclick = () => start('staged');
+  document.querySelectorAll('.card-btn').forEach((el, i) => {
+    el.onclick = () => {
+      running++;
+      const spec = M.EXPERIMENTS[i];
+      renderView(spec.goal ? expView(spec, 'start') : expView(spec, 'asking'));
+    };
+  });
+  if (view.phase === 'asking')
+    document.querySelectorAll('button.g-choice').forEach((el, k) => {
+      el.onclick = () => {
+        const playingV = { ...expView(view.spec, 'playing', 0), chosen: k };
+        const pm = M.run(playingV.s);
+        renderView(playingV);
+        // On a phone, the part of the stage the answer plays on comes into view first.
+        document.getElementById('well').scrollIntoView({ block: 'nearest' });
+        const reveal = () => {
+          renderView({ ...expView(view.spec, 'revealed'), chosen: k });
+          const first = document.querySelector('rect.focus-outline');
+          if (first) {
+            const r = first.getBoundingClientRect();
+            if (r.top < 0 || r.bottom > window.innerHeight) first.scrollIntoView({ block: 'nearest' });
+          }
+        };
+        if (reducedMotion()) return reveal();
+        animate(playingV, pm, M.playPlan(playingV.s, playingV.playKind).total, reveal);
+      };
+    });
+  const describe = document.querySelector('.describe .g-btn');
+  if (describe && !describe.disabled) describe.onclick = () => renderView({ ...view, describe: !view.describe });
+}
+
+// ---------- Collisions, measured from the rendered DOM (the house checker).
+function collisions(well) {
+  const svg = well.querySelector('svg.draw');
+  const W = Number(svg.getAttribute('width'));
+  const H = Number(svg.getAttribute('height'));
+  const owners = (el) => (el.getAttribute?.('data-owner') ?? '').split(' ').filter(Boolean);
+  const share = (a, b) => a.some((t) => b.includes(t));
+  const texts = [...svg.querySelectorAll('text')].map((t) => {
+    const b = t.getBBox();
+    return { el: t, s: t.textContent, owner: owners(t), ground: t.hasAttribute('data-ground'), x0: b.x + 0.5, x1: b.x + b.width - 0.5, y0: b.y + b.height * 0.2, y1: b.y + b.height * 0.95 };
+  });
+  const out = [];
+  const ov = (a, b, m = 0) => Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > m && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > m;
+  for (let i = 0; i < texts.length; i++) {
+    const a = texts[i];
+    if (a.x0 < -0.5 || a.x1 > W + 0.5 || a.y0 < 0 || a.y1 > H) out.push(`off-stage: "${a.s}"`);
+    for (let j = i + 1; j < texts.length; j++) if (ov(a, texts[j], 0.5)) out.push(`text on text: "${a.s}" / "${texts[j].s}"`);
+  }
+  for (const axis of ['race', 'nines', 'billion']) {
+    const xt = texts.filter((t) => t.el.getAttribute('data-xtick') === axis).sort((a, b) => a.x0 - b.x0);
+    for (let i = 1; i < xt.length; i++) if (xt[i].x0 - xt[i - 1].x1 < 6) out.push(`${axis} axis labels ${xt[i - 1].s} and ${xt[i].s} ${(xt[i].x0 - xt[i - 1].x1).toFixed(1)} px apart`);
+  }
+  const inside = (p, t) => p.x > t.x0 + 0.5 && p.x < t.x1 - 0.5 && p.y > t.y0 + 0.5 && p.y < t.y1 - 0.5;
+  for (const el of svg.querySelectorAll('.read, .gridline, .axis, .rule, .track, .playhead, .step-arrow, .from-tick, .goal-line, .bar-hidden, .ghost-caret')) {
+    const grid = el.matches('.gridline, .axis, .rule, .track');
+    const o = owners(el);
+    const pts = [];
+    if (el.tagName === 'line') {
+      const [x1, y1, x2, y2] = ['x1', 'y1', 'x2', 'y2'].map((a) => Number(el.getAttribute(a)));
+      for (const [x, y] of sampleLine(x1, y1, x2, y2, 2)) pts.push({ x, y });
+    } else {
+      const len = el.getTotalLength();
+      for (let d = 0; d <= len; d += 2) pts.push(el.getPointAtLength(d));
+    }
+    for (const t of texts) {
+      if (grid && t.ground) continue;
+      if (grid && el.matches('.gridline') && !t.el.hasAttribute('data-xtick')) continue;
+      if (share(o, t.owner)) continue;
+      if (el.matches('.bar-hidden') && pts.length && (() => {
+        const bb = el.getBBox();
+        return t.x0 >= bb.x + 3 && t.x1 <= bb.x + bb.width - 3 && t.y0 >= bb.y + 2 && t.y1 <= bb.y + bb.height - 2;
+      })()) continue;
+      if (pts.some((p) => inside(p, t))) out.push(`${grid ? 'grid' : 'line'} through "${t.s}" (${el.getAttribute('class')})`);
+    }
+  }
+  for (const mk of svg.querySelectorAll('[data-mark]')) {
+    const b = mk.getBBox();
+    const box = { x0: b.x, x1: b.x + b.width, y0: b.y, y1: b.y + b.height };
+    for (const t of texts) if (!share(t.owner, owners(mk)) && ov(box, t, 0.5)) out.push(`text on mark ${mk.getAttribute('data-mark')}: "${t.s}"`);
+  }
+  for (const o of svg.querySelectorAll('rect.focus-outline')) {
+    const [x, y, w, h] = ['x', 'y', 'width', 'height'].map((a) => Number(o.getAttribute(a)));
+    for (const t of texts) {
+      if (t.owner.includes('look')) continue;
+      const inner = t.x0 >= x + 3 && t.x1 <= x + w - 3 && t.y0 >= y + 3 && t.y1 <= y + h - 3;
+      const clear = t.x1 <= x - 4 || t.x0 >= x + w + 4 || t.y1 <= y - 4 || t.y0 >= y + h + 4;
+      if (!inner && !clear) out.push(`text at an outline's stroke: "${t.s}"`);
+    }
+  }
+  const outlines = [...svg.querySelectorAll('rect.focus-outline')].map((o) => ['x', 'y', 'width', 'height'].map((a) => Number(o.getAttribute(a))));
+  for (let i = 0; i < outlines.length; i++)
+    for (let j = i + 1; j < outlines.length; j++) {
+      const [a, b] = [outlines[i], outlines[j]].sort((p, q) => p[1] - q[1]);
+      if (b[1] - (a[1] + a[3]) < 16) out.push(`two focus outlines ${r1(b[1] - (a[1] + a[3]))} px apart`);
+    }
+  const wb = well.getBoundingClientRect();
+  const hits = [...well.querySelectorAll('.hit')].map((h) => {
+    const b = h.getBoundingClientRect();
+    return { o: h.dataset.owner, x0: b.left - wb.left - 1, x1: b.right - wb.left - 1, y0: b.top - wb.top - 1, y1: b.bottom - wb.top - 1 };
+  });
+  for (let i = 0; i < hits.length; i++) {
+    const a = hits[i];
+    if (a.x0 < -0.5 || a.x1 > W + 0.5 || a.y0 < -0.5 || a.y1 > H + 0.5) out.push(`hit box off-stage: ${a.o}`);
+    for (let j = i + 1; j < hits.length; j++) if (ov(a, hits[j], 0)) out.push(`hit on hit: ${a.o} / ${hits[j].o}`);
+    for (const t of texts) if (ov(a, t, 0.5)) out.push(`text under the hit box ${a.o}: "${t.s}"`);
+  }
+  // Dots on dots: no two disks, glyphs or dots overlap unless they belong together.
+  const dots = [...svg.querySelectorAll('circle.head-first, circle.dot-final, circle.read-dot')].map((c) => ({ x: Number(c.getAttribute('cx')), y: Number(c.getAttribute('cy')), r: Number(c.getAttribute('r')), c: c.getAttribute('class') }));
+  for (let i = 0; i < dots.length; i++) for (let j = i + 1; j < dots.length; j++) if (dots[i].c !== 'read-dot' && Math.hypot(dots[i].x - dots[j].x, dots[i].y - dots[j].y) < dots[i].r + dots[j].r) out.push(`dot on dot: ${dots[i].c} / ${dots[j].c}`);
+  for (const el of svg.querySelectorAll('rect, line, circle, path')) {
+    if (el.closest('pattern')) continue;
+    const b = el.getBBox();
+    if (b.width + b.height === 0) continue;
+    if (b.x < -1 || b.x + b.width > W + 1 || b.y < -1 || b.y + b.height > H + 1) out.push(`mark off-stage: ${el.getAttribute('class')}`);
+  }
+  return out;
+}
+function tagMarks(well, D) {
+  const svg = well.querySelector('svg.draw');
+  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  g.setAttribute('opacity', '0');
+  for (const mk of D.marks) {
+    const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    r.setAttribute('x', mk.x0);
+    r.setAttribute('y', mk.y0);
+    r.setAttribute('width', Math.max(0.1, mk.x1 - mk.x0));
+    r.setAttribute('height', Math.max(0.1, mk.y1 - mk.y0));
+    r.setAttribute('data-mark', mk.owner || 'mark');
+    r.setAttribute('data-owner', mk.owner || 'mark');
+    g.appendChild(r);
+  }
+  svg.appendChild(g);
+}
+const unplaced = (D) => [...(D.missingTags ? [`${D.missingTags} focus tag(s) without a place`] : []), ...(D.missing ?? []).map((t) => `no room for "${t}"`)];
+
+// ---------- What must hold on every render, beyond collisions (the layout spec's assertions).
+const FALSE_CLAIMS = [/NaN/, /undefined/, /Infinity/, /—/, /(^|[^\d.,])0 (pieces|copies|disks|TB|h|years)\b/, /\b1 (pieces|copies|disks|years|ways)\b/, /e[+-]\d/];
+const stageText = (well) => [...well.querySelectorAll('text')].map((t) => t.textContent).join(' | ') + ' | ' + [...well.querySelectorAll('[aria-label]')].map((e) => e.getAttribute('aria-label')).join(' | ');
+function assertions(well, D, m, view) {
+  const out = [];
+  const svg = well.querySelector('svg.draw');
+  const text = stageText(well);
+  const hid = hiding(view);
+  for (const g of FALSE_CLAIMS) if (g.test(text)) out.push(`false claim ${g}: ${text.match(g)[0]}`);
+  const ps = D.meta.ps;
+  // The stage agrees with its own sentence: a lost object is crossed and said lost; a rebuilt one is rebuilt and not lost.
+  const raceText = D.meta.raceText;
+  if (ps.lost !== /the object is lost|destroys the one rack/.test(raceText)) out.push(`the race sentence and the picture disagree on a loss`);
+  if (ps.rebuilt !== /is rebuilt on the spare/.test(raceText)) out.push('the race sentence and the picture disagree on the rebuild');
+  if (ps.lost && !svg.querySelector('[data-owner="obj"].xmark')) out.push('a lost object is not crossed');
+  if (view.playKind === 'staged' && !/Staged, not sampled/.test(raceText)) out.push('a staged loss not named as staged');
+  // The number of read stubs is the scheme's repair read, unless hidden or nothing is being read.
+  const stubs = svg.querySelectorAll('line.read').length;
+  if (!hid.reads && ps.failed && !ps.rackDown && stubs !== m.repairRead) out.push(`${stubs} read stubs for a read of ${m.repairRead}`);
+  if (hid.reads && (stubs || svg.querySelector('.read-dot'))) out.push('reads drawn while hidden');
+  // Every value on the scale: the last row's dot sits at the model's nines.
+  const fin = svg.querySelector('circle.dot-final');
+  if (fin && !hid.loss) {
+    const L = layoutConsts(D.W);
+    const want = L.X0 + ((m.nines - NMIN) / (NMAX - NMIN)) * L.IW;
+    if (Math.abs(Number(fin.getAttribute('cx')) - want) > 0.6) out.push('the last row is not at the model’s nines');
+  }
+  if (hid.loss && fin) out.push('the loss drawn while hidden');
+  if (hid.steps && svg.querySelector('.step-arrow:not(.first), .bar-rack')) out.push('steps drawn while hidden');
+  if (hid.ghost && svg.querySelector('.ghost-caret')) out.push('a ghost while a question waits');
+  // A ghost caret always has its words, here or in the facts.
+  if (svg.querySelector('.ghost-caret') && !/before \d|Before this change/.test(text)) out.push('a ghost without its words');
+  return out;
+}
+function check(well, D, m, view) {
+  tagMarks(well, D);
+  const out = [...collisions(well), ...unplaced(D), ...(m ? assertions(well, D, m, view) : [])];
+  well.querySelectorAll('[data-mark]').forEach((e) => e.remove());
+  return out;
+}
+function drawInto(well, W, m, view) {
+  const { D, H } = buildStage(W, m, view);
+  if (view.focus?.length) focusOutlines(D, view.focus, H);
+  well.style.height = H + 'px';
+  well.innerHTML = D.svg(H, D.label) + overlaysHtml(D, view);
+  return { D, H };
+}
+function scratchWell(W) {
+  let well = document.getElementById('scratch');
+  if (!well) {
+    well = document.createElement('div');
+    well.id = 'scratch';
+    well.className = 'well';
+    well.style.position = 'absolute';
+    well.style.left = '-5000px';
+    well.style.top = '0';
+    document.body.appendChild(well);
+  }
+  well.style.width = W + 'px';
+  return well;
+}
+const show = (s) => `${M.SCHEMES[s.scheme].short} ${s.afr}% ${s.repair}h rack${s.rack}`;
+window.ALL_SETTINGS = M.ALL_SETTINGS;
+/** Every setting at the widths given: at rest, through both plays at the fractions given, with a ghost when asked. */
+window.sweep = (widths, settings, fracs, ghosts) => {
+  const res = { renders: 0, failures: [] };
+  for (const W of widths) {
+    const well = scratchWell(W);
+    for (const s of settings) {
+      const m = M.run(s);
+      const views = [];
+      for (const kind of ['repair', 'staged'])
+        for (const frac of fracs) {
+          const plan = M.playPlan(s, kind);
+          views.push({ s, hide: [], phase: 'rest', ghost: null, playKind: kind, tau: frac === null ? null : frac * plan.total, tag: `${kind} ${frac}` });
+        }
+      if (ghosts) views.push({ s, hide: [], phase: 'rest', ghost: M.BASE, playKind: 'repair', tau: null, tag: 'ghost base' }, { s, hide: [], phase: 'rest', ghost: { ...s, repair: s.repair === 168 ? 1 : 168 }, playKind: 'repair', tau: null, tag: 'ghost window' });
+      for (const view of views) {
+        const { D } = drawInto(well, W, m, view);
+        const out = check(well, D, m, view);
+        res.renders++;
+        if (out.length) res.failures.push({ W, s: `${show(s)} ${view.tag}`, out });
+      }
+    }
+  }
+  return res;
+};
+/** Every experiment asking, through its answer's play, revealed; the challenge at its start and met. Every revealed frame
+ * holds one placed "Look here" tag per outline. */
+window.sweepExperiments = (widths) => {
+  const res = { renders: 0, failures: [] };
+  for (const W of widths) {
+    const well = scratchWell(W);
+    M.EXPERIMENTS.forEach((spec, i) => {
+      const phases = spec.goal ? [['start'], ['challenge']] : [['asking'], ['playing', 0.1], ['playing', 0.4], ['playing', 0.7], ['playing', 0.97], ['revealed']];
+      for (const [phase, frac] of phases) {
+        const view = expView(spec, phase, frac ?? 0.5);
+        const m = M.run(view.s);
+        const { D } = drawInto(well, W, m, view);
+        const out = check(well, D, m, view);
+        const tags = well.querySelectorAll('rect.tag').length;
+        if ((D.focusGroups ?? 0) !== tags || (view.focus?.length && !tags)) out.push(`${tags} tags for ${D.focusGroups ?? 0} outlines`);
+        res.renders++;
+        if (out.length) res.failures.push({ W, exp: i + 1, phase: phase + (frac ?? ''), out });
+      }
+    });
+  }
+  return res;
+};
+
+// ---------- The no-answer sweep (prevention 1): while a question asks or its answer plays, nothing on the stage, in its
+// labels or in the page's words gives the answer; proven by planting leaks it must catch.
+function giveawaysOf(spec) {
+  const e = M.renderExperiment(spec);
+  const sl = e.slots;
+  const right = e.choices[e.answer].split(':')[0];
+  const lists = {
+    half: [sl.ninesAfter + ' nines', sl.ratio, M.oneIn(M.run(actSettings(spec)).loss)],
+    window: [sl.ninesAfter + ' nines', sl.pAfter, sl.ratio, M.oneIn(M.run(actSettings(spec)).loss), `× ${sl.pBefore}`, 'And a second'],
+    reads: [sl.readAfter, sl.gbpsAfter, '10 pieces'],
+    batch: [sl.after + ' nines', M.oneIn(M.run(actSettings(spec)).loss), 'And a fourth', `× ${M.oneIn(M.run(spec.setup).p)}`],
+    rack: [sl.after + ' nines', '0.1% a year', 'Or a rack event'],
+  }[spec.id];
+  return { right, list: lists };
+}
+/** Everything a learner can read or hear for a view: the stage, the summary, the notice, the readout, Describe. */
+function surfaces(well, m, view) {
+  const ctrl = document.createElement('div');
+  ctrl.innerHTML = controlsHtml(m, view) + describeHtml(m, { ...view, describe: true }, false);
+  return `${stageText(well)} | ${ctrl.textContent}`;
+}
+function noAnswerFor(spec, widths, hidingFn = hiding) {
+  const out = [];
+  let renders = 0;
+  const froms = [M.BASE, M.CHALLENGE_SOLUTION, actSettings(spec), { scheme: 3, afr: 10, repair: 168, rack: 1 }];
+  const { list } = giveawaysOf(spec);
+  for (const W of widths) {
+    const well = scratchWell(W);
+    const views = [...froms.map((from) => ({ ...expView(spec, 'asking'), ghost: from })), ...[0.05, 0.3, 0.55, 0.8, 0.99].map((f) => expView(spec, 'playing', f))];
+    for (const view of views) {
+      const saved = window.hiding;
+      const m = M.run(view.s);
+      const { D } = drawWith(well, W, m, view, hidingFn);
+      renders++;
+      const text = surfaces(well, m, view);
+      for (const g of list) if (text.includes(g)) out.push(`E ${spec.id} ${view.phase} W${W}: "${g}"`);
+      const svg = well.querySelector('svg.draw');
+      const h = hidingFn(view);
+      if (svg.querySelector('.ghost-caret')) out.push(`E ${spec.id} ${view.phase}: a ghost`);
+      if (h.steps !== hiding(view).steps || h.loss !== hiding(view).loss || h.reads !== hiding(view).reads) {
+        /* a planted leak: the structure checks below must see it */
+      }
+      const want = hiding(view);
+      if (want.steps && svg.querySelector('.step-arrow:not(.first), .bar-rack')) out.push(`E ${spec.id} ${view.phase}: steps drawn`);
+      if (want.loss && svg.querySelector('circle.dot-final, .bar-final')) out.push(`E ${spec.id} ${view.phase}: the loss drawn`);
+      if (want.reads && svg.querySelector('line.read, .read-dot')) out.push(`E ${spec.id} ${view.phase}: reads drawn`);
+      if (!svg.parentElement.querySelector('.play').disabled) out.push(`E ${spec.id} ${view.phase}: Play is live`);
+      void saved;
+      void D;
+    }
+  }
+  return { out, renders };
+}
+function drawWith(well, W, m, view, hidingFn) {
+  window.__hidingOverride = hidingFn === hiding ? null : hidingFn;
+  try {
+    return drawInto(well, W, m, view);
+  } finally {
+    window.__hidingOverride = null;
+  }
+}
+window.noAnswer = (widths) => {
+  const res = { out: [], renders: 0 };
+  for (const spec of M.EXPERIMENTS.filter((s) => !s.goal)) {
+    const r = noAnswerFor(spec, widths);
+    res.out.push(...r.out);
+    res.renders += r.renders;
+  }
+  return res;
+};
+/** Planted leaks: the sweep run with a hiding map that forgets one region for one question must report something. */
+window.plantedLeaks = (W) => {
+  const plants = [
+    ['window', (v) => ({ ...hidingBase(v), steps: false })],
+    ['batch', (v) => ({ ...hidingBase(v), steps: false })],
+    ['half', (v) => ({ ...hidingBase(v), loss: false })],
+    ['reads', (v) => ({ ...hidingBase(v), reads: false })],
+    ['rack', (v) => ({ ...hidingBase(v), loss: false, steps: false })],
+    ['half', (v) => ({ ...hidingBase(v), ghost: false })],
+  ];
+  return plants.map(([id, fn]) => noAnswerFor(M.EXPERIMENTS.find((s) => s.id === id), [W], fn).out.length > 0);
+};
+const hidingBase = (v) => hidingCore(v);
+const hidingReal = hidingCore;
+/** Every page sentence of every setting, under the false-claim list. */
+window.pageWords = () => {
+  const out = [];
+  const none = hidingReal({ phase: 'rest' });
+  for (const s of M.ALL_SETTINGS) {
+    const m = M.run(s);
+    const texts = [summary(m, none), settingSentence(m), factsSentence(m, none, M.run(M.BASE)), readoutText(m, none), ...goalChecks(m).map((c) => c.text), NOTE(s)];
+    for (const kind of ['repair', 'staged']) {
+      const plan = M.playPlan(s, kind);
+      for (const tau of [0, plan.fail + 0.01, plan.winStart + plan.win * 0.7, null]) texts.push(raceSentence(m, M.playState(s, kind, tau), kind, none));
+    }
+    for (const t of texts) {
+      for (const g of FALSE_CLAIMS) if (g.test(t)) out.push(`${show(s)}: ${g} in "${t}"`);
+      for (const sentence of t.split(/(?<=[.!?:]) /)) if (/^\d/.test(sentence) && !/^\d+ (of|nines)/.test(sentence)) out.push(`${show(s)}: a sentence opens on a numeral: "${sentence}"`);
+      if (/\s\s|\s[,.]/.test(t)) out.push(`${show(s)}: spacing in "${t}"`);
+    }
+  }
+  return out;
+};
+window.heights = (widths) => {
+  const out = {};
+  for (const W of widths) {
+    const well = scratchWell(W);
+    const hs = new Set();
+    for (const s of M.ALL_SETTINGS.filter((_, i) => i % 3 === 0))
+      for (const view of [
+        { s, hide: [], phase: 'rest', tau: null, playKind: 'repair' },
+        { s, hide: [], phase: 'rest', tau: null, playKind: 'staged' },
+        { s, hide: ['steps', 'after'], phase: 'playing', tau: 1, playKind: 'repair' },
+      ])
+        hs.add(buildStage(W, M.run(s), view).H);
+    out[W] = [...hs];
+  }
+  return out;
+};
+
+const STATE = params.get('state') ?? 'default';
+document.fonts.ready.then(() => {
+  const r = render(STATE);
+  const well = document.getElementById('well');
+  window.__collisions = check(well, r.D, r.m, r.view);
+  document.body.dataset.ready = '1';
+});
+
+    </script>
+  </body>
+</html>

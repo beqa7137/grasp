@@ -140,17 +140,18 @@
     const k = m.scheme.data;
     return Array.from({ length: m.n }, (_, i) => (i < k ? { id: `d${i + 1}`, kind: 'data', size: 1 / k } : { id: `p${i - k + 1}`, kind: 'parity', size: 1 / k }));
   }
-  /** The piece that fails in every play: the third (c3, d3), so it sits mid-row and its sources lie on both sides. */
-  const FAILED = 2;
+  /** The piece that fails in every play: the third (c3, d3), so it sits mid-row and its sources lie on both sides; of
+   * two copies, the second. */
+  const failedIndex = (m) => (m.n > 2 ? 2 : 1);
   /** The pieces a rebuild reads: any one copy, or any k of the survivors (the first k, skipping the failed one). */
   function sources(m) {
-    const ids = pieces(m).map((_, i) => i).filter((i) => i !== FAILED);
+    const ids = pieces(m).map((_, i) => i).filter((i) => i !== failedIndex(m));
     return m.replicas ? [ids[0]] : ids.slice(0, m.scheme.data);
   }
   /** The staged loss: after the first failure, t more pieces fail inside the window (spread over the row, so the
    * picture reads as chance and not as a block), the last of them before the repair ends. */
   function stagedFailures(m) {
-    const others = pieces(m).map((_, i) => i).filter((i) => i !== FAILED);
+    const others = pieces(m).map((_, i) => i).filter((i) => i !== failedIndex(m));
     if (m.replicas) return others;
     const out = [];
     for (let j = 0; j < m.t; j++) out.push(others[Math.round(((j + 0.5) * others.length) / m.t - 0.5)]);
@@ -556,7 +557,7 @@
     BASE,
     ALL_SETTINGS,
     E,
-    FAILED,
+    failedIndex,
     atLeast,
     choose,
     run,
