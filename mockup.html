@@ -1,0 +1,2176 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Unique IDs widget mockup</title>
+    <style>
+      @font-face {
+        font-family: 'Inter Variable';
+        src: url(fonts/inter-latin-wght-normal.woff2) format('woff2');
+        font-weight: 100 900;
+        font-display: block;
+      }
+      @font-face {
+        font-family: 'JetBrains Mono Variable';
+        src: url(fonts/jetbrains-mono-latin-wght-normal.woff2) format('woff2');
+        font-weight: 100 800;
+        font-display: block;
+      }
+      /* The app's tokens (apps/app/src/_theme.scss, styles.scss): light is the base, dark overrides. */
+      :root {
+        color-scheme: light;
+        --g-bg: #f4f5f9;
+        --g-surface: #ffffff;
+        --g-raised: #ffffff;
+        --g-sunken: #eef0f5;
+        --g-line: #dfe2ea;
+        --g-line-strong: #c6cbd6;
+        --g-stroke: #707889;
+        --g-text: #161a23;
+        --g-text-rgb: 22, 26, 35;
+        --g-muted: #4a5263;
+        --g-faint: #5c6477;
+        --g-on-fill: #ffffff;
+        --g-warn-ink: #6e4200;
+        --g-danger-ink: #9d1630;
+        --g-found-ink: #02583f;
+        --g-accent: #5846dc;
+        --g-accent-rgb: 88, 70, 220;
+        --g-accent-soft: rgba(88, 70, 220, 0.14);
+        --g-found: #036b4c;
+        --g-danger: #c3203d;
+        --g-warn: #945800;
+        --g-success-ink: var(--g-found-ink);
+        --g-success-line: var(--g-found);
+        --g-success-soft: rgba(3, 107, 76, 0.12);
+        --g-danger-soft: rgba(195, 32, 61, 0.12);
+        --g-warn-soft: rgba(148, 88, 0, 0.12);
+        --g-viz-stage: #f7f8fb;
+        --g-viz-current: #0b74ad;
+        --g-viz-current-soft: rgba(11, 116, 173, 0.16);
+        --g-viz-considering: #c77700;
+        --g-viz-considering-soft: rgba(199, 119, 0, 0.14);
+        --g-viz-final: #12925f;
+        --g-viz-final-ink: var(--g-found-ink);
+        --g-viz-discarded-ink: #687082;
+        --g-viz-critical: #d42a49;
+        --g-viz-track: #d3d7e0;
+        --g-shadow: 0 1px 2px rgba(var(--g-text-rgb), 0.06), 0 3px 10px rgba(var(--g-text-rgb), 0.07);
+        --g-shadow-raised: 0 1px 2px rgba(var(--g-text-rgb), 0.08);
+        --g-radius-xs: 6px;
+        --g-radius-sm: 10px;
+        --g-radius-md: 14px;
+        --g-radius-pill: 999px;
+        --g-text-title-m: 1.0625rem;
+        --g-text-title-s: 0.9375rem;
+        --g-text-body: 0.875rem;
+        --g-text-body-s: 0.8125rem;
+        --g-text-label: 0.6875rem;
+        --g-font: 'Inter Variable', system-ui, sans-serif;
+        --g-font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+        --g-focus-ring: 2px solid var(--g-accent);
+      }
+      :root.dark {
+        color-scheme: dark;
+        --g-bg: #0b0d12;
+        --g-surface: #141824;
+        --g-raised: #1c2130;
+        --g-sunken: #0f121a;
+        --g-line: #252a37;
+        --g-line-strong: #343b4d;
+        --g-stroke: #6b7387;
+        --g-text: #e9ebf2;
+        --g-text-rgb: 233, 235, 242;
+        --g-muted: #8b93a8;
+        --g-faint: #828a9e;
+        --g-on-fill: #0b0d12;
+        --g-warn-ink: #f3e6b3;
+        --g-danger-ink: #ffb3bd;
+        --g-found-ink: #3ddc97;
+        --g-accent: #9d8cff;
+        --g-accent-rgb: 157, 140, 255;
+        --g-accent-soft: rgba(157, 140, 255, 0.14);
+        --g-found: #3ddc97;
+        --g-danger: #ff5d73;
+        --g-warn: #ffb547;
+        --g-success-soft: rgba(61, 220, 151, 0.12);
+        --g-danger-soft: rgba(255, 93, 115, 0.12);
+        --g-warn-soft: rgba(255, 181, 71, 0.12);
+        --g-viz-stage: #0e1118;
+        --g-viz-current: #1f9fd0;
+        --g-viz-current-soft: rgba(31, 159, 208, 0.16);
+        --g-viz-considering: #c08420;
+        --g-viz-considering-soft: rgba(192, 132, 32, 0.18);
+        --g-viz-final: #22ad74;
+        --g-viz-final-ink: var(--g-found);
+        --g-viz-discarded-ink: var(--g-muted);
+        --g-viz-critical: #e5485f;
+        --g-viz-track: #2a3040;
+        --g-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        --g-shadow-raised: var(--g-shadow);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--g-bg);
+        color: var(--g-text);
+        font: 400 var(--g-text-body) / 1.5 var(--g-font);
+        font-variant-ligatures: none;
+        -webkit-font-smoothing: antialiased;
+        overflow-wrap: break-word;
+      }
+      .page {
+        max-width: 1048px;
+        margin: 0 auto;
+        padding: 20px 16px 40px;
+      }
+      .eyebrow {
+        margin: 0;
+        font: 600 var(--g-text-label) var(--g-font);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--g-muted);
+      }
+      h1 {
+        margin: 4px 0 14px;
+        font: 600 1.25rem/1.3 var(--g-font);
+      }
+      /* Narrow: one column: the stage, the question, the controls, Describe, the cards. */
+      .widget {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 12px;
+      }
+      .main,
+      .side {
+        display: contents;
+      }
+      .stage {
+        order: 1;
+        min-width: 0;
+      }
+      .dock {
+        order: 2;
+      }
+      .controls {
+        order: 3;
+      }
+      .describe {
+        order: 4;
+      }
+      .heading,
+      .cards {
+        order: 5;
+      }
+      @media (min-width: 1000px) {
+        .widget {
+          grid-template-columns: minmax(0, 1fr) 320px;
+          align-items: start;
+          column-gap: 20px;
+        }
+        .main {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr);
+          gap: 12px;
+          grid-column: 1;
+          min-width: 0;
+        }
+        .side {
+          display: grid;
+          gap: 12px;
+          grid-column: 2;
+          grid-row: 1;
+          min-width: 0;
+          position: sticky;
+          top: 12px;
+        }
+        .heading {
+          margin-top: 8px;
+        }
+      }
+      .well {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid var(--g-line);
+        border-radius: var(--g-radius-md);
+        background-color: var(--g-viz-stage);
+      }
+      fieldset.group {
+        margin: 0;
+        padding: 0;
+        border: 0;
+        min-width: 0;
+      }
+      .controls {
+        display: grid;
+        gap: 14px;
+        min-width: 0;
+        padding: 14px;
+        border: 1px solid var(--g-line);
+        border-radius: var(--g-radius-md);
+        background: var(--g-surface);
+      }
+      .controls h2 {
+        margin: 0;
+        font: 600 var(--g-text-title-s) var(--g-font);
+      }
+      .control-label {
+        display: block;
+        font: 600 var(--g-text-label) var(--g-font);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--g-muted);
+        padding: 0;
+        margin-bottom: 6px;
+      }
+      .control-label .why {
+        font-weight: 500;
+        letter-spacing: normal;
+        text-transform: none;
+      }
+      .row2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .segments {
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: 1fr;
+        gap: 4px;
+      }
+      .segments.two-by-two {
+        grid-auto-flow: row;
+        grid-template-columns: 1fr 1fr;
+      }
+      .segment {
+        position: relative;
+        min-width: 0;
+      }
+      .segment input {
+        position: absolute;
+        inset: 0;
+        margin: 0;
+        opacity: 0;
+        cursor: pointer;
+      }
+      /* A checked segment changes colour only, never weight, so its label keeps its width (rule 20). */
+      .segment span {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 44px;
+        padding: 0 6px;
+        border-radius: var(--g-radius-sm);
+        border: 1px solid var(--g-line-strong);
+        background: var(--g-raised);
+        box-shadow: var(--g-shadow-raised);
+        color: var(--g-text);
+        font: 500 var(--g-text-body-s) / 1.2 var(--g-font);
+        text-align: center;
+      }
+      .segment input:checked + span {
+        background: var(--g-accent-soft);
+        border-color: var(--g-accent);
+        box-shadow: inset 0 0 0 1px var(--g-accent);
+      }
+      .segment input:focus-visible + span,
+      .stepper button:focus-visible,
+      .g-btn:focus-visible,
+      .card-btn:focus-visible,
+      .g-choice:focus-visible {
+        outline: var(--g-focus-ring);
+        outline-offset: 2px;
+      }
+      fieldset:disabled .segment span,
+      fieldset:disabled .stepper {
+        opacity: 0.55;
+      }
+      .stepper {
+        display: grid;
+        grid-template-columns: 44px minmax(0, 1fr) 44px;
+        align-items: center;
+        border: 1px solid var(--g-line-strong);
+        border-radius: var(--g-radius-sm);
+        background: var(--g-raised);
+        min-height: 44px;
+      }
+      .stepper button {
+        width: 44px;
+        height: 44px;
+        border: 0;
+        background: none;
+        color: var(--g-accent);
+        font: 600 1.125rem var(--g-font);
+        cursor: pointer;
+      }
+      .stepper output {
+        text-align: center;
+        font: 600 var(--g-text-body) var(--g-font-mono);
+      }
+      .toggle {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 44px;
+        font: 500 var(--g-text-body-s) var(--g-font);
+      }
+      .toggle input {
+        width: 20px;
+        height: 20px;
+        margin: 12px;
+        accent-color: var(--g-accent);
+      }
+      .range {
+        display: grid;
+        gap: 2px;
+      }
+      .range input {
+        width: 100%;
+        height: 44px;
+        margin: 0;
+        accent-color: var(--g-accent);
+      }
+      .range output {
+        font: 500 var(--g-text-body-s) var(--g-font);
+        color: var(--g-muted);
+      }
+      .notice {
+        margin: 0;
+        min-height: 3lh;
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+      }
+      .caption {
+        margin: 8px 2px 0;
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+      }
+      .play {
+        position: absolute;
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        border: 0;
+        background: none;
+        cursor: pointer;
+        z-index: 2;
+      }
+      .play svg {
+        display: block;
+        width: 34px;
+        height: 34px;
+        margin: 5px;
+      }
+      .play circle {
+        fill: var(--g-raised);
+        stroke: var(--g-accent);
+        stroke-width: 1.5;
+      }
+      .play path {
+        fill: var(--g-accent);
+      }
+      .play:disabled {
+        cursor: default;
+        opacity: 0.45;
+      }
+      svg.draw {
+        display: block;
+        overflow: visible;
+      }
+      svg.draw text {
+        paint-order: stroke;
+        stroke: var(--g-viz-stage);
+        stroke-width: 3px;
+        stroke-linejoin: round;
+      }
+      svg.draw text.on-fill {
+        stroke: none;
+      }
+      .t-label {
+        font: 600 11px var(--g-font);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        fill: var(--g-muted);
+      }
+      .t-cap {
+        font: 500 13px var(--g-font);
+        fill: var(--g-text);
+      }
+      .t-capM {
+        font: 500 13px var(--g-font);
+        fill: var(--g-muted);
+      }
+      .t-capB {
+        font: 600 13px var(--g-font);
+        fill: var(--g-text);
+      }
+      .t-small {
+        font: 500 11px var(--g-font);
+        fill: var(--g-muted);
+      }
+      .t-smallB {
+        font: 700 11px var(--g-font);
+        fill: var(--g-text);
+      }
+      .t-mono {
+        font: 600 11px var(--g-font-mono);
+        fill: var(--g-text);
+      }
+      .t-monoR {
+        font: 500 11px var(--g-font-mono);
+        fill: var(--g-muted);
+      }
+      .t-monoL {
+        font: 600 13px var(--g-font-mono);
+        fill: var(--g-text);
+      }
+      .t-bit {
+        font: 600 10px var(--g-font-mono);
+      }
+      .ink {
+        fill: var(--g-text);
+      }
+      .muted {
+        fill: var(--g-muted);
+      }
+      .bad {
+        fill: var(--g-danger-ink);
+      }
+      .warn {
+        fill: var(--g-warn-ink);
+      }
+      .acc {
+        fill: var(--g-accent);
+      }
+      .f-time {
+        --f: var(--g-viz-current);
+        --fs: var(--g-viz-current-soft);
+      }
+      .f-gen {
+        --f: var(--g-viz-considering);
+        --fs: var(--g-viz-considering-soft);
+      }
+      .f-seq {
+        --f: var(--g-viz-final);
+        --fs: rgba(18, 146, 95, 0.15);
+      }
+      .f-sign {
+        --f: var(--g-stroke);
+        --fs: rgba(var(--g-text-rgb), 0.06);
+      }
+      .cell1 {
+        fill: var(--f);
+      }
+      .cell0 {
+        fill: var(--fs);
+        stroke: var(--f);
+        stroke-opacity: 0.35;
+        stroke-width: 1;
+      }
+      .bit1 {
+        fill: var(--g-on-fill);
+        stroke: none;
+      }
+      .bit0 {
+        fill: var(--f);
+        stroke: none;
+        opacity: 0.9;
+      }
+      .chip {
+        fill: var(--f);
+      }
+      .field-tone {
+        fill: var(--f);
+      }
+      .rule {
+        stroke: var(--g-line);
+        stroke-width: 1;
+      }
+      .rule-strong {
+        stroke: var(--g-line-strong);
+        stroke-width: 1;
+      }
+      .axis {
+        stroke: var(--g-stroke);
+        stroke-width: 1;
+      }
+      .grid {
+        stroke: var(--g-line);
+        stroke-width: 1;
+      }
+      .lane-bg {
+        fill: rgba(var(--g-text-rgb), 0.025);
+      }
+      .tick-band {
+        fill: rgba(var(--g-text-rgb), 0.035);
+      }
+      .dot {
+        fill: var(--g-text);
+      }
+      .dot.inspect {
+        fill: var(--g-accent);
+      }
+      .dot.repeat {
+        fill: var(--g-viz-critical);
+      }
+      .dot.late {
+        fill: var(--g-viz-considering);
+      }
+      .ring {
+        fill: none;
+        stroke: var(--g-accent);
+        stroke-width: 1.5;
+      }
+      .ring.bad {
+        stroke: var(--g-viz-critical);
+        fill: none;
+      }
+      .wait-line {
+        stroke: var(--g-viz-considering);
+        stroke-width: 2;
+        stroke-linecap: round;
+      }
+      .arrival {
+        fill: none;
+        stroke: var(--g-viz-considering);
+        stroke-width: 1.5;
+      }
+      .gauge-bg {
+        fill: rgba(var(--g-text-rgb), 0.05);
+        stroke: var(--g-line-strong);
+        stroke-width: 1;
+      }
+      .gauge {
+        fill: var(--g-viz-final);
+      }
+      .bracket {
+        fill: none;
+        stroke: var(--g-stroke);
+        stroke-width: 1;
+      }
+      .bracket.bad {
+        stroke: var(--g-viz-critical);
+        stroke-width: 1.5;
+      }
+      .now-line {
+        stroke: var(--g-accent);
+        stroke-width: 1.5;
+      }
+      .order-line {
+        fill: none;
+        stroke: var(--g-stroke);
+        stroke-width: 1;
+        stroke-opacity: 0.6;
+      }
+      .curve {
+        fill: none;
+        stroke: var(--g-stroke);
+        stroke-width: 1.5;
+      }
+      .curve.cur {
+        stroke: var(--g-accent);
+        stroke-width: 2.5;
+      }
+      .tri {
+        fill: none;
+        stroke: var(--g-muted);
+        stroke-width: 1;
+      }
+      .ruler-step {
+        stroke: var(--g-line-strong);
+        stroke-width: 1;
+      }
+      .marker {
+        fill: var(--g-accent);
+      }
+      .marker.bad {
+        fill: var(--g-viz-critical);
+      }
+      .now-mark {
+        fill: var(--g-text);
+      }
+      .page-box {
+        fill: var(--g-raised);
+        stroke: var(--g-line-strong);
+        stroke-width: 1;
+      }
+      .page-box.hot {
+        fill: var(--g-viz-current-soft);
+        stroke: var(--g-viz-current);
+      }
+      .insert {
+        stroke: var(--g-viz-current);
+        stroke-width: 2;
+      }
+      .hidden-box {
+        fill: rgba(var(--g-text-rgb), 0.03);
+        stroke: var(--g-stroke);
+        stroke-width: 1.5;
+        stroke-dasharray: 5 4;
+      }
+      .focus-outline {
+        fill: none;
+        stroke: var(--g-accent);
+        stroke-width: 2;
+      }
+      .tag {
+        fill: var(--g-viz-stage);
+        stroke: var(--g-accent);
+        stroke-width: 1.5;
+      }
+      .t-look {
+        font: 600 11px var(--g-font);
+        fill: var(--g-accent);
+      }
+      .bar-fill {
+        fill: var(--g-viz-final);
+        opacity: 0.35;
+      }
+      /* The experiment dock and cards (experiment-dock.component.ts, widget-check.component.ts). */
+      .dock {
+        padding: 12px 16px;
+        border-radius: var(--g-radius-md);
+        border: 1px solid var(--g-line);
+        border-left: 3px solid var(--g-accent);
+        background: var(--g-surface);
+      }
+      .dock:empty {
+        display: none;
+      }
+      .dock .eyebrow {
+        margin-bottom: 4px;
+      }
+      .legend {
+        margin: 0 0 4px;
+        font-weight: 600;
+        line-height: 1.45;
+      }
+      .options {
+        list-style: none;
+        margin: 8px 0 0;
+        padding: 0;
+        display: grid;
+        gap: 8px;
+      }
+      .g-choice {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        min-height: 44px;
+        padding: 10px 14px;
+        border-radius: 12px;
+        border: 1px solid var(--g-line-strong);
+        background: var(--g-raised);
+        color: var(--g-text);
+        font: 500 0.90625rem/1.45 var(--g-font);
+        text-align: left;
+        box-shadow: var(--g-shadow-raised);
+        cursor: pointer;
+      }
+      .g-choice.right {
+        border-color: var(--g-success-line);
+        background: var(--g-success-soft);
+      }
+      .g-choice.wrong {
+        border-color: var(--g-danger);
+        background: var(--g-danger-soft);
+      }
+      .g-choice[disabled] {
+        cursor: default;
+      }
+      .mark {
+        flex: none;
+        font: 600 var(--g-text-body-s) var(--g-font);
+      }
+      .g-choice.right .mark {
+        color: var(--g-success-ink);
+      }
+      .g-choice.wrong .mark {
+        color: var(--g-danger-ink);
+      }
+      .held {
+        margin: 10px 0 0;
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+      }
+      .reveal {
+        margin: 10px 0 0;
+        line-height: 1.55;
+        font-size: 0.90625rem;
+      }
+      .status-line {
+        margin: 10px 0 6px;
+        font: 600 var(--g-text-body) var(--g-font);
+        color: var(--g-muted);
+      }
+      .status-line.met {
+        color: var(--g-success-ink);
+      }
+      .status {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        gap: 4px;
+        font: 500 var(--g-text-body-s) var(--g-font);
+        color: var(--g-muted);
+      }
+      .status li {
+        display: flex;
+        gap: 8px;
+        align-items: baseline;
+      }
+      .status li.met {
+        color: var(--g-success-ink);
+      }
+      .status .state {
+        flex: none;
+        width: 14px;
+        font-weight: 700;
+      }
+      .heading {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font: 600 var(--g-text-title-s) var(--g-font);
+        margin: 4px 0 0;
+      }
+      .cards {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 8px;
+      }
+      .card-btn {
+        width: 100%;
+        min-height: 48px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 12px;
+        border: 1px solid var(--g-line-strong);
+        border-radius: var(--g-radius-sm);
+        background: var(--g-raised);
+        box-shadow: var(--g-shadow-raised);
+        color: var(--g-text);
+        font: 500 var(--g-text-body) var(--g-font);
+        text-align: left;
+        cursor: pointer;
+      }
+      .card-btn[aria-current] {
+        border-color: var(--g-accent);
+        box-shadow: inset 0 0 0 1px var(--g-accent);
+        background: var(--g-accent-soft);
+      }
+      .card-btn .num {
+        flex: none;
+        display: grid;
+        place-items: center;
+        width: 26px;
+        height: 26px;
+        border-radius: var(--g-radius-pill);
+        background: var(--g-sunken);
+        font: 600 var(--g-text-body-s) var(--g-font-mono);
+        color: var(--g-muted);
+      }
+      .describe {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 8px;
+        justify-items: start;
+      }
+      .describe .muted-note {
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+        margin: 0;
+      }
+      .describe p.summary {
+        margin: 0;
+        font-size: var(--g-text-body-s);
+      }
+      .g-btn {
+        appearance: none;
+        border: 1px solid var(--g-line-strong);
+        background: var(--g-raised);
+        box-shadow: var(--g-shadow-raised);
+        color: var(--g-text);
+        border-radius: var(--g-radius-sm);
+        padding: 9px 14px;
+        min-height: 44px;
+        font: 500 var(--g-text-body) / 1 var(--g-font);
+        cursor: pointer;
+      }
+      .g-btn:disabled {
+        opacity: 0.55;
+        cursor: default;
+      }
+      .table-box {
+        justify-self: stretch;
+        max-height: 360px;
+        overflow: auto;
+        border-top: 1px solid var(--g-line);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font: 500 var(--g-text-body-s) var(--g-font);
+        font-variant-numeric: tabular-nums;
+      }
+      th,
+      td {
+        text-align: right;
+        padding: 4px 8px;
+        white-space: nowrap;
+        height: 28px;
+      }
+      th:first-child,
+      td:first-child {
+        text-align: left;
+      }
+      th {
+        position: sticky;
+        top: 0;
+        background: var(--g-surface);
+        font-weight: 600;
+        color: var(--g-muted);
+      }
+      td.mono {
+        font-family: var(--g-font-mono);
+        font-size: 0.75rem;
+      }
+      tr.bad td {
+        color: var(--g-danger-ink);
+      }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+      }
+      @media (max-width: 999px) {
+        .notice {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          min-height: 0;
+          overflow: hidden;
+          clip-path: inset(50%);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <p class="eyebrow">System design · Unique IDs</p>
+      <h1>Make an id: bit by bit, on many machines at once</h1>
+      <div class="widget">
+        <div class="main">
+          <div class="stage">
+            <div class="well" id="well">
+              <svg class="draw" id="svg" role="img" aria-labelledby="svg-title"><title id="svg-title"></title></svg>
+              <button class="play" id="play" type="button" aria-label="Play the mint: 8 ms of the clock, slowed down">
+                <svg viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="16" /><path d="M13 10.5 L24 17 L13 23.5 Z" /></svg>
+              </button>
+            </div>
+            <p class="caption" id="story" hidden></p>
+          </div>
+          <div class="dock" id="dock"></div>
+          <div class="describe" id="describe"></div>
+        </div>
+        <div class="side">
+          <form class="controls" id="controls" onsubmit="return false">
+            <h2>Try it</h2>
+            <fieldset class="group" id="g-layout">
+              <legend class="control-label">The layout <span class="why">(63 bits to share)</span></legend>
+              <div class="row2">
+                <div>
+                  <span class="control-label" id="gen-l">Generator bits</span>
+                  <div class="stepper" role="group" aria-labelledby="gen-l">
+                    <button type="button" data-step="gen" data-d="-1" aria-label="One generator bit fewer">−</button>
+                    <output id="gen-v" aria-live="off">10</output>
+                    <button type="button" data-step="gen" data-d="1" aria-label="One generator bit more">+</button>
+                  </div>
+                </div>
+                <div>
+                  <span class="control-label" id="seq-l">Sequence bits</span>
+                  <div class="stepper" role="group" aria-labelledby="seq-l">
+                    <button type="button" data-step="seq" data-d="-1" aria-label="One sequence bit fewer">−</button>
+                    <output id="seq-v" aria-live="off">12</output>
+                    <button type="button" data-step="seq" data-d="1" aria-label="One sequence bit more">+</button>
+                  </div>
+                </div>
+              </div>
+            </fieldset>
+            <div class="row2">
+              <fieldset class="group" id="g-tick">
+                <legend class="control-label">Tick</legend>
+                <div class="segments">
+                  <label class="segment"><input type="radio" name="tick" value="1" /><span>1 ms</span></label>
+                  <label class="segment"><input type="radio" name="tick" value="10" /><span>10 ms</span></label>
+                </div>
+              </fieldset>
+              <fieldset class="group" id="g-epoch">
+                <legend class="control-label">Epoch</legend>
+                <div class="segments">
+                  <label class="segment"><input type="radio" name="epoch" value="0" /><span>2026</span></label>
+                  <label class="segment"><input type="radio" name="epoch" value="1" /><span>1970</span></label>
+                </div>
+              </fieldset>
+            </div>
+            <fieldset class="group" id="g-load">
+              <legend class="control-label">Requests to G0</legend>
+              <div class="segments">
+                <label class="segment"><input type="radio" name="load" value="0" /><span>A trickle</span></label>
+                <label class="segment"><input type="radio" name="load" value="1" /><span>5,000 at once</span></label>
+              </div>
+            </fieldset>
+            <fieldset class="group" id="g-fault">
+              <legend class="control-label">What goes wrong</legend>
+              <div class="segments two-by-two">
+                <label class="segment"><input type="radio" name="fault" value="0" /><span>Nothing</span></label>
+                <label class="segment"><input type="radio" name="fault" value="1" /><span>G2's clock ahead</span></label>
+                <label class="segment"><input type="radio" name="fault" value="2" /><span>G1's clock steps back</span></label>
+                <label class="segment"><input type="radio" name="fault" value="3" /><span>G2 given number 1</span></label>
+              </div>
+              <label class="toggle"><input type="checkbox" id="guard" />Keep the last timestamp (wait if the clock is behind it)</label>
+            </fieldset>
+            <fieldset class="group" id="g-random">
+              <legend class="control-label">Random ids</legend>
+              <div class="segments">
+                <label class="segment"><input type="radio" name="bits" value="64" /><span>64 random bits</span></label>
+                <label class="segment"><input type="radio" name="bits" value="122" /><span>122 (UUIDv4)</span></label>
+              </div>
+              <label class="range"
+                ><span class="control-label" style="margin: 8px 0 0">Ids made</span
+                ><input type="range" id="count" min="3" max="15" step="1" aria-describedby="count-v" /><output id="count-v"></output></label>
+            </fieldset>
+            <p class="notice" id="notice" aria-live="polite" aria-atomic="true"></p>
+          </form>
+          <h2 class="heading">Experiments</h2>
+          <ul class="cards" id="cards"></ul>
+        </div>
+      </div>
+    </div>
+    <script src="model.js"></script>
+    <script>
+'use strict';
+const M = window.IdModel;
+const F = M.fmt;
+const Q = new URLSearchParams(location.search);
+document.documentElement.classList.toggle('dark', Q.get('theme') === 'dark');
+const EXPS = M.experiments();
+const REDUCED = Q.get('reduced') === '1' || Q.get('state') === 'reduced';
+
+// ------------------------------------------------------------------------------------------------------------------
+// State: a free-play setting, an experiment asking, playing or revealed, or the challenge.
+
+const FREE = {
+  default: {},
+  tick10: { tick: 10 },
+  gen11: { gen: 11 },
+  gen16: { gen: 16 },
+  gen0: { gen: 0, seq: 12 },
+  seq0: { seq: 0 },
+  epoch1970: { epoch: 1 },
+  overflow: { epoch: 1, gen: 16 },
+  burst: { load: 1, seq: 10 },
+  skew: { fault: 1 },
+  stepback: { fault: 2 },
+  naive: { fault: 2, guard: 0 },
+  shared: { fault: 3 },
+  random64: { bits: 64 },
+  trillion: { bits: 64, count: 12 },
+  playing: {},
+  reduced: {},
+  describe: {},
+};
+const STATE = Q.get('state') ?? 'default';
+const view = {
+  s: { ...M.BASE },
+  hide: new Set(),
+  focus: [],
+  phase: 'rest',
+  t: M.WINDOW_US,
+  exp: null,
+  picked: null,
+  ghost: null,
+  challenge: false,
+  describeOpen: STATE === 'describe',
+};
+function applyState() {
+  const n = Number(Q.get('exp'));
+  if (STATE in FREE) {
+    view.s = { ...M.BASE, ...FREE[STATE] };
+    if (STATE === 'gen11') view.ghost = { ...M.BASE };
+    if (STATE === 'playing') {
+      view.phase = 'playing';
+      view.t = Number(Q.get('frac') ?? 0.55) * M.WINDOW_US;
+    }
+  } else if (STATE === 'ask' || STATE === 'play' || STATE === 'reveal') {
+    const e = EXPS[n - 1];
+    view.exp = n;
+    const after = { ...e.setup, ...(e.act.set ?? {}) };
+    if (STATE === 'ask') {
+      view.s = { ...e.setup };
+      view.hide = new Set(e.hide);
+    } else if (STATE === 'play') {
+      view.s = after;
+      view.hide = new Set(e.hide);
+      view.phase = 'playing';
+      view.t = Number(Q.get('frac') ?? 0.7) * M.WINDOW_US;
+      view.picked = Number(Q.get('pick') ?? 1) - 1;
+    } else {
+      view.s = after;
+      view.focus = e.focus;
+      const truth = e.choices.findIndex((c) => c.value === e.truth);
+      view.picked = Q.has('pick') ? Number(Q.get('pick')) - 1 : (truth + 1) % 3;
+      if (e.id === 'one-bit') view.ghost = { ...e.setup };
+    }
+  } else if (STATE === 'challenge') {
+    view.challenge = true;
+    view.s = Q.get('solved') === '1' ? { ...M.BASE, gen: 10, seq: 10 } : { ...M.BASE };
+  }
+  for (const k of Object.keys(M.BASE)) if (Q.has(k)) view.s[k] = Number(Q.get(k));
+}
+applyState();
+
+/**
+ * The one hiding map: each hidden region a question names, to every surface it covers. A planted leak (?leak=flag)
+ * turns one flag off, so shoot.cjs can prove its sweep catches it.
+ */
+function hiding() {
+  const h = view.hide;
+  const flags = {
+    lifetime: h.has('lifetime'),
+    burstAfter: h.has('burstAfter'),
+    order: h.has('order') || h.has('repeats'),
+    inspect: h.has('order') || h.has('repeats'),
+    repeats: h.has('repeats'),
+    chance: h.has('chance'),
+    summary: h.size > 0,
+    describe: h.size > 0,
+  };
+  const leak = Q.get('leak');
+  if (leak && leak in flags) flags[leak] = false;
+  return flags;
+}
+
+// ------------------------------------------------------------------------------------------------------------------
+// Text measurement (the mockup's stand-in for stage-text.ts): every label is measured as it is drawn, so placement
+// and the collision report see the same boxes.
+
+const ROLES = {
+  label: { font: '600 11px "Inter Variable"', size: 11, ls: 1.32, upper: true, cls: 't-label' },
+  cap: { font: '500 13px "Inter Variable"', size: 13, cls: 't-cap' },
+  capM: { font: '500 13px "Inter Variable"', size: 13, cls: 't-capM' },
+  capB: { font: '600 13px "Inter Variable"', size: 13, cls: 't-capB' },
+  small: { font: '500 11px "Inter Variable"', size: 11, cls: 't-small' },
+  smallB: { font: '700 11px "Inter Variable"', size: 11, cls: 't-smallB' },
+  mono: { font: '600 11px "JetBrains Mono Variable"', size: 11, cls: 't-mono' },
+  monoR: { font: '500 11px "JetBrains Mono Variable"', size: 11, cls: 't-monoR' },
+  monoL: { font: '600 13px "JetBrains Mono Variable"', size: 13, cls: 't-monoL' },
+  bit: { font: '600 10px "JetBrains Mono Variable"', size: 10, cls: 't-bit' },
+  look: { font: '600 11px "Inter Variable"', size: 11, cls: 't-look' },
+};
+const ctx = document.createElement('canvas').getContext('2d');
+function measure(role, str) {
+  const r = ROLES[role];
+  ctx.font = r.font;
+  const s = r.upper ? str.toUpperCase() : str;
+  return ctx.measureText(s).width + (r.ls ?? 0) * s.length;
+}
+/** Words that stay together: a number with the word after it, an operator with its operand, a superscript power. */
+function tokens(str) {
+  const words = str.split(' ');
+  const out = [];
+  for (const w of words) {
+    const prev = out[out.length - 1];
+    if (prev && (/[\d⁰¹²³⁴⁵⁶⁷⁸⁹%]$/.test(prev) || /^[×=÷−+→]$/.test(prev) || prev === 'a' || prev === 'G')) out[out.length - 1] = `${prev} ${w}`;
+    else out.push(w);
+  }
+  return out;
+}
+/** Breaks a list of segments to a width at their joins only, so no segment is ever split. */
+function wrapSegments(role, segs, maxW, join = ' · ') {
+  const lines = [];
+  let cur = '';
+  for (const sg of segs) {
+    const next = cur ? `${cur}${join}${sg}` : sg;
+    if (measure(role, next) <= maxW - 6 || !cur) cur = next;
+    else {
+      lines.push(cur);
+      cur = sg;
+    }
+  }
+  if (cur) lines.push(cur);
+  return lines;
+}
+/** Breaks prose to a width by measure, holding back 6 px of slack so a renderer a little wider keeps the same lines. */
+function wrap(role, str, maxW) {
+  const lines = [];
+  let cur = '';
+  for (const t of tokens(str)) {
+    const next = cur ? `${cur} ${t}` : t;
+    if (measure(role, next) <= maxW - 6 || !cur) cur = next;
+    else {
+      lines.push(cur);
+      cur = t;
+    }
+  }
+  if (cur) lines.push(cur);
+  return lines;
+}
+
+// ------------------------------------------------------------------------------------------------------------------
+// The drawing: an SVG string with a registry of every text box, line and dot for the collision report.
+
+let out;
+let reg;
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+function el(tag, attrs, inner = '') {
+  const a = Object.entries(attrs)
+    .filter(([, v]) => v !== undefined && v !== null && v !== false)
+    .map(([k, v]) => `${k}="${esc(v)}"`)
+    .join(' ');
+  out.push(`<${tag} ${a}>${inner}</${tag}>`);
+}
+function text(role, x, y, str, o = {}) {
+  const w = measure(role, str);
+  const r = ROLES[role];
+  const anchor = o.anchor ?? 'start';
+  const x0 = anchor === 'end' ? x - w : anchor === 'middle' ? x - w / 2 : x;
+  const box = { x0, x1: x0 + w, y0: y - r.size * 0.76, y1: y + r.size * 0.24, str, region: o.region, onFill: o.onFill, kind: o.kind ?? 'text' };
+  if (!o.noReg) reg.texts.push(box);
+  el('text', { x: x.toFixed(1), y: y.toFixed(1), class: `${r.cls} ${o.cls ?? ''} ${o.onFill ? 'on-fill' : ''}`.trim(), 'text-anchor': anchor === 'start' ? null : anchor, 'data-region': o.region }, esc(str));
+  return box;
+}
+function line(x1, y1, x2, y2, cls, o = {}) {
+  el('line', { x1, y1, x2, y2, class: cls, 'data-region': o.region });
+  if (o.check !== false) reg.lines.push({ x1, y1, x2, y2, cls, region: o.region });
+}
+function rect(x, y, w, h, cls, o = {}) {
+  el('rect', { x: x.toFixed(1), y: y.toFixed(1), width: Math.max(0, w).toFixed(1), height: Math.max(0, h).toFixed(1), rx: o.rx, class: cls, 'data-region': o.region, 'data-key': o.key });
+  if (o.mark) reg.marks.push({ x0: x, y0: y, x1: x + w, y1: y + h, cls, region: o.region });
+}
+function dot(x, y, r, cls, o = {}) {
+  el('circle', { cx: x.toFixed(1), cy: y.toFixed(1), r, class: cls, 'data-key': o.key, 'data-region': o.region });
+  if (o.check !== false) reg.dots.push({ x, y, r, key: o.key });
+}
+function path(d, cls, o = {}) {
+  el('path', { d, class: cls, 'data-region': o.region });
+  if (o.points) reg.curves.push({ points: o.points, region: o.region });
+}
+function hiddenBox(x, y, w, h, region, words = 'Hidden until you answer', textY = null) {
+  rect(x, y, w, h, 'hidden-box', { rx: 8, region: `hidden-${region}` });
+  const fits = measure('small', words) + 16 < w && h >= 18;
+  const ty = textY ?? y + h / 2 + 4;
+  if (fits) text('small', x + w / 2, ty, words, { anchor: 'middle', region: `hidden-${region}` });
+  else text('capB', x + w / 2, ty, '?', { anchor: 'middle', region: `hidden-${region}` });
+  reg.hidden.push({ x0: x, y0: y, x1: x + w, y1: y + h, region });
+}
+
+// ------------------------------------------------------------------------------------------------------------------
+// The stage.
+
+const FIELD_CLASS = { sign: 'f-sign', time: 'f-time', gen: 'f-gen', seq: 'f-seq' };
+const FIELD_NAME = { time: 'timestamp', gen: 'generator', seq: 'sequence' };
+
+function build(W) {
+  out = [];
+  reg = { texts: [], lines: [], dots: [], marks: [], curves: [], hidden: [], regions: {}, W };
+  const H = hiding();
+  const s = view.s;
+  const L = M.layout(s);
+  const narrow = W < 560;
+  const pad = narrow ? 12 : 20;
+  const inner = W - 2 * pad;
+  const m = M.mint(s);
+  const t = view.phase === 'playing' ? view.t : Infinity;
+  const made = (x) => x.issued <= t;
+  let y = pad;
+
+  // --- Band A: one id, its 64 bits laid out as fields. ---------------------------------------------------------
+  const inspectId = pickInspect(m, t);
+  const aTop = y;
+  text('label', pad, y + 9, 'One id, 64 bits');
+  if (inspectId && !H.inspect) {
+    const who = `made by G${inspectId.lane} at ${F.ms(inspectId.issued)}`;
+    if (measure('label', 'One id, 64 bits') + measure('small', who) + 16 < inner) text('small', W - pad, y + 9, who, { anchor: 'end' });
+  }
+  y += 22;
+  const gap = narrow ? 3 : 5;
+  const fields = [
+    { f: 'sign', n: 1 },
+    { f: 'time', n: L.timeBits },
+    { f: 'gen', n: L.genBits },
+    { f: 'seq', n: L.seqBits },
+  ].filter((x) => x.n > 0);
+  const gaps = (fields.length - 1) * gap;
+  const rows = narrow ? 2 : 1;
+  const perRow = 64 / rows;
+  const cell = Math.floor(((inner - (narrow ? gap * 2 : gaps)) / perRow) * 10) / 10;
+  const cellH = narrow ? 18 : 22;
+  // Field spans: where each field's cells start and end, row by row.
+  const bitsArr = inspectId && !H.inspect ? M.bits(L, inspectId.id) : M.bits(L, 0n).map((b) => ({ ...b, bit: null }));
+  const spans = {};
+  const labelRowY = y + 9;
+  y += 16;
+  const barTop = y;
+  let x = pad;
+  let row = 0;
+  let prevField = null;
+  bitsArr.forEach((b, i) => {
+    const r = Math.floor(i / perRow);
+    if (r !== row) {
+      row = r;
+      x = pad;
+      prevField = null;
+    }
+    if (prevField && prevField !== b.field) x += gap;
+    prevField = b.field;
+    const cy = barTop + row * (cellH + 22);
+    const cls = FIELD_CLASS[b.field];
+    const sp = (spans[`${b.field}:${row}`] ??= { field: b.field, row, x0: x, x1: x, y: cy });
+    sp.x1 = x + cell;
+    el('g', { class: cls }, '');
+    out.pop();
+    out.push(`<g class="${cls}">`);
+    if (!H.inspect) rect(x + 0.5, cy, cell - 1, cellH, b.bit === 1 ? 'cell1' : 'cell0', { rx: 2, region: 'bits' });
+    if (b.bit !== null && cell >= 9) text('bit', x + cell / 2, cy + cellH / 2 + 3.5, String(b.bit), { anchor: 'middle', cls: b.bit ? 'bit1' : 'bit0', onFill: true, kind: 'bit' });
+    out.push('</g>');
+    x += cell;
+  });
+  if (H.inspect) hiddenBox(pad - 2, barTop - 2, inner + 4, rows * cellH + (rows - 1) * 22 + 4, 'inspect', 'This id is hidden until you answer', barTop + cellH / 2 + 4);
+  // Field names over their spans: the longest form that fits, else the bit count alone.
+  const spanList = Object.values(spans);
+  for (const sp of spanList) {
+    if (sp.field === 'sign') continue;
+    const n = { time: L.timeBits, gen: L.genBits, seq: L.seqBits }[sp.field];
+    const total = spanList.filter((o) => o.field === sp.field);
+    const first = total[0] === sp;
+    const width = sp.x1 - sp.x0;
+    const forms = first ? [`${FIELD_NAME[sp.field]} · ${n} bits`, `${FIELD_NAME[sp.field]} ${n}`, `${sp.field === 'time' ? 'time' : sp.field} ${n}`, `${n}`] : [];
+    const form = forms.find((f) => measure('smallB', f) <= width) ?? (first ? `${n}` : null);
+    if (!form) continue;
+    const ly = sp.row === 0 ? labelRowY : sp.y - 7;
+    const cx = Math.min(Math.max((sp.x0 + sp.x1) / 2, pad + measure('smallB', form) / 2), W - pad - measure('smallB', form) / 2);
+    el('g', { class: FIELD_CLASS[sp.field] }, '');
+    out.pop();
+    out.push(`<g class="${FIELD_CLASS[sp.field]}">`);
+    text('smallB', cx, ly, form, { anchor: 'middle', cls: 'field-tone', region: 'fieldNames' });
+    out.push('</g>');
+  }
+  if (narrow) {
+    const sp = spans['sign:0'];
+    text('small', sp.x0, labelRowY, 'sign', { region: 'fieldNames' });
+  }
+  y = barTop + rows * cellH + (rows - 1) * 22 + 16;
+  // The field values and the clock's conversion into the timestamp: drawn, not only told.
+  if (inspectId && !H.inspect) {
+    const tsTxt = F.int(inspectId.ts);
+    for (const ln of wrapSegments('mono', [`timestamp ${tsTxt}`, `generator ${inspectId.number}`, `sequence ${inspectId.seq}`], inner)) {
+      text('mono', pad, y, ln, { region: 'values' });
+      y += 16;
+    }
+    const elapsedMs = M.NOW_MS - L.epochMs + inspectId.clock / 1000;
+    const segs = [
+      `G${inspectId.lane}'s clock: 12:00:00 + ${F.ms(inspectId.clock)}`,
+      `− epoch ${F.date(L.epochMs)}`,
+      `= ${F.int(Math.floor(elapsedMs))}${elapsedMs % 1 ? `.${String(Math.round((elapsedMs % 1) * 10))}` : ''} ms`,
+      `÷ ${s.tick} ms a tick, rounded down`,
+      `= ${tsTxt}`,
+    ];
+    for (const ln of wrapSegments('small', segs, inner, '  ')) {
+      text('small', pad, y, ln, { region: 'values' });
+      y += 15;
+    }
+    y += 4;
+    const idTxt = `id ${F.int(inspectId.id)}`;
+    text('monoL', pad, y + 4, idTxt, { region: 'values' });
+    if (inspectId.repeatOf && !H.repeats) text('smallB', pad + measure('monoL', idTxt) + 10, y + 4, 'made twice', { cls: 'bad' });
+    y += 14;
+  } else if (!L.fits) {
+    for (const ln of wrap('capB', `No id: the clock is past the timestamp's end, ${F.endWords(L)}. A generator must refuse to mint.`, inner)) {
+      text('capB', pad, y + 4, ln, { cls: 'bad' });
+      y += 18;
+    }
+  } else if (H.inspect) {
+    y += 2;
+  } else {
+    text('small', pad, y, 'No id made yet: press Play.');
+    y += 14;
+  }
+  reg.regions.bits = { x0: pad - 4, y0: aTop - 4, x1: W - pad + 4, y1: y };
+  y += 14;
+  line(pad, y, W - pad, y, 'rule', { check: false });
+  y += 18;
+
+  // --- Band B: what each field buys. -------------------------------------------------------------------------------
+  const ledger = M.ledger(s);
+  const ghostL = view.ghost ? M.layout(view.ghost) : null;
+  const nameW = narrow ? 0 : 150;
+  const chainX = pad + nameW;
+  const chainW = inner - nameW;
+  function fieldHead(field, title, yy) {
+    out.push(`<g class="${FIELD_CLASS[field]}">`);
+    rect(pad, yy - 9, 10, 10, 'chip', { rx: 2 });
+    out.push('</g>');
+    text('capB', pad + 16, yy, title);
+  }
+  // Timestamp.
+  const bTop = y;
+  fieldHead('time', `Timestamp, ${L.timeBits} bits`, y);
+  if (narrow) y += 20;
+  const result = H.lifetime ? '= ?' : ledger.time.chain[2];
+  const tchain = `${ledger.time.chain[0]} ${ledger.time.chain[1]} ${result}`;
+  let ty = y;
+  for (const ln of wrap('cap', tchain, chainW)) {
+    text('cap', chainX, ty, ln, { region: 'ledgerTime' });
+    ty += 18;
+  }
+  if (!H.lifetime) {
+    const endTxt = L.fits ? ledger.time.end : `ran out on ${F.endWords(L)}: the clock no longer fits`;
+    for (const ln of wrap('small', endTxt, chainW)) {
+      text('small', chainX, ty - 2, ln, { region: 'ledgerTime', cls: L.fits ? '' : 'bad' });
+      ty += 15;
+    }
+    if (ghostL && ghostL.timeBits !== L.timeBits) {
+      const g = `was ${F.years(ghostL.years)} with ${ghostL.timeBits} bits: one bit ${ghostL.timeBits > L.timeBits ? 'fewer halves' : 'more doubles'} it`;
+      for (const ln of wrap('small', g, chainW)) {
+        text('small', chainX, ty - 2, ln, { region: 'ledgerTime', cls: 'warn' });
+        ty += 15;
+      }
+    }
+  } else {
+    hiddenBox(chainX, ty - 12, Math.min(chainW, 260), 22, 'lifetime');
+    ty += 16;
+  }
+  y = Math.max(ty, y + 18) + 4;
+  y = drawRuler(W, pad, chainX, chainW, y, L, H, ghostL);
+  reg.regions.ledgerTime = { x0: pad - 4, y0: bTop - 16, x1: W - pad + 4, y1: y - 6 };
+  y += 10;
+  // Generator.
+  const gTop = y;
+  fieldHead('gen', `Generator, ${plural(L.genBits, 'bit')}`, y);
+  if (narrow) y += 20;
+  for (const ln of wrap('cap', ledger.gen.chain.join(' '), chainW)) {
+    text('cap', chainX, y, ln);
+    y += 18;
+  }
+  y += 6;
+  // Sequence.
+  fieldHead('seq', `Sequence, ${plural(L.seqBits, 'bit')}`, y);
+  if (narrow) y += 20;
+  for (const ln of wrap('cap', ledger.seq.chain.join(' '), chainW)) {
+    text('cap', chainX, y, ln);
+    y += 18;
+  }
+  for (const ln of wrap('small', ledger.seq.total, chainW)) {
+    text('small', chainX, y - 2, ln);
+    y += 15;
+  }
+  reg.regions.ledger = { x0: pad - 4, y0: gTop - 16, x1: W - pad + 4, y1: y };
+  y += 10;
+  line(pad, y, W - pad, y, 'rule', { check: false });
+  y += 18;
+
+  // --- Band C and D: the mint and the sorted ids, on one time axis. ----------------------------------------------
+  y = drawMint(W, pad, y, m, L, H, t, narrow, inspectId);
+  y += 10;
+  line(pad, y, W - pad, y, 'rule', { check: false });
+  y += 18;
+
+  // --- Band E: random ids. -------------------------------------------------------------------------------------------
+  y = drawRandom(W, pad, y, H, narrow);
+  const Hh = Math.ceil(y + pad);
+  drawFocus(W, Hh);
+  return { H: Hh, svg: out.join(''), reg };
+}
+
+function plural(n, one) {
+  return `${F.int(n)} ${n === 1 ? one : `${one}s`}`;
+}
+
+function pickInspect(m, t) {
+  if (!m.ids.length) return null;
+  const done = m.byMade.filter((x) => x.issued <= t);
+  if (view.phase === 'playing') return done[done.length - 1] ?? null;
+  if (Q.has('inspect')) return m.ids.find((x) => x.key === Q.get('inspect')) ?? m.ids[0];
+  return m.lanes[2].ids.find((x) => x.seq === 1) ?? m.repeats[0] ?? m.byMade[m.byMade.length - 1];
+}
+
+/** The lifetime on a log scale in bits: each step is one bit, twice as long as the step before. */
+function drawRuler(W, pad, x0, w, y, L, H, ghostL) {
+  const lo = 30;
+  const hi = 67;
+  const X = (bitsLog2) => x0 + ((bitsLog2 - lo) / (hi - lo)) * w;
+  const top = y + 10;
+  line(x0, top, x0 + w, top, 'axis', { region: 'ruler' });
+  for (let b = lo; b <= hi; b++) line(X(b), top - 3, X(b), top + 3, 'ruler-step', { check: false });
+  const YEAR = Math.log2(M.YEAR_MS);
+  const marks = [
+    { v: Math.log2(M.YEAR_MS / 12), forms: ['1 month', '1 mo'] },
+    { v: YEAR, forms: ['1 year', '1 yr'] },
+    { v: YEAR + Math.log2(100), forms: ['100 years', '100 yr'] },
+    { v: YEAR + Math.log2(1e4), forms: ['10,000 years', '10k yr'] },
+    { v: YEAR + Math.log2(1e6), forms: ['1 million years', '1M yr'] },
+    { v: YEAR + Math.log2(1e9), forms: ['1 billion years', '1B yr'] },
+  ];
+  // The widest form at which every label keeps 6 px from the next, else every other label.
+  let chosen = null;
+  for (const fi of [0, 1]) {
+    for (const step of [1, 2, 3]) {
+      const set = marks.filter((_, i) => i % step === (step === 2 ? 1 : 0));
+      const boxes = set.map((mk) => {
+        const wd = measure('small', mk.forms[fi]);
+        const cx = Math.min(Math.max(X(mk.v), x0 + wd / 2), x0 + w - wd / 2);
+        return { mk, cx, x0: cx - wd / 2, x1: cx + wd / 2, s: mk.forms[fi] };
+      });
+      if (boxes.every((b, i) => i === 0 || b.x0 - boxes[i - 1].x1 >= 6)) {
+        chosen = boxes;
+        break;
+      }
+    }
+    if (chosen) break;
+  }
+  for (const b of chosen ?? []) {
+    line(X(b.mk.v), top, X(b.mk.v), top + 6, 'axis', { check: false });
+    text('small', b.cx, top + 19, b.s, { anchor: 'middle', region: 'ruler' });
+  }
+  const life = Math.log2(L.lifetimeMs);
+  const now = Math.log2(Math.max(L.elapsedMs, 1));
+  // Today: how far the clock already is from the epoch.
+  el('path', { d: `M${X(now).toFixed(1)} ${top - 4} l-4 -7 h8 z`, class: 'now-mark' });
+  reg.marks.push({ x0: X(now) - 4, y0: top - 11, x1: X(now) + 4, y1: top - 4, cls: 'now' });
+  if (!H.lifetime) {
+    dot(X(life), top, 5.5, L.fits ? 'marker' : 'marker bad', { region: 'ruler' });
+  } else {
+    // The lifetime's marker is left off while hidden; the ledger's hidden box above says so.
+  }
+  // The marker's and today's names sit over the line, nudged apart; a ghost is said in words in the ledger.
+  const nowTxt = L.usedFraction < 1 ? `today, ${F.years(L.elapsedMs / M.YEAR_MS)} in` : `today, past the end`;
+  const lifeTxt = H.lifetime ? null : `lasts ${F.years(L.years)}`;
+  const items = [{ x: X(now), s: nowTxt, cls: 'muted' }];
+  if (lifeTxt) items.push({ x: X(life), s: lifeTxt, cls: L.fits ? 'acc' : 'bad' });
+  items.sort((a, b) => a.x - b.x);
+  const placed = [];
+  let row = 0;
+  for (const it of items) {
+    const wd = measure('smallB', it.s);
+    let cx = Math.min(Math.max(it.x, x0 + wd / 2), x0 + w - wd / 2);
+    const prev = placed[placed.length - 1];
+    if (prev && cx - wd / 2 < prev.x1 + 6) {
+      cx = prev.x1 + 6 + wd / 2;
+      if (cx + wd / 2 > x0 + w) {
+        cx = Math.min(Math.max(it.x, x0 + wd / 2), x0 + w - wd / 2);
+        row = 1;
+      }
+    }
+    const yy = top - 16 - row * 14;
+    text('smallB', cx, yy, it.s, { anchor: 'middle', cls: it.cls, region: 'ruler' });
+    placed.push({ x1: cx + wd / 2 });
+  }
+  const rTop = top - 30 - row * 14;
+  reg.regions.ruler = { x0: x0 - 4, y0: rTop, x1: x0 + w + 4, y1: top + 24 };
+  return top + 30;
+}
+
+function drawMint(W, pad, y, m, L, H, t, narrow, inspectId) {
+  const gutter = narrow ? 84 : Math.ceil(measure('monoR', '0'.repeat(19)) + 14 + measure('mono', '0 · 0 · 0–1,023') + 14);
+  const x0 = pad + gutter;
+  const x1 = W - pad;
+  const X = (us) => x0 + (Math.min(us, M.WINDOW_US) / M.WINDOW_US) * (x1 - x0);
+  const head = narrow ? 'Three generators' : 'Three generators, no coordination';
+  text('label', pad, y + 9, head);
+  playPos = { x: W - pad - 44, y: y - 12 };
+  reg.marks.push({ x0: playPos.x, y0: playPos.y, x1: playPos.x + 44, y1: playPos.y + 44, cls: 'play' });
+  y += 26;
+  const sub = `None talks to another. The clock starts at 12:00:00.000 UTC on 24 November 2026. Each id is a dot at the moment its generator makes it; a number over dots is their sequence, and a dot with none is sequence 0.`;
+  for (const ln of wrap('small', sub, W - 2 * pad - 50)) {
+    text('small', pad, y, ln);
+    y += 15;
+  }
+  y += 10;
+  const laneH = 40;
+  const lanesTop = y;
+  const tickUs = view.s.tick * 1000;
+  // Tick columns: one band per tick, so ids in the same tick share a band.
+  for (let c = 0; c * tickUs < M.WINDOW_US; c++) {
+    if (c % 2 === 1) rect(X(c * tickUs), lanesTop, X(Math.min((c + 1) * tickUs, M.WINDOW_US)) - X(c * tickUs), laneH * 3, 'tick-band');
+  }
+  if (view.s.tick === 10) {
+    const msg = 'One 10 ms tick spans all 8 ms drawn';
+    if (measure('small', msg) < x1 - x0 - 8) text('small', x1, lanesTop - 6, msg, { anchor: 'end', region: 'tick10' });
+  }
+  const groups = M.groups(m);
+  const laneY = (g) => lanesTop + g * laneH + laneH / 2 + 4;
+  for (const lane of m.lanes) {
+    const ly = laneY(lane.lane);
+    line(x0, ly, x1, ly, 'grid', { check: false });
+    const nameTxt = narrow ? `G${lane.lane}` : `G${lane.lane}`;
+    text('capB', pad, ly - 2, nameTxt, { region: `lane${lane.lane}` });
+    const numTxt = narrow ? `#${lane.number}` : `number ${lane.number}`;
+    const shared = view.s.fault === M.FAULT.shared && lane.lane === 2;
+    text('small', pad + measure('capB', nameTxt) + 6, ly - 2, numTxt, { cls: shared ? 'bad' : '' });
+    const note = laneNote(lane, narrow);
+    if (note) text('small', pad, ly + 12, note.s, { cls: note.cls });
+    if (!lane.runs) {
+      const why =
+        lane.why === 'overflow'
+          ? 'refuses to mint: the clock is past the timestamp'
+          : `no number: ${plural(L.genBits, 'generator bit')} ${L.genBits === 1 ? 'gives' : 'give'} only ${plural(L.generators, 'number')}`;
+      const lines = wrap('small', why, x1 - x0 - 8);
+      text('small', x0 + 6, ly - 4 + (lines.length > 1 ? -4 : 0), lines[0], { cls: 'bad' });
+      if (lines[1]) text('small', x0 + 6, ly + 8, lines[1], { cls: 'bad' });
+      continue;
+    }
+  }
+  // Clock faults, drawn where they happen.
+  if (view.s.fault === M.FAULT.stepBack && m.lanes[1].runs) {
+    const xs = X(M.STEP_AT_US);
+    const ly = laneY(1);
+    el('path', { d: `M${xs.toFixed(1)} ${ly - 13} v9 M${xs.toFixed(1)} ${ly - 13} l-5 3 M${xs.toFixed(1)} ${ly + 13} v-9`, class: 'bracket bad' });
+  }
+  const r = narrow ? 3.5 : 4.5;
+  const after = new Map();
+  for (const gr of groups) {
+    const lane = gr.lane;
+    const ly = laneY(lane);
+    if (gr.first.issued >= M.WINDOW_US) {
+      after.set(lane, (after.get(lane) ?? 0) + gr.count);
+      continue;
+    }
+    const hideAfter = H.burstAfter && lane === 0 && gr.column > 0;
+    if (hideAfter) continue;
+    const shown = gr.single ? gr.ids.filter((x) => x.issued <= t) : null;
+    if (gr.single) {
+      if (!shown.length) continue;
+      for (const x of shown) {
+        if (x.wait > 0 && x.issued <= t) drawWait(X, ly, x, lane, narrow);
+        const isRep = x.repeatOf && !H.repeats;
+        const insp = inspectId && x.key === inspectId.key && !H.inspect;
+        dot(X(x.issued), ly, r, `dot ${isRep ? 'repeat' : ''} ${insp ? 'inspect' : ''}`, { key: x.key, region: `lane${lane}` });
+        if (insp) dot(X(x.issued), ly, r + 3.5, 'ring', { check: false });
+        if (isRep) dot(X(x.issued), ly, r + 3.5, 'ring bad', { check: false });
+      }
+      if (shown.some((x) => x.seq > 0)) {
+        const seqTxt = shown.map((x) => x.seq).join(' ');
+        const cx = (X(shown[0].issued) + X(shown[shown.length - 1].issued)) / 2;
+        text('monoR', cx, ly - r - 6, seqTxt, { anchor: 'middle', region: `lane${lane}`, kind: 'seq' });
+      }
+    } else {
+      // A tick's worth of ids as one gauge: its fill is the ids made so far over the 2^seq a tick holds.
+      const c0 = gr.column * tickUs;
+      const gx0 = X(c0) + 2;
+      const gx1 = X(Math.min(c0 + tickUs, M.WINDOW_US)) - 2;
+      const done = gr.first.issued > t ? 0 : Math.min(gr.count, gr.ids[0] ? countMade(gr, t) : gr.count);
+      if (!done) continue;
+      rect(gx0, ly - 7, gx1 - gx0, 14, 'gauge-bg', { rx: 3, mark: true, region: `lane${lane}` });
+      rect(gx0, ly - 7, ((gx1 - gx0) * done) / L.perTick, 14, 'gauge', { rx: 3 });
+      if (gr.last.wait > 0 && gr.last.issued <= t && lane === 0) drawWait(X, ly, gr.last, lane, narrow, true);
+    }
+  }
+  // Burst labels: one bracket over the full gauges, one figure over the last.
+  if (view.s.load === M.LOAD_BURST && m.lanes[0].runs) burstLabels(X, laneY(0), groups.filter((g) => g.lane === 0), L, H, t, narrow, tickUs);
+  for (const [lane, n] of after) text('small', pad, laneY(lane) + 12, `+${F.int(n)} after 8 ms`, { cls: 'warn' });
+  if (H.burstAfter) hiddenBox(X(tickUs) + 2, laneY(0) - 16, x1 - X(tickUs) - 2, 30, 'burstAfter', narrow ? '?' : 'Later ticks hidden until you answer');
+  // The axis.
+  const axY = lanesTop + laneH * 3 + 6;
+  line(x0, axY, x1, axY, 'axis', { check: false });
+  const every = narrow ? 2 : 1;
+  for (let k = 0; k <= 8; k += every) {
+    line(X(k * 1000), axY, X(k * 1000), axY + 4, 'axis', { check: false });
+    text('small', X(k * 1000), axY + 16, k === 8 ? '8 ms' : String(k), { anchor: k === 8 ? 'end' : 'middle' });
+  }
+  if (view.phase === 'playing') {
+    line(X(t), lanesTop - 4, X(t), axY, 'now-line', { check: false });
+  }
+  reg.regions.laneG0 = { x0: pad - 4, y0: lanesTop, x1: W - pad + 4, y1: lanesTop + laneH };
+  reg.regions.laneG1 = { x0: pad - 4, y0: lanesTop + laneH, x1: W - pad + 4, y1: lanesTop + 2 * laneH };
+  reg.regions.mint = { x0: pad - 4, y0: lanesTop, x1: W - pad + 4, y1: axY + 20 };
+  y = axY + 34;
+  return drawSorted(W, pad, y, m, L, H, t, narrow, X, inspectId, groups);
+}
+
+function countMade(gr, t) {
+  if (gr.last.issued <= t) return gr.count;
+  return gr.ids.filter((x) => x.issued <= t).length || (gr.first.issued <= t ? 1 : 0);
+}
+
+function laneNote(lane, narrow) {
+  const f = view.s.fault;
+  if (f === M.FAULT.skew && lane.lane === 2) return { s: narrow ? 'clock +2 ms' : 'clock runs 2 ms ahead', cls: 'warn' };
+  if (f === M.FAULT.stepBack && lane.lane === 1) return { s: narrow ? 'clock −2 ms' : 'clock steps back 2 ms at 5.5', cls: 'warn' };
+  if (f === M.FAULT.shared && lane.lane === 2) return { s: narrow ? 'same as G1' : 'handed G1’s number', cls: 'bad' };
+  return null;
+}
+
+function drawWait(X, ly, x, lane, narrow, burst) {
+  if (x.wait <= 0) return;
+  const xa = X(x.arrival);
+  const xb = X(x.issued) - (narrow ? 5 : 6);
+  if (xb - xa < 4) return;
+  line(xa, ly + 9, xb, ly + 9, 'wait-line', { check: false });
+  el('circle', { cx: xa.toFixed(1), cy: ly + 9, r: 2.5, class: 'arrival' });
+  if (burst || narrow) return;
+  const why = x.why === 'clock' ? `waits ${F.ms(x.wait)}: clock behind` : `waits ${F.ms(x.wait)}`;
+  const wd = measure('small', why);
+  const bx = Math.min(xa, X(M.WINDOW_US) - wd);
+  const b = { x0: bx, x1: bx + wd, y0: ly + 12, y1: ly + 24 };
+  if (wd + 4 < X(M.WINDOW_US) - X(0) && !reg.texts.some((tb) => overlap(tb, b, 6)) && !reg.dots.some((d) => d.x + d.r > b.x0 && d.x - d.r < b.x1 && d.y + d.r > b.y0 && d.y - d.r < b.y1))
+    text('small', bx, ly + 21, why, { cls: 'warn' });
+}
+
+function burstLabels(X, ly, grs, L, H, t, narrow, tickUs) {
+  let rightEdge = X(0) - 6;
+  const vis = grs.filter((g) => g.first.issued < M.WINDOW_US && g.first.issued <= t && !(H.burstAfter && g.column > 0));
+  if (!vis.length) return;
+  const full = vis.filter((g) => g.count === L.perTick && countMade(g, t) === g.count);
+  const firstFull = full[0];
+  const lastFull = full[full.length - 1];
+  if (firstFull) {
+    const bx0 = X(firstFull.column * tickUs) + 2;
+    const bx1 = X(Math.min((lastFull.column + 1) * tickUs, M.WINDOW_US)) - 2;
+    el('path', { d: `M${bx0.toFixed(1)} ${ly - 11} v-4 H${bx1.toFixed(1)} v4`, class: 'bracket' });
+    const s = full.length > 1 ? `${full.length} full ticks of ${F.int(L.perTick)}` : `full: ${F.int(L.perTick)}`;
+    const short = full.length > 1 ? `${full.length} × ${F.int(L.perTick)}` : F.int(L.perTick);
+    const form = measure('small', s) <= bx1 - bx0 ? s : short;
+    const b = text('small', Math.max((bx0 + bx1) / 2, X(0) + measure('small', form) / 2), ly - 19, form, { anchor: 'middle' });
+    rightEdge = b.x1;
+  }
+  const part = vis.find((g) => !full.includes(g));
+  if (part && (!lastFull || part.column > lastFull.column)) {
+    const done = countMade(part, t);
+    const wd = measure('mono', F.int(done));
+    const cx = Math.max(X(part.column * tickUs + tickUs / 2), rightEdge + 6 + wd / 2);
+    if (cx + wd / 2 <= X(M.WINDOW_US)) rightEdge = text('mono', cx, ly - 19, F.int(done), { anchor: 'middle' }).x1;
+  }
+  const lastId = grs[grs.length - 1].last;
+  if (lastId.issued <= t && lastId.issued < M.WINDOW_US && lastId.wait > 0 && !H.burstAfter) {
+    const s = `last waits ${F.ms(lastId.wait)}`;
+    if (rightEdge + 10 + measure('small', s) <= X(M.WINDOW_US)) text('small', rightEdge + 10, ly - 19, s, { cls: 'warn' });
+  }
+}
+
+/** The ids in id order, one row each (a burst's tick as one row), each with a dot at the moment it was made. */
+function drawSorted(W, pad, y, m, L, H, t, narrow, X, inspectId, groups) {
+  const gutter = X(0) - pad;
+  text('label', pad, y + 9, 'Sorted by id');
+  const sub = narrow ? 'the order an index keeps them in' : 'the order a database index keeps them in; the dot is when each was made';
+  if (measure('label', 'Sorted by id') + 12 + measure('small', sub) < W - 2 * pad) text('small', pad + measure('label', 'Sorted by id') + 12, y + 9, sub);
+  y += 26;
+  const headTxt = narrow ? 'tick · G · seq' : 'id                    tick · G · seq';
+  text('small', pad, y, narrow ? 'tick·G·seq' : 'id', {});
+  if (!narrow) text('small', pad + measure('monoR', '0'.repeat(19)) + 14, y, 'tick · G · seq');
+  void headTxt;
+  y += 8;
+  const rowH = 16;
+  const top = y;
+  const made = m.sorted.filter((x) => x.issued <= t && x.issued < M.WINDOW_US);
+  // Rows: an id each, or a group for a burst's tick (more than three ids).
+  const rows = [];
+  const inBig = new Map();
+  for (const g of groups) if (!g.single) for (const x of m.lanes[g.lane].ids.filter((x) => x.tick === g.tick && x.column === g.column)) inBig.set(x.key, g);
+  const seenGroup = new Set();
+  for (const x of made) {
+    const g = inBig.get(x.key);
+    if (g) {
+      if (seenGroup.has(g.key)) continue;
+      seenGroup.add(g.key);
+      rows.push({ group: g, x });
+    } else rows.push({ x });
+  }
+  const hideRows = H.order || (H.burstAfter && false);
+  if (hideRows) {
+    const h = Math.max(rows.length, 6) * rowH;
+    hiddenBox(pad - 2, top, W - 2 * pad + 4, Math.min(h, 120), 'order', 'The order is hidden until you answer');
+    reg.regions.sorted = { x0: pad - 4, y0: top - 30, x1: W - pad + 4, y1: top + Math.min(h, 120) + 4 };
+    return top + Math.min(h, 120) + 10;
+  }
+  const pts = [];
+  const lineAt = out.length;
+  rows.forEach((r, i) => {
+    const ry = top + i * rowH + rowH / 2 + 4;
+    const x = r.x;
+    if (i % 2 === 0) rect(pad - 4, ry - rowH / 2 - 4, W - 2 * pad + 8, rowH, 'lane-bg');
+    const hideThis = H.burstAfter && x.lane === 0 && x.column > 0;
+    if (hideThis) {
+      text('small', pad, ry, '?', {});
+      return;
+    }
+    const sep = narrow ? '·' : ' · ';
+    const fields = r.group ? `${x.tick}${sep}${x.number}${sep}${r.group.seqFrom}–${F.int(r.group.seqTo)}` : `${x.tick}${sep}${x.number}${sep}${x.seq}`;
+    const idColW = measure('monoR', '0'.repeat(19)) + 14;
+    if (!narrow) text('monoR', pad, ry, r.group ? `${F.int(r.group.count)} ids` : x.id.toString(), { kind: 'row' });
+    text('mono', narrow ? pad : pad + idColW, ry, fields, { kind: 'row', cls: x.repeatOf ? 'bad' : '' });
+    const insp = inspectId && x.key === inspectId.key;
+    if (r.group) {
+      const gx0 = X(r.group.first.issued);
+      const gx1 = X(Math.min(r.group.last.issued, t));
+      rect(gx0 - 3, ry - 3.5, Math.max(gx1 - gx0, 0) + 6, 7, 'gauge', { rx: 3.5 });
+      pts.push([gx0, ry]);
+    } else {
+      const cls = x.repeatOf ? 'repeat' : m.lateByTick.includes(x) ? 'late' : '';
+      dot(X(x.issued), ry - 3.5, 3.5, `dot ${cls} ${insp ? 'inspect' : ''}`, { key: `row-${x.key}` });
+      pts.push([X(x.issued), ry - 3.5]);
+    }
+    if (x.repeatOf && !H.repeats) {
+      const s = 'same id as the row above';
+      const xx = X(x.issued) + 10;
+      if (xx + measure('small', s) < W - pad) text('small', xx, ry, s, { cls: 'bad' });
+      else text('small', X(x.issued) - 10, ry, narrow ? 'repeat' : s, { cls: 'bad', anchor: 'end' });
+    }
+  });
+  if (pts.length > 1) {
+    el('polyline', { points: pts.map((p) => p.map((v) => v.toFixed(1)).join(',')).join(' '), class: 'order-line' });
+    out.splice(lineAt, 0, out.pop());
+  }
+  const bottom = top + rows.length * rowH;
+  if (!rows.length) text('small', pad, top + 12, 'No id yet.');
+  const after = m.sorted.length - made.length;
+  let yy = bottom + 16;
+  if (after && view.phase !== 'playing') {
+    text('small', pad, yy, `${F.int(m.after)} more ${m.after === 1 ? 'id' : 'ids'} made after 8 ms ${m.after === 1 ? 'is' : 'are'} not drawn`, { cls: 'warn' });
+    yy += 16;
+  }
+  reg.regions.sorted = { x0: pad - 4, y0: top - 34, x1: W - pad + 4, y1: bottom + 4 };
+  return yy;
+}
+
+function drawRandom(W, pad, y, H, narrow) {
+  const s = view.s;
+  text('label', pad, y + 9, 'Random ids beside them');
+  y += 24;
+  const side = !narrow && W >= 620;
+  const chartW = side ? Math.round((W - 2 * pad) * 0.6) : W - 2 * pad;
+  const axisW = 40;
+  const px0 = pad + axisW;
+  const px1 = pad + chartW - 4;
+  const ptop = y + 18;
+  const ph = narrow ? 150 : 170;
+  const pb = ptop + ph;
+  text('small', pad, y + 6, 'Chance of any repeat, by the birthday bound');
+  const xs = (e) => px0 + ((e - 3) / 12) * (px1 - px0);
+  const ys = (lp) => ptop + (-lp / 24) * ph;
+  for (const e of [0, -6, -12, -18, -24]) {
+    line(px0, ys(e), px1, ys(e), 'grid', { check: false });
+    text('small', px0 - 6, ys(e) + 4, e === 0 ? '1' : `10${F.sup(e)}`, { anchor: 'end' });
+  }
+  line(px0, pb, px1, pb, 'axis', { check: false });
+  for (const e of [3, 6, 9, 12, 15]) {
+    line(xs(e), pb, xs(e), pb + 4, 'axis', { check: false });
+    text('small', xs(e), pb + 16, `10${F.sup(e)}`, { anchor: e === 15 ? 'end' : 'middle' });
+  }
+  text('small', (px0 + px1) / 2, pb + 31, 'ids made', { anchor: 'middle' });
+  reg.regions.chart = { x0: pad - 4, y0: y - 6, x1: pad + chartW + 2, y1: pb + 38 };
+  if (H.chance) {
+    hiddenBox(px0 + 2, ptop + 2, px1 - px0 - 4, ph - 4, 'chance', 'The curves are hidden until you answer');
+  } else {
+    for (const bits of [122, 64]) {
+      const pts = [];
+      for (let e = 3; e <= 15.0001; e += 0.05) {
+        const p = M.birthday(bits, 10 ** e);
+        const lp = Math.max(Math.log10(Math.max(p, 1e-300)), -24.5);
+        if (lp < -24) continue;
+        pts.push([xs(e), ys(lp)]);
+      }
+      const cur = bits === s.bits;
+      path('M' + pts.map((p) => p.map((v) => v.toFixed(1)).join(' ')).join(' L'), `curve ${cur ? 'cur' : ''}`, { points: pts, region: 'chart' });
+    }
+    // The square law, drawn as a transform: three decades along, six up.
+    // The current count on the current curve.
+    const n = 10 ** s.count;
+    const p = M.birthday(s.bits, n);
+    // The square law, drawn as a transform ending at the marker: three decades along, six up, while the chance is small.
+    const pBack = M.birthday(s.bits, n / 1000);
+    if (s.count >= 6 && p < 0.05 && pBack >= 1e-24) {
+      const tx0 = xs(s.count - 3);
+      const tx1 = xs(s.count);
+      const ty0 = ys(Math.log10(pBack));
+      const ty1 = ys(Math.log10(p));
+      el('path', { d: `M${tx0.toFixed(1)} ${ty0.toFixed(1)} H${tx1.toFixed(1)} V${ty1.toFixed(1)}`, class: 'tri' });
+      text('small', (tx0 + tx1) / 2, ty0 + 14, '× 1,000 ids', { anchor: 'middle' });
+      const upTxt = '× 10⁶';
+      text('small', tx1 - 5, (ty0 + ty1) / 2 + 12, upTxt, { anchor: 'end' });
+    }
+    const lp = Math.max(Math.log10(p), -24);
+    const cx = xs(s.count);
+    const cy = ys(lp);
+    line(cx, ptop, cx, pb, 'now-line', { check: false });
+    dot(cx, cy, 5.5, 'marker', { key: 'current' });
+    const val = lp <= -24 && p < 1e-24 ? `${F.chance(p)}, below the chart` : F.chance(p);
+    const wv = measure('smallB', val);
+    const cands = [
+      [cx + 10, cy + 16],
+      [cx - 10 - wv, cy + 16],
+      [cx + 10, cy - 10],
+      [cx - 10 - wv, cy - 10],
+      [cx + 10, cy + 30],
+      [cx - 10 - wv, cy + 30],
+      [cx + 10, cy + 46],
+      [cx - 10 - wv, cy + 46],
+      [cx - 10 - wv, cy - 26],
+    ].map(([lx, ly]) => [Math.min(Math.max(lx, px0 + 4), px1 - wv), Math.min(Math.max(ly, ptop + 12), pb - 6)]);
+    const clear = (c) => clearAt(c, wv);
+    function clearAt([lx, ly], wv) {
+      const b = { x0: lx, x1: lx + wv, y0: ly - 9, y1: ly + 3 };
+      if (reg.dots.some((d) => d.x + d.r > b.x0 - 3 && d.x - d.r < b.x1 + 3 && d.y + d.r > b.y0 - 3 && d.y - d.r < b.y1 + 3)) return false;
+      if (reg.texts.some((tb) => overlap(tb, b, 6))) return false;
+      return !reg.curves.some((cv) => cv.points.some((q, k) => k > 0 && segHitsBox({ x1: cv.points[k - 1][0], y1: cv.points[k - 1][1], x2: q[0], y2: q[1] }, b)));
+    }
+    const [lx, ly] = cands.find(clear) ?? cands[0];
+    text('smallB', lx, ly, val, { cls: 'acc' });
+    // Curve names, placed after the marker's figure, where they cross no curve and no text.
+    const name122 = narrow ? '122 bits' : '122 bits, UUIDv4';
+    const end122 = ys(Math.log10(M.birthday(122, 1e15)));
+    const w122 = measure('smallB', name122);
+    const c122 = [[px1 - 22 - w122, end122 - 4], [px1 - 4 - w122, end122 + 18]];
+    for (let e = 14.5; e >= 10; e -= 0.5) c122.push([xs(e) - w122 - 4, ys(Math.log10(M.birthday(122, 10 ** e))) - 6]);
+    const p122 = c122.find((c) => clearAt(c, w122)) ?? c122[0];
+    text('smallB', p122[0], p122[1], name122, { cls: s.bits === 122 ? 'acc' : 'muted' });
+    const w64 = measure('smallB', '64 bits');
+    const c64 = [[px1 - 4 - w64, ys(0) + 14], [xs(11) , ys(0) + 14], [xs(10.2), ys(0) + 14], [px1 - 4 - w64, ys(0) + 28]];
+    const p64 = c64.find((c) => clearAt(c, w64)) ?? c64[0];
+    text('smallB', p64[0], p64[1], '64 bits', { cls: s.bits === 64 ? 'acc' : 'muted' });
+  }
+  // Under the chart: what a curve means for an index.
+  let iy = side ? y : pb + 52;
+  const ix0 = side ? pad + chartW + 24 : pad;
+  const iw = side ? W - pad - ix0 : W - 2 * pad;
+  iy = drawIndex(ix0, iy, iw);
+  return Math.max(side ? pb + 40 : 0, iy);
+}
+
+/** Where 24 new ids land in a key index of 12 leaf pages: an illustration, drawn from a seeded generator. */
+function drawIndex(x0, y, w) {
+  text('small', x0, y + 6, 'Where 24 new ids land in the index');
+  y += 20;
+  const pages = 12;
+  const gap = 3;
+  const pw = (w - gap * (pages - 1)) / pages;
+  const rowsY = [y + 16, y + 84];
+  text('smallB', x0, rowsY[0] - 6, 'Time-ordered ids: the last page');
+  text('smallB', x0, rowsY[1] - 6, 'Random ids: any page');
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
+  const hits = Array(pages).fill(0);
+  for (let i = 0; i < 24; i++) hits[Math.floor(rnd() * pages)]++;
+  for (let r = 0; r < 2; r++)
+    for (let p = 0; p < pages; p++) {
+      const px = x0 + p * (pw + gap);
+      const hot = r === 0 ? p === pages - 1 : hits[p] > 0;
+      rect(px, rowsY[r], pw, 22, `page-box ${hot ? 'hot' : ''}`, { rx: 2, mark: true });
+      const n = r === 0 ? (p === pages - 1 ? 24 : 0) : hits[p];
+      for (let k = 0; k < Math.min(n, 6); k++) line(px + 3, rowsY[r] + 4 + k * 3, px + pw - 3, rowsY[r] + 4 + k * 3, 'insert', { check: false });
+    }
+  const touched = hits.filter((h) => h > 0).length;
+  text('small', x0, rowsY[0] + 36, 'all 24 in 1 page, which stays in memory');
+  text('small', x0, rowsY[1] + 36, `24 inserts touch ${touched} of ${pages} pages, each read from disk once the index outgrows memory`.slice(0, 200), { region: 'index' });
+  const lines = wrap('small', `24 inserts touch ${touched} of ${pages} pages, each read from disk once the index outgrows memory`, w);
+  out.pop();
+  reg.texts.pop();
+  lines.forEach((ln, i) => text('small', x0, rowsY[1] + 36 + i * 14, ln));
+  return rowsY[1] + 36 + lines.length * 14 + 4;
+}
+
+let playPos = { x: 0, y: 0 };
+
+/** Focus outlines (solid, around the whole region) and a "Look here" tag at a corner that covers no text. */
+function drawFocus(W, Hh) {
+  for (const f of view.focus) {
+    const r = reg.regions[f];
+    if (!r) continue;
+    const x0 = Math.max(r.x0 - 4, 2);
+    const x1 = Math.min(r.x1 + 4, W - 2);
+    rect(x0, r.y0 - 4, x1 - x0, r.y1 - r.y0 + 8, 'focus-outline', { rx: 10, region: `focus-${f}` });
+    const tw = measure('look', 'Look here') + 14;
+    const corners = [
+      [x1 - tw - 8, r.y0 - 13],
+      [x0 + 8, r.y0 - 13],
+      [x1 - tw - 8, r.y1 - 5],
+      [x0 + 8, r.y1 - 5],
+    ];
+    const free = corners.find(([cx, cy]) => !reg.texts.some((tb) => tb.x1 > cx - 2 && tb.x0 < cx + tw + 2 && tb.y1 > cy - 2 && tb.y0 < cy + 20) && cy > 0 && cy + 18 < Hh);
+    const [cx, cy] = free ?? corners[0];
+    rect(cx, cy, tw, 18, 'tag', { rx: 9 });
+    text('look', cx + 7, cy + 13, 'Look here', { kind: 'tag', region: `tag-${f}` });
+    reg.tags = (reg.tags ?? 0) + 1;
+  }
+}
+
+// ------------------------------------------------------------------------------------------------------------------
+// The words: summary, notice, story, the dock and Describe, from the same state and the same hiding map.
+
+function summaryText() {
+  const H = hiding();
+  const s = view.s;
+  let lay = M.layoutSentence(s);
+  if (H.lifetime) lay = lay.replace(/The timestamp counts[^.]*\./, 'How long the timestamp lasts is hidden until you answer.');
+  let mint = M.mintSentence(s);
+  const sent = mint.split(/(?<=\.) /);
+  const keep = sent.filter((x) => {
+    if (H.repeats && /repeat|stepped back|sort after|sorts after/.test(x)) return false;
+    if (H.order && /sort by|sorts? after|sort after/.test(x)) return false;
+    if (H.burstAfter && /burst/.test(x)) return false;
+    return true;
+  });
+  if (H.repeats) keep.push('Whether any id repeats is hidden until you answer.');
+  else if (H.order) keep.push('The order the ids sort in is hidden until you answer.');
+  if (H.burstAfter) keep.push("How long G0's burst waits is hidden until you answer.");
+  mint = keep.join(' ');
+  const rnd = H.chance ? 'The chance of a repeat among random ids is hidden until you answer.' : M.randomSentence(s);
+  return `${lay} ${mint} ${rnd}`;
+}
+
+function noticeText() {
+  const H = hiding();
+  if (view.exp && STATE === 'ask') return `Experiment ${view.exp}: ${EXPS[view.exp - 1].title}. Make your guess; the part it is about is hidden until you answer.`;
+  if (view.exp && STATE === 'play') return 'Playing your guess. The answer shows when it ends.';
+  if (view.exp && STATE === 'reveal') return EXPS[view.exp - 1].reveal;
+  if (view.challenge) {
+    const st = M.challengeStatus(view.s);
+    return st.met ? `Goal met. ${M.layoutSentence(view.s)}` : `Challenge: ${M.CHALLENGE.ask} ${M.layoutSentence(view.s)}`;
+  }
+  void H;
+  return summaryText();
+}
+
+function storyText() {
+  if (!REDUCED) return null;
+  return `Reduced motion: the mint is drawn at its end. ${M.mintSentence(view.s)}`;
+}
+
+function renderDock() {
+  const dock = document.getElementById('dock');
+  if (view.challenge) {
+    const st = M.challengeStatus(view.s);
+    dock.innerHTML = `<p class="eyebrow">Challenge</p><p class="legend">${M.CHALLENGE.ask}</p>
+      <p class="status-line ${st.met ? 'met' : ''}">${st.met ? 'Goal met' : `${st.items.filter((i) => i.met).length} of 3 met`}</p>
+      <ul class="status">${st.items.map((i) => `<li class="${i.met ? 'met' : ''}"><span class="state">${i.met ? '✓' : '·'}</span>${i.text}</li>`).join('')}</ul>`;
+    return;
+  }
+  if (!view.exp) {
+    dock.innerHTML = '';
+    return;
+  }
+  const e = EXPS[view.exp - 1];
+  const truth = e.choices.findIndex((c) => c.value === e.truth);
+  const asking = STATE === 'ask';
+  const playing = STATE === 'play';
+  const opts = e.choices
+    .map((c, i) => {
+      let cls = '';
+      let mark = '';
+      if (STATE === 'reveal') {
+        if (i === truth) {
+          cls = 'right';
+          mark = i === view.picked ? 'Your guess · right' : 'Right';
+        } else if (i === view.picked) {
+          cls = 'wrong';
+          mark = 'Your guess';
+        }
+      } else if (playing && i === view.picked) mark = 'Your guess';
+      return `<li><button type="button" class="g-choice ${cls}" ${asking ? '' : 'disabled'}><span>${c.text}</span>${mark ? `<span class="mark">${mark}</span>` : ''}</button></li>`;
+    })
+    .join('');
+  dock.innerHTML = `<p class="eyebrow">Experiment ${view.exp} of 5 · ${e.title}</p><p class="legend">${e.ask}</p><ul class="options">${opts}</ul>
+    ${playing ? '<p class="held">Your guess is held while the mint plays.</p>' : ''}
+    ${STATE === 'reveal' ? `<p class="reveal">${e.reveal}</p>` : ''}`;
+}
+
+function renderCards() {
+  const items = [...EXPS.map((e, i) => ({ n: i + 1, title: e.title })), { n: 6, title: `Challenge: ${M.CHALLENGE.title.toLowerCase()}` }];
+  document.getElementById('cards').innerHTML = items
+    .map((c) => `<li><button class="card-btn" type="button" ${(view.exp === c.n || (view.challenge && c.n === 6)) ? 'aria-current="true"' : ''}><span class="num">${c.n}</span>${c.title}</button></li>`)
+    .join('');
+}
+
+function renderDescribe(stageW) {
+  const box = document.getElementById('describe');
+  const H = hiding();
+  const m = M.mint(view.s);
+  const disabled = H.describe;
+  let html = `<button class="g-btn" type="button" id="desc-btn" ${disabled ? 'disabled' : ''} aria-expanded="${view.describeOpen && !disabled}">Describe the ids</button>`;
+  if (disabled) html += '<p class="muted-note">Describe opens after you answer.</p>';
+  if (view.describeOpen && !disabled) {
+    const compact = stageW < 520;
+    const head = compact ? ['#', 'tick · G · seq', 'made', 'note'] : ['#', 'id', 'made by', 'made at', 'tick', 'sequence', 'waited', 'note'];
+    const rows = m.sorted.slice(0, 40).map((x, i) => {
+      const note = x.repeatOf ? 'same id as an earlier one' : x.issued >= M.WINDOW_US ? 'after 8 ms' : '';
+      const cells = compact
+        ? [i + 1, `${x.tick} · ${x.number} · ${x.seq}`, F.ms(x.issued), note]
+        : [i + 1, x.id.toString(), `G${x.lane}`, F.ms(x.issued), x.tick, x.seq, x.wait ? F.ms(x.wait) : '', note];
+      return `<tr class="${x.repeatOf ? 'bad' : ''}">${cells.map((c, j) => `<td class="${!compact && j === 1 ? 'mono' : ''}">${c}</td>`).join('')}</tr>`;
+    });
+    const more = m.sorted.length > 40 ? `<p class="muted-note">The first 40 of ${F.int(m.sorted.length)} ids in id order.</p>` : '';
+    html += `<p class="summary">${summaryText()}</p><div class="table-box"><table><caption class="sr-only">The ids in id order</caption><thead><tr>${head.map((h) => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>${more}`;
+  }
+  box.innerHTML = html;
+}
+
+function renderControls() {
+  const s = view.s;
+  const f = document.getElementById('controls');
+  document.getElementById('gen-v').textContent = s.gen;
+  document.getElementById('seq-v').textContent = s.seq;
+  for (const k of ['tick', 'epoch', 'load', 'fault', 'bits']) for (const inp of f.querySelectorAll(`input[name=${k}]`)) inp.checked = Number(inp.value) === s[k];
+  document.getElementById('guard').checked = !!s.guard;
+  const c = document.getElementById('count');
+  c.value = s.count;
+  document.getElementById('count-v').textContent = `${F.count(10 ** s.count).replace(/^a /, 'A ')} ids (${F.countFigure(10 ** s.count)})`;
+  const locked = STATE === 'ask' || STATE === 'play';
+  for (const fs of f.querySelectorAll('fieldset')) fs.disabled = locked;
+  document.getElementById('play').disabled = locked;
+  document.getElementById('notice').textContent = noticeText();
+}
+
+// ------------------------------------------------------------------------------------------------------------------
+// Render, report, and the play.
+
+function render() {
+  const well = document.getElementById('well');
+  const W = Math.floor(well.clientWidth);
+  const b = build(W);
+  const svg = document.getElementById('svg');
+  svg.setAttribute('width', W);
+  svg.setAttribute('height', b.H);
+  svg.setAttribute('viewBox', `0 0 ${W} ${b.H}`);
+  svg.innerHTML = `<title id="svg-title">${esc(summaryText())}</title>${b.svg}`;
+  const play = document.getElementById('play');
+  play.style.left = `${playPos.x}px`;
+  play.style.top = `${playPos.y}px`;
+  const story = document.getElementById('story');
+  const st = storyText();
+  story.hidden = !st;
+  story.textContent = st ?? '';
+  renderControls();
+  renderDock();
+  renderCards();
+  renderDescribe(W);
+  window.__report = report(b.reg, W, b.H);
+  window.__state = { W, H: b.H, summary: summaryText(), notice: noticeText(), hide: [...view.hide], focus: view.focus, tags: b.reg.tags ?? 0 };
+}
+
+function overlap(a, b, pad = 0) {
+  return a.x0 < b.x1 + pad && b.x0 < a.x1 + pad && a.y0 < b.y1 && b.y0 < a.y1;
+}
+function segHitsBox(l, b) {
+  const x0 = b.x0 + 1;
+  const x1 = b.x1 - 1;
+  const y0 = b.y0 + 1;
+  const y1 = b.y1 - 1;
+  const steps = 24;
+  for (let i = 0; i <= steps; i++) {
+    const x = l.x1 + ((l.x2 - l.x1) * i) / steps;
+    const y = l.y1 + ((l.y2 - l.y1) * i) / steps;
+    if (x > x0 && x < x1 && y > y0 && y < y1) return true;
+  }
+  return false;
+}
+/** The collision report: text on text, labels under 6 px apart on a row, lines and curves through text, marks off the stage, dots on dots. */
+function report(r, W, H) {
+  const c = [];
+  const T = r.texts.filter((t) => t.kind !== 'bit');
+  for (let i = 0; i < T.length; i++)
+    for (let j = i + 1; j < T.length; j++) {
+      const a = T[i];
+      const b = T[j];
+      if (overlap(a, b)) c.push(`text on text: "${a.str}" / "${b.str}"`);
+      else if (a.y0 < b.y1 && b.y0 < a.y1 && overlap(a, b, 6)) c.push(`labels under 6 px apart: "${a.str}" / "${b.str}"`);
+    }
+  for (const l of r.lines) for (const t of T) if (segHitsBox(l, t)) c.push(`line through "${t.str}"`);
+  for (const cv of r.curves)
+    for (const t of T)
+      for (let k = 1; k < cv.points.length; k++) {
+        const [x1, y1] = cv.points[k - 1];
+        const [x2, y2] = cv.points[k];
+        if (segHitsBox({ x1, y1, x2, y2 }, t)) {
+          c.push(`curve through "${t.str}"`);
+          break;
+        }
+      }
+  for (const t of [...T, ...r.marks]) if (t.x0 < 0 || t.x1 > W || t.y0 < 0 || t.y1 > H) c.push(`off stage: ${t.str ?? t.cls}`);
+  for (let i = 0; i < r.dots.length; i++)
+    for (let j = i + 1; j < r.dots.length; j++) {
+      const a = r.dots[i];
+      const b = r.dots[j];
+      if (Math.hypot(a.x - b.x, a.y - b.y) < a.r + b.r + 1) c.push(`dot on dot: ${a.key} / ${b.key}`);
+    }
+  for (const d of r.dots) for (const t of T) if (d.x + d.r > t.x0 && d.x - d.r < t.x1 && d.y + d.r > t.y0 && d.y - d.r < t.y1) c.push(`dot under "${t.str}" (${d.key})`);
+  for (const mk of r.marks.filter((m) => m.cls !== 'play')) for (const t of T) if (overlap(mk, t) && !t.onFill) c.push(`mark (${mk.cls}) under "${t.str}"`);
+  const play = r.marks.find((m) => m.cls === 'play');
+  if (play) for (const t of T) if (overlap(play, t)) c.push(`play button over "${t.str}"`);
+  return { collisions: [...new Set(c)], texts: T.length, dots: r.dots.length, nodes: out.length, tags: r.tags ?? 0 };
+}
+
+function playMint() {
+  if (REDUCED) {
+    view.phase = 'rest';
+    render();
+    return;
+  }
+  view.phase = 'playing';
+  const start = performance.now();
+  const dur = 8000;
+  const step = (now) => {
+    view.t = Math.min(((now - start) / dur) * M.WINDOW_US, M.WINDOW_US);
+    render();
+    if (view.t < M.WINDOW_US && !document.hidden) requestAnimationFrame(step);
+    else {
+      view.phase = 'rest';
+      view.t = M.WINDOW_US;
+      render();
+    }
+  };
+  requestAnimationFrame(step);
+}
+
+function wire() {
+  const f = document.getElementById('controls');
+  f.addEventListener('change', (ev) => {
+    const tgt = ev.target;
+    if (tgt.name in M.BASE) view.s[tgt.name] = Number(tgt.value);
+    if (tgt.id === 'guard') view.s.guard = tgt.checked ? 1 : 0;
+    view.ghost = null;
+    render();
+  });
+  document.getElementById('count').addEventListener('input', (ev) => {
+    view.s.count = Number(ev.target.value);
+    render();
+  });
+  for (const b of f.querySelectorAll('[data-step]'))
+    b.addEventListener('click', () => {
+      const k = b.dataset.step;
+      const before = { ...view.s };
+      view.s[k] = Math.min(Math.max(view.s[k] + Number(b.dataset.d), 0), M.BITS_MAX);
+      view.ghost = before;
+      render();
+    });
+  document.getElementById('play').addEventListener('click', playMint);
+  document.getElementById('describe').addEventListener('click', (ev) => {
+    if (ev.target.id === 'desc-btn') {
+      view.describeOpen = !view.describeOpen;
+      render();
+    }
+  });
+  addEventListener('resize', render);
+}
+
+Promise.all(Object.values(ROLES).map((r) => document.fonts.load(r.font))).then(() => document.fonts.ready).then(() => {
+  wire();
+  render();
+  document.body.dataset.ready = '1';
+});
+</script>
+  </body>
+</html>

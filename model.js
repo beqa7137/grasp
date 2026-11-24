@@ -31,8 +31,8 @@
   const SKEW_US = 2000;
   const STEP_AT_US = 5500;
   const STEP_US = 2000;
-  /** The mint draws eight ticks of the clock; an id made later is counted, never drawn. */
-  const WINDOW_TICKS = 8;
+  /** The mint draws the clock's first 8 ms; an id made later is counted, never drawn. */
+  const WINDOW_US = 8000;
   /**
    * The stated requests, in microseconds after the clock's start, for G0, G1 and G2. Chosen so that one tick holds
    * three ids from one generator (G0 at 1 ms: sequence 0, 1, 2), one id has a generator and a sequence above 0 (G2 at
@@ -42,7 +42,7 @@
   const ARRIVALS_US = [
     [300, 1100, 1500, 1900, 3500, 5100, 7800],
     [600, 2200, 3100, 4400, 5200, 6300, 7400],
-    [100, 2600, 2900, 3700, 6600, 7100],
+    [100, 2500, 2900, 3700, 6600, 7100],
   ];
   const GENERATORS = 3;
   /** Random ids: the bit counts offered, and the counts of ids made (powers of ten). */
@@ -246,7 +246,7 @@
         lateByTick.push(x);
       maxIssued = Math.max(maxIssued, x.issued);
     }
-    const windowUs = WINDOW_TICKS * s.tick * 1000;
+    const windowUs = WINDOW_US;
     const drawn = all.filter((x) => x.issued < windowUs);
     const waited = all.filter((x) => x.wait > 0);
     // Which lanes the out-of-order ids come from, so a sentence names the right generator (enum.cjs checks it).
@@ -443,7 +443,7 @@
       parts.push(`G1's clock now runs ${ms(STEP_US)} behind, so ${plural(late, 'id', 'ids')} made earlier ${late === 1 ? 'sorts' : 'sort'} after ids G1 made later.`);
     else if (s.tick === 10) parts.push('With a 10 ms tick every id here shares one timestamp, so they sort by generator, then by sequence.');
     else parts.push('They sort by tick, then by generator, then by sequence, so time order holds only to the tick.');
-    if (m.after) parts.push(`${opening(m.after, 'id was', 'ids were')} made after the ${WINDOW_TICKS} ticks drawn.`);
+    if (m.after) parts.push(`${opening(m.after, 'id was', 'ids were')} made after the ${ms(WINDOW_US)} drawn.`);
     return parts.join(' ');
   }
 
@@ -608,7 +608,7 @@
     SKEW_US,
     STEP_AT_US,
     STEP_US,
-    WINDOW_TICKS,
+    WINDOW_US,
     ARRIVALS_US,
     GENERATORS,
     RANDOM_BITS,
