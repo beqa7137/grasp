@@ -88,7 +88,7 @@ Every piece of content belongs to a **round** of a real loop: Coding, System des
 | ------------------ | ---------------------------------------------------- | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | Level              | Early career, Mid-level, Senior (`SENIORITY_LEVELS`) | `target.set` (new)                                                                     | the one home for seniority                                                                                                         |
 | Round counts       | Coding 0–3, System design 0–3, Behavioral 0–3        | `target.set`                                                                           | 0 means the round is not in the loop. Counts are readiness weights                                                                 |
-| Company            | Amazon or none                                       | `target.set` (optional field: the server accepts it from R4, clients send it from R48) |                                                                                                                                    |
+| Company            | Microsoft, Amazon or none                            | `target.set` (optional field: the server accepts it from R4, clients send it from R51) |                                                                                                                                    |
 | Interview date     | YYYY-MM-DD                                           | `plan.set` (unchanged)                                                                 |                                                                                                                                    |
 | Minutes a day      | 15, 30, 45, 60, 90, 120                              | `plan.set`                                                                             |                                                                                                                                    |
 | Starting point     | New, Rusty, Confident                                | `plan.set` `level` (unchanged)                                                         | Renamed in the UI from "Where you are starting". It drives `LEVEL_FACTOR` and the skipping of strong patterns. It is not seniority |
@@ -1801,6 +1801,7 @@ Iterations are ordered by impact, alternating between organization and visuals. 
 | R38  | Case diagrams II (18 advanced cases)                                        | R29                    | no                             |
 | R39  | Thumbnails: missions, cases, visualizers                                    | R8, R11, R21, R23, R24 | no                             |
 | R40  | Workspace trace on the kit                                                  | R16, R23, R24          | no                             |
+| R51  | Microsoft target (built first, owner decision 2026-11-24)                   | R14, R12               | no                             |
 | R48  | Amazon target                                                               | R14, R12               | no                             |
 
 **Dependency notes that fix the previous draft:**
@@ -3530,6 +3531,39 @@ sample.ts`: the seeded year (seed 3282478, common random numbers, no two outages
 - **Accept:** every design review and drill item that names a topology shows it drawn, at 320px too; review item ids
   and counts are unchanged.
 - **Content review:** the drawn topologies against each item's text.
+
+**R51 Microsoft target** (owner decision 2026-11-24: built before the remaining R42 to R47 widgets, and before R48).
+
+The owner is preparing for Microsoft interviews. R51 builds the company target that R48 specified for Amazon, for
+Microsoft first: the shared parts (the Company chip, the client sending `company`, culture chips and their filter,
+"Not covered yet") land here, and R48 then adds only Amazon's mapping on top.
+
+- **Scope:**
+  - `TARGET_COMPANIES` gains `microsoft`; the Company chip in "Your loop" (plan form and loop settings) offers None and
+    each company that has a mapping (Microsoft now; Amazon when R48 lands). The client sends `company` in `target.set`.
+    Older clients' `normalizeTarget` returns null for a company they do not know: make the newest code drop an unknown
+    company instead of the whole Target, and state what an older native build shows.
+  - The Microsoft loop, stated where the learner plans: about four or five interviews of 45 to 60 minutes after one or
+    two technical screens, coding in most rounds, system design for SDE II and senior, behavioral questions woven into
+    every round, and often a final "as appropriate" interview with a senior leader. Levels map to Microsoft's titles
+    (Early career: SDE, 59 to 60; Mid-level: SDE II, 61 to 62; Senior: Senior SDE, 63 to 64). Default round counts stay
+    the level's; the company changes no totals.
+  - The Microsoft culture mapping: growth mindset, customer obsessed, diverse and inclusive, One Microsoft and making a
+    difference, each mapped to the competencies and questions that practice it, with a one-line reason; culture chips
+    on behavioral rows when the target is Microsoft, a culture filter, and attributes with no competency listed as "Not
+    covered yet". The behavioral mock interviewer, when the target is Microsoft, probes the mapped attributes.
+  - Microsoft-reported problems and cases: a "Reported at Microsoft" filter in the Problem library and the Design hub
+    from the existing interview reports, and more Microsoft reports from the permitted publishers only (source-policy.ts
+    and R49's rules: every new report's source opened, its claim checked and its date within the expiry window).
+  - Up next and the plan, when the target is Microsoft, prefer Microsoft-reported items among equally due ones, with the
+    reason on the card; never adding or removing work.
+- **Accept:**
+  - the Microsoft journey (choose Microsoft in "Your loop") in 4 taps from Today;
+  - totals, readiness and plan length are unchanged by the company;
+  - every culture attribute is either mapped with a reason or listed as "Not covered yet";
+  - a Target with a company this client does not offer keeps its level and rounds;
+  - no new report cites a host outside source-policy.ts, and each one's source was opened by an independent checker.
+- **Content review:** the whole culture mapping, the loop description and every new report, before it ships.
 
 **R48 Amazon target.**
 
