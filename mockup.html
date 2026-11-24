@@ -1305,6 +1305,10 @@
       .goal-line.met {
         stroke: var(--g-viz-final);
       }
+      .t-tiny {
+        font: 600 10px var(--g-font-mono);
+        fill: var(--g-text);
+      }
       .on-bar {
         fill: var(--g-viz-stage);
       }
@@ -1790,7 +1794,8 @@ function buildStage(W, m, view) {
   // C: the repair race on one week's axis: the window, the rebuild filling it, the other pieces' failures (staged only).
   const yC = yReadText + 34;
   const fname = failedName(m);
-  D.text(X0, yC, [[wide ? `After ${fname} fails: the repair race` : `After ${fname} fails`, 'label']]);
+  const raceTitle = ps.rackDown ? (wide ? 'After the rack event: no race' : 'After the rack event') : wide ? `After ${fname} fails: the repair race` : `After ${fname} fails`;
+  D.text(X0, yC, [[raceTitle, 'label']]);
   const tx = (h) => X0 + (h / 168) * IW;
   const yRep = yC + 22;
   const bandY = yRep + 8;
@@ -1836,8 +1841,7 @@ function buildStage(W, m, view) {
       D.line(hx, lineY - 5, hx, lineY + 5, 'playhead', { layer: 'top', solid: false });
     }
   } else if (ps.rackDown) {
-    D.rect(X0, bandY, 6, 10, 'band lost', { rx: 2, owner: 'band' });
-    D.place([[X0 + 12, bandY + 9]], [['no repair: every piece went at once', 'small', 'lost-ink']], { owner: 'band' });
+    D.place([[X0, bandY + 9]], [['no repair: every piece went at once', 'small', 'lost-ink']], { owner: 'band' });
   }
   if (kind === 'staged') {
     const tag = 'STAGED, NOT SAMPLED';
@@ -1918,19 +1922,20 @@ function buildStage(W, m, view) {
   }
   if (view.phase === 'challenge') {
     const gx = nx(-Math.log10(M.CHALLENGE_BOUNDS.perBillion / M.OBJECTS));
-    const fy = plotTop + (rows.length - 1) * ROW + 26;
+    const fy = plotTop + (rows.length - 1) * ROW + 31;
     D.line(gx, fy - 9, gx, fy + 9, `goal-line${view.met ? ' met' : ''}`, { owner: 'goal' });
     D.meta.goal = { gx, fy };
   }
   const drawRows = hid.steps ? rows.filter((r) => r.kind === 'final') : rows;
   for (const row of drawRows) {
     const ly = yr + 11;
-    const ay = row.kind === 'final' ? yr + 26 : yr + 21;
+    const ay = row.kind === 'final' ? yr + 31 : yr + 21;
     const forms = rowLabel(row);
     const isFinal = row.kind === 'final';
     const shown = showRow(row);
     const finalHidden = isFinal && hid.loss;
-    D.text(X0, ly, [[pick(forms, (f) => tw(f, isFinal ? 'smallB' : 'small') <= IW), isFinal ? 'smallB' : 'small']], { owner: `row-${row.kind}${row.i ?? ''}` });
+    // A row's words land with its mark: nothing is said for a step before the play reaches it.
+    if (shown || finalHidden) D.text(X0, ly, [[pick(forms, (f) => tw(f, isFinal ? 'smallB' : 'small') <= IW), isFinal ? 'smallB' : 'small']], { owner: `row-${row.kind}${row.i ?? ''}` });
     if (finalHidden) {
       D.add('marks', `<rect class="bar-hidden" x="${r1(X0)}" y="${r1(ay - 7)}" width="${r1(IW)}" height="14" rx="3"/>`);
       D.text(X0 + IW - 6, ay + 4, [['after your answer', 'small']], { anchor: 'end', owner: 'finalq' });
@@ -1958,13 +1963,12 @@ function buildStage(W, m, view) {
         D.add('dots', `<circle class="dot-final" cx="${r1(x)}" cy="${r1(ay)}" r="5"/>`);
         D.mark({ x0: x - 5, x1: x + 5, y0: ay - 5, y1: ay + 5 }, 'row-final');
       }
-      if (isFinal && ghostM && Math.abs(ghostM.nines - m.nines) > 0.04) {
-        const gx = nx(ghostM.nines);
-        D.add('top', `<path class="ghost-caret" d="M${r1(gx - 4)} ${r1(ay - 12)}L${r1(gx)} ${r1(ay - 7)}L${r1(gx + 4)} ${r1(ay - 12)}"/>`);
-        D.mark({ x0: gx - 5, x1: gx + 5, y0: ay - 13, y1: ay - 6 }, 'ghost');
-        D.place([[gx + 7, ay - 6], [gx - 7, ay - 6, 'end']], [[`before ${M.formatNines(ghostM.nines)}`, 'small']], { owner: 'ghost', optional: true });
+      const ghostX = isFinal && ghostM && Math.abs(ghostM.nines - m.nines) > 0.04 ? nx(ghostM.nines) : null;
+      if (ghostX !== null) {
+        D.add('top', `<path class="ghost-caret" d="M${r1(ghostX - 4)} ${r1(ay - 15)}L${r1(ghostX)} ${r1(ay - 10)}L${r1(ghostX + 4)} ${r1(ay - 15)}"/>`);
+        D.mark({ x0: ghostX - 5, x1: ghostX + 5, y0: ay - 16, y1: ay - 9 }, 'ghost');
       }
-      const gRow = ghostM && row.kind === 'window' ? ghostM.steps.find((g) => g.kind === 'window' && g.i === row.i && Math.abs(g.factor - row.factor) > 1e-15) : null;
+      const gRow = ghostM && ghostM.settings.scheme === s.scheme && row.kind === 'window' ? ghostM.steps.find((g) => g.kind === 'window' && g.i === row.i && Math.abs(g.factor - row.factor) > 1e-15) : null;
       const val = rowValue(row, prev, gRow);
       const lo = Math.min(x, prev && row.kind !== 'final' && row.kind !== 'rack' ? nx(levelN(prev.level)) : nx(0));
       const hi = Math.max(x, prev && row.kind !== 'final' && row.kind !== 'rack' ? nx(levelN(prev.level)) : nx(0));
@@ -1982,7 +1986,7 @@ function buildStage(W, m, view) {
     }
     if (!hid.steps || isFinal) rowsShown.push(row.kind);
     prev = row;
-    yr += ROW + (isFinal ? 5 : 0);
+    yr += ROW + (isFinal ? 10 : 0);
   }
   // The challenge's goal on the last row: a mark at 10 nines.
   if (view.phase === 'challenge') {
@@ -1991,7 +1995,7 @@ function buildStage(W, m, view) {
     const { fy } = D.meta.goal;
     D.place([[gx + 6, fy - 11], [gx - 6, fy - 11, 'end'], [gx + 6, fy + 4], [gx - 6, fy + 4, 'end'], [X1, fy - 15, 'end']], [['goal: 10 nines', 'small', met ? 'ok-ink' : '']], { owner: 'goal' });
   }
-  const yBot = Math.max(yr, plotTop + 3 * ROW + 5) + 4;
+  const yBot = Math.max(yr, plotTop + 3 * ROW + 10) + 4;
   D.line(X0, yBot, X1, yBot, 'axis', { layer: 'grid', solid: false });
   // The billion-object conversion, drawn: the same axis, read as objects lost a year among a billion.
   const conv = wide
@@ -2013,7 +2017,7 @@ function buildStage(W, m, view) {
   // Facts at the foot, lines reserved there.
   const yF = yBot + 60;
   D.para(X0, yF, wrap(factsSentence(m, hid, ghostM), 'cap', IW), 'cap', LH, { owner: 'facts' });
-  const maxBot = plotTop + 8 * ROW + 9;
+  const maxBot = plotTop + 8 * ROW + 14;
   const H = Math.round(maxBot + 60 + (res.facts + 1) * LH + 14);
   D.meta.rowsShown = rowsShown;
   D.label = summary(m, hid);
