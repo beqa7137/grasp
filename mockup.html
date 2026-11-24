@@ -1202,8 +1202,33 @@
       }
       .rack {
         fill: none;
-        stroke: var(--g-line-strong);
+        stroke: var(--g-stroke);
+        stroke-width: 1.25;
+      }
+      .bracket {
+        fill: none;
+        stroke: var(--g-stroke);
         stroke-width: 1;
+      }
+      .cap-parity {
+        fill: var(--g-viz-considering);
+      }
+      .read-block {
+        fill: var(--g-viz-current-soft);
+        stroke: var(--g-viz-current);
+        stroke-width: 1;
+      }
+      .ghost-step,
+      .ghost-bracket {
+        fill: none;
+        stroke: var(--g-stroke);
+        stroke-width: 1;
+      }
+      .ghost-tip {
+        fill: none;
+        stroke: var(--g-stroke);
+        stroke-width: 1.25;
+        stroke-linejoin: round;
       }
       .rack.struck {
         stroke: var(--g-viz-critical);
@@ -1332,10 +1357,22 @@
       .readout {
         min-height: 3lh;
       }
+      .controls-grid {
+        container-type: inline-size;
+      }
       .controls-grid .segment span {
-        padding: 0 3px;
+        padding: 0 6px;
         white-space: nowrap;
         font-size: var(--g-text-body-s);
+      }
+      /* Under a 340 px controls column, Stored as takes two rows of two (prevention 8: labels clear of their borders). */
+      @container (max-width: 339px) {
+        .scheme-control .segments4 {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .repair-control .segment span {
+          padding: 0 3px;
+        }
       }
     </style>
   </head>
@@ -1381,14 +1418,17 @@ function tw(text, role) {
 }
 const partsWidth = (parts) => parts.reduce((s, [t, role, , dx = 0]) => s + tw(t, role) + dx, 0);
 /** The keep rule (g-code-text's, extended): a number keeps its unit, "1 in 18,000" stays whole, "6 + 3" stays whole,
- * "× 56" keeps its factor, a piece's name keeps its number. */
+ * "× 56" keeps its factor, a count keeps its period ("1 every 6 years", "180 a year", "1 in 10 years"). */
 const KEEP = [
   [/\b1 in (\d[\d.,]*)( (?:thousand|million|billion|trillion|quadrillion|quintillion|sextillion))?/g, (m) => m.replace(/ /g, '\u0001')],
   [/(\d+) \+ (\d+)/g, '$1\u0001+\u0001$2'],
   [/(\d[\d.,]*%?) (h|TB|PB|MB|Gb\/s|nines|copies|copy|pieces|piece|years|disks|ways|million|billion|trillion)\b/g, '$1\u0001$2'],
   [/× (\d)/g, '×\u0001$1'],
   [/(\d) ×/g, '$1\u0001×'],
+  [/(\d[\d.,]*) every (\d)/g, '$1\u0001every\u0001$2'],
   [/\b(every) (\d)/g, '$1\u0001$2'],
+  [/(million|billion|trillion|quadrillion|quintillion|sextillion) (years|times)\b/g, '$1\u0001$2'],
+  [/(\d[\d.,]*%?) a year\b/g, '$1\u0001a\u0001year'],
 ];
 const keepJoin = (text) => KEEP.reduce((t, [re, to]) => t.replace(re, to), text);
 function wrap(text, role, width) {
@@ -1533,8 +1573,10 @@ function checkGlyph(D, cx, cy, owner, r = 6) {
 // ---------- What an open question hides, on every surface: one map (prevention 1). A question names its regions in
 // its own `hide` list. `steps`, while it asks and plays, hides the model's factors (the staircase's rows, the window's
 // chance in the race sentence, Describe); `after`, while the answer plays, hides everything the model says at the act's
-// new setting: the steps, the yearly loss (the headline's nines, the last row, the summary's numbers), and the rebuild's
-// reads (the stubs, the read dots, their words, the cost sentence). No ghost of an earlier setting shows while a question
+// new setting: the steps and the yearly loss (the headline's nines, the last row, the summary's numbers); `reads`, while
+// the answer plays (E3 only), hides the rebuild's reads (the stubs, the read dots, the read blocks, their words, the
+// facts' read clause, the race's "read from"). A lost object has nothing to read, so its "nothing is left to rebuild
+// from" shows whatever hides. No ghost of an earlier setting shows while a question
 // asks or plays, Describe waits, and Play, Stage a loss and every setting are disabled.
 function hidingCore(view) {
   const asking = view.phase === 'asking';
@@ -1544,7 +1586,7 @@ function hidingCore(view) {
   return {
     steps: (asking || playing) && (h.includes('steps') || after),
     loss: after,
-    reads: after,
+    reads: playing && h.includes('reads'),
     ghost: asking || playing,
     waits: asking || playing,
   };
@@ -1554,70 +1596,16 @@ function hiding(view) {
   return window.__hidingOverride ? window.__hidingOverride(view) : hidingCore(view);
 }
 
-// ---------- Words. Every sentence is computed for its setting; nothing is spliced from a control's text.
-const SC = (m) => m.scheme.short;
-const pieceWord = (m, n = 2) => (m.replicas ? plural(n, 'copy', 'copies') : plural(n, 'piece', 'pieces'));
-const failedName = (m) => M.pieces(m)[M.failedIndex(m)].id;
-function storedWords(m) {
-  if (m.replicas) return `${m.n} full copies, ${M.formatX(m.overhead)} its size`;
-  return `${m.n} pieces, ${m.scheme.data} of data and ${m.scheme.parity} of parity, each a ${m.scheme.data === 6 ? 'sixth' : 'tenth'} of its size: ${M.formatX(m.overhead)} in all`;
-}
-function placeWords(m) {
-  return m.settings.rack ? `every ${pieceWord(m, 1)} on its own disk, all in one rack` : `every ${pieceWord(m, 1)} on its own disk in its own rack`;
-}
-function lossWords(m) {
-  return `${M.formatNines(m.nines)} nines, a yearly loss chance of ${M.oneIn(m.loss)}: among a billion such objects, ${M.formatBillion(m.perBillion)}`;
-}
-function summary(m, hid) {
-  const s = m.settings;
-  const a = `One object stored as ${SC(m)}${m.replicas ? '' : ' erasure coding'}: ${storedWords(m)}, ${placeWords(m)}. Disks fail independently at ${M.formatPct(s.afr)} a year, and a lost ${pieceWord(m, 1)} is rebuilt in ${M.formatHours(s.repair)}. It survives any ${m.t} lost ${pieceWord(m, m.t)}.`;
-  if (hid.loss) return `${a} The model’s yearly loss shows after your answer.`;
-  return `${a} The model gives ${lossWords(m)}.`;
-}
-function settingSentence(m) {
-  const s = m.settings;
-  return `Stored as ${SC(m)}${m.replicas ? '' : ' erasure coding'} at ${M.formatPct(s.afr)} a year with ${M.formatHours(s.repair)} repairs${s.rack ? ', all in one rack' : ''}: ${M.formatNines(m.nines)} nines, ${M.formatBillion(m.perBillion)} among a billion objects, at ${M.formatX(m.overhead)} storage.`;
-}
-/** The rebuild's reads, in words: the stubs on the stage say the same. */
+// ---------- Words: model.js's words module (durability-words.ts); every sentence is computed for its setting.
+const { SC, pieceWord, failedName, summary, settingSentence, readoutText, raceSentence, factsSentence } = M;
+/** The rebuild's reads, in words: the stubs and the read blocks (one a piece read, each a disk) say the same. */
 function readWords(m, form = 0) {
   const what = m.replicas ? `1 copy` : `${m.repairRead} pieces`;
-  const forms = [`the rebuild reads ${what}: ${m.repairRead} × ${M.formatTB(M.DISK_TB)} = ${M.formatTB(m.rebuildTB)} for a disk`, `reads ${what}: ${M.formatTB(m.rebuildTB)} a disk`, `reads ${what}`];
-  return forms[form];
+  const read = M.formatTB(m.rebuildTB);
+  const disk = M.formatTB(M.DISK_TB);
+  return [`the rebuild reads ${what}: ${read} for a ${disk} disk`, `reads ${what}: ${read} for a ${disk} disk`, `${read} read for a ${disk} disk`, `${read} read`][form];
 }
-/** The race's sentence: what the drawn repair is, and what a loss would take. */
-function raceSentence(m, ps, kind, hid) {
-  const s = m.settings;
-  const f = failedName(m);
-  const others = m.n - 1;
-  if (kind === 'staged' && s.rack) {
-    if (!ps.lost) return `Staged, not sampled: a rack event is coming.`;
-    return `Staged, not sampled: a rack event destroys the one rack and every ${pieceWord(m, 1)} in it at once, before any repair can start. A rack event is assumed here once in ${M.formatCount(1 / M.RACK_EVENT)} years.`;
-  }
-  if (kind === 'staged') {
-    const names = ps.stagedDown.map((i) => M.pieces(m)[i].id);
-    if (!ps.failed) return `Staged, not sampled: a loss is coming.`;
-    if (!ps.lost) return `Staged, not sampled: ${f} fails, and its repair starts.${names.length ? ` Then ${M.listOf(names)} ${names.length === 1 ? 'fails' : 'fail'} too.` : ''}`;
-    const left = m.n - 1 - names.length;
-    const chance = hid.steps ? '' : ` A first failure leads here about once in ${M.bigCount(1 / m.tail)} times.`;
-    return m.replicas
-      ? `Staged, not sampled: ${f} fails, and before its ${M.formatHours(s.repair)} repair ends ${M.listOf(names)} ${names.length === 1 ? 'fails' : 'fail'} too. No copy is left: the object is lost.${chance}`
-      : `Staged, not sampled: ${f} fails, and before its ${M.formatHours(s.repair)} repair ends ${M.listOf(names)} fail too. Only ${left} pieces are left, and any rebuild needs ${m.need}: the object is lost.${chance}`;
-  }
-  if (!ps.failed) return `Every ${pieceWord(m, 1)} is whole. Play a repair: a disk fails, and its ${pieceWord(m, 1)} is rebuilt on a spare.`;
-  const reads = hid.reads ? '' : `, read from ${m.replicas ? 'a surviving copy' : `${m.repairRead} of the others`}`;
-  const head = ps.rebuilt ? `${f} is rebuilt on the spare in ${M.formatHours(s.repair)}${reads}.` : `${f} fails, and it is being rebuilt on the spare${reads}.`;
-  const need = m.t === m.n - 1 ? (m.t === 1 ? `the other copy` : m.t === 2 ? 'both other copies' : `all ${others} others`) : `${m.t} of the ${others} others`;
-  const chance = hid.steps ? ` The chance of that shows after your answer.` : ` Each fails within ${M.formatHours(s.repair)} with chance ${M.oneIn(m.p)}, so in a typical repair none does.`;
-  const rack = s.rack ? ` All ${m.n} share one rack: a rack event would take them at once.` : '';
-  return `${head} A loss would need ${need} to fail before it ends.${chance}${rack}`;
-}
-function factsSentence(m, hid, ghostM) {
-  const s = m.settings;
-  const cost = `A billion 1 MB objects, ${M.formatTB(M.DATA_TB)}, take ${M.formatTB(m.rawTB)} on ${M.formatCount(m.disks)} disks of ${M.formatTB(M.DISK_TB)}; at ${M.formatPct(s.afr)} about ${M.bigCount(m.failsYear)} of them fail a year.`;
-  const reads = hid.reads ? ` The rebuild’s reads show after your answer.` : ` Each rebuild reads ${M.formatTB(m.rebuildTB)}: ${M.formatGbps(m.rebuildGbps)} to finish in ${M.formatHours(s.repair)}.`;
-  const ghost = ghostM && !hid.ghost ? ` Before this change: ${M.formatNines(ghostM.nines)} nines.` : '';
-  return cost + reads + ghost;
-}
+const ratioWords = (now, before) => (now.loss >= before.loss ? `${M.formatRatio(now.loss / before.loss)} likelier` : `${M.formatRatio(before.loss / now.loss)} less likely`);
 
 // ---------- The stage. Heights depend only on its width: every wrapped text reserves its longest form at that width.
 const reserveCache = new Map();
@@ -1651,6 +1639,9 @@ function layoutConsts(W) {
 /** The nines scale: from -0.6 (a rate above 1 a year, the first failures of 14 pieces at 10%) to 25. */
 const NMIN = -0.6;
 const NMAX = 25;
+/** The most step rows any setting draws (10 + 4: first failures, four window rows, the ways); the last row sits under
+ * them at a fixed place, so the plot's height never counts a scheme's steps. */
+const STEP_ROWS = 6;
 
 function buildStage(W, m, view) {
   const D = new Draw(W);
@@ -1663,7 +1654,7 @@ function buildStage(W, m, view) {
   D.meta.ps = ps;
   const res = reserved(W);
   const pcs = M.pieces(m);
-  const free = view.phase !== 'asking' && view.phase !== 'playing';
+  const challenge = view.phase === 'challenge';
 
   // Header: Play a repair, and Stage a loss.
   D.hit('play', X0 - 4, 8, 44, 44);
@@ -1677,11 +1668,15 @@ function buildStage(W, m, view) {
   D.hit('stage', X1 - pw, 8, pw, 44, { text: stageForms[fi] });
   D.text(X0 + 46, 35, [[playForms[fi], 'capB']], { owner: 'play' });
 
-  // A: the object and what is stored, the cost drawn as a transform: one bar of the object, then its pieces to scale.
+  // A: the object and what is stored, the cost drawn as a transform: one bar of the object, then its pieces to scale,
+  // bracketed by kind (data, parity, copies) so the kinds never rest on colour alone.
   let y = 80;
   D.text(X0, y, [[wide ? 'The object, and what is stored' : 'Object and what is stored', 'label']]);
   const storedLabel = (mm) => (mm.replicas ? `stored: ${mm.n} × 1 = ${M.formatX(mm.overhead)}` : `stored: ${mm.n} × 1/${mm.scheme.data} = ${M.formatX(mm.overhead)}`);
-  const U = Math.min(wide ? 150 : 120, Math.floor(Math.min(...[0, 1, 2, 3].map((i) => (IW - 10 - tw(storedLabel(M.run({ ...s, scheme: i })), 'small')) / M.run({ ...s, scheme: i }).overhead))));
+  const U = Math.min(wide ? 150 : 120, Math.floor(Math.min(...[0, 1, 2, 3].map((i) => {
+    const mm = M.run({ ...s, scheme: i });
+    return (IW - 10 - tw(storedLabel(mm), 'small')) / Math.max(1.5, mm.overhead);
+  }))));
   const yObj = y + 10;
   D.rect(X0, yObj, U, 12, 'obj', { rx: 2, owner: 'obj' });
   D.text(X0 + U + 8, yObj + 10, [['the object, 1 MB', 'small']]);
@@ -1694,78 +1689,103 @@ function buildStage(W, m, view) {
     D.rect(x + 0.6, ySt, segW - 1.2, 12, down ? 'seg-down' : `seg-${p.kind}`, { owner: 'stored', mark: false });
   });
   D.mark({ x0: X0, x1: X0 + m.n * segW, y0: ySt, y1: ySt + 12 }, 'stored');
-  D.text(X0 + m.n * segW + 8, ySt + 10, [[storedLabel(m), 'small']]);
-  // The key, always reserved: what the colours of the pieces mean.
-  const yKey = ySt + 30;
-  const keyItems = m.replicas ? [['seg-copy', `${m.n} full copies`]] : [['seg-data', `${m.scheme.data} data pieces`], ['seg-parity', `${m.scheme.parity} parity pieces`]];
-  let kx = X0;
-  for (const [cls, t] of keyItems) {
-    D.rect(kx, yKey - 8, 10, 10, cls, { rx: 2, owner: 'key' });
-    D.text(kx + 15, yKey + 1, [[t, 'small']], { owner: 'key' });
-    kx += 15 + tw(t, 'small') + 16;
+  // The challenge's storage bound, a mark on the stored bar.
+  let storedEnd = X0 + m.n * segW;
+  if (challenge) {
+    const gx = X0 + 1.5 * U;
+    D.line(gx, ySt - 4, gx, ySt + 16, `goal-line${m.overhead < M.CHALLENGE_BOUNDS.overhead ? ' met' : ''}`, { owner: 'goal-oh' });
+    storedEnd = Math.max(storedEnd, gx);
   }
-  y = yKey;
+  D.text(storedEnd + 8, ySt + 10, [[storedLabel(m), 'small']]);
+  const groups = m.replicas ? [[0, m.n, [`${m.n} full copies`, 'copies']]] : [[0, m.scheme.data, [`${m.scheme.data} data pieces`, `${m.scheme.data} data`, 'data']], [m.scheme.data, m.n, [`${m.scheme.parity} parity pieces`, `${m.scheme.parity} parity`, 'parity']]];
+  const yBr = ySt + 16;
+  for (const [a, b, forms] of groups) {
+    const x0 = X0 + a * segW + 1.5;
+    const x1 = X0 + b * segW - 1.5;
+    D.add('marks', `<path class="bracket" d="M${r1(x0)} ${r1(yBr)}v3H${r1(x1)}v-3"/>`);
+    const mid = (x0 + x1) / 2;
+    const fit = forms.find((f) => tw(f, 'small') <= x1 - x0 + 8 && (a > 0 || mid - tw(f, 'small') / 2 >= 2)) ?? forms[forms.length - 1];
+    D.place([[mid, yBr + 14, 'middle'], [Math.max(x0, X0), yBr + 14], [x1 + 6, yBr + 14]], [[fit, 'small']], { owner: 'key' });
+  }
+  if (challenge) {
+    const gx = X0 + 1.5 * U;
+    D.place([[gx + 5, yBr + 14], [gx - 5, yBr + 14, 'end']], [['at most 1.5×', 'small', m.overhead < M.CHALLENGE_BOUNDS.overhead ? 'ok-ink' : '']], { owner: 'goal-oh', optional: true });
+  }
+  y = ySt + 30;
 
-  // B: the pieces on their disks, the spare, and the rebuild's reads.
+  // B: the pieces on their disks, the free disk, and the rebuild's reads.
   const yB = y + 36;
-  const secB = m.settings.rack ? (wide ? `On ${m.n} disks, all in one rack` : `${m.n} disks, one rack`) : wide ? `On ${m.n} disks, each in its own rack` : `${m.n} disks, a rack each`;
+  const secB = s.rack ? (wide ? `On ${m.n} disks, all in one rack` : `${m.n} disks, one rack`) : wide ? `On ${m.n} disks, each in its own rack` : `${m.n} disks, a rack each`;
   D.text(X0, yB, [[secB, 'label']]);
-  const gapSpare = 12;
-  const slot = Math.min(wide ? 52 : 44, Math.floor((IW - gapSpare) / (m.n + 1)));
-  const diskW = slot - (s.rack ? 4 : 7);
+  const gapFree = 12;
+  const slot = Math.min(wide ? 52 : 44, Math.floor((IW - gapFree) / (m.n + 1)));
+  const diskW = slot - (s.rack ? 4 : 10);
   const labels = slot >= 24;
-  const yName = yB + 22;
+  const yLeg = yB + 20;
+  const yName = yB + 36;
   const yDisk = yName + 6;
   const diskH = wide ? 44 : 36;
-  const diskX = (i) => X0 + (i < m.n ? i * slot : m.n * slot + gapSpare) + (slot - diskW) / 2;
-  // The rebuild reads from pieces that are still whole: a staged failure takes a source out of the read.
+  const frameTop = yLeg + 4;
+  const frameBot = yDisk + diskH + 4;
+  const diskX = (i) => X0 + (i < m.n ? i * slot : m.n * slot + gapFree) + (slot - diskW) / 2;
   const srcs = ps.stagedDown.length ? pcs.map((_, i) => i).filter((i) => i !== M.failedIndex(m) && !ps.stagedDown.includes(i)).slice(0, m.repairRead) : M.sources(m);
-  // Racks: a frame per disk, or one frame round every piece; the spare stands in a rack of its own.
-  if (s.rack) D.rect(X0 + 1, yDisk - 4, m.n * slot - 2, diskH + 8, `rack${ps.rackDown ? ' struck' : ''}`, { rx: 6, owner: 'rack', mark: false });
-  for (let i = 0; i <= m.n; i++) if (!s.rack || i === m.n) D.rect(diskX(i) - 2.5, yDisk - 3, diskW + 5, diskH + 6, 'rack', { rx: 5, owner: 'rack', mark: false });
+  // Racks: a strong frame a disk with a gap between frames, or one frame round every piece; the free disk stands in a
+  // frame of its own. Each group's caption sits just above its frame.
+  if (s.rack) D.rect(X0 + 1, frameTop, m.n * slot - 2, frameBot - frameTop, `rack${ps.rackDown ? ' struck' : ''}`, { rx: 6, owner: 'rack', mark: false });
+  for (let i = 0; i <= m.n; i++) if (!s.rack || i === m.n) D.rect(diskX(i) - 3, frameTop, diskW + 6, frameBot - frameTop, 'rack', { rx: 5, owner: 'rack', mark: false });
+  D.text(X0 + 7, yLeg, [[s.rack ? 'one rack' : 'a rack each', 'tiny', ps.rackDown ? 'lost-ink' : 'muted']], { owner: 'rack' });
+  D.text(diskX(m.n) + diskW / 2, yLeg, [['free', 'tiny', 'muted']], { owner: 'rack', anchor: 'middle' });
+  const staged = kind === 'staged';
+  const stagedList = staged && !s.rack ? M.stagedFailures(m) : [];
   pcs.forEach((p, i) => {
     const down = (ps.failed && i === M.failedIndex(m)) || ps.stagedDown.includes(i) || ps.rackDown;
     const x = diskX(i);
     D.rect(x, yDisk, diskW, diskH, `disk ${down ? 'down' : p.kind}`, { rx: 3, owner: `disk${i}` });
+    // Parity carries a solid cap band: its kind never rests on colour alone where names drop.
+    if (p.kind === 'parity') D.rect(x + 1, yDisk + 1, diskW - 2, 3.5, 'cap-parity', { owner: `disk${i}`, mark: false });
     if (down) xGlyph(D, x + diskW / 2, yDisk + diskH / 2, `disk${i}`, Math.min(4, diskW / 2 - 1.5), 'on-box');
     if (labels || down) {
-      const nm = p.id;
-      D.place([[x + diskW / 2, yName, 'middle'], [x + diskW / 2 - 3, yName, 'middle'], [x + diskW / 2 + 3, yName, 'middle']], [[nm, 'tiny', down ? 'muted' : '']], { owner: `disk${i}`, optional: !down || ps.rackDown, margin: 2.5 });
+      D.place([[x + diskW / 2, yName, 'middle'], [x + diskW / 2 - 3, yName, 'middle'], [x + diskW / 2 + 3, yName, 'middle']], [[p.id, 'tiny', down ? 'muted' : '']], { owner: `disk${i}`, optional: !down || ps.rackDown, margin: 2.5, data: ' data-disk="1"' });
     }
   });
-  // The spare: empty, filling as the rebuild runs, then holding the rebuilt piece.
+  // The free disk: empty, filling as the rebuild runs, then holding the rebuilt piece, named "→c3" (never a second c3).
   const xs = diskX(m.n);
   const rebuilding = ps.failed && !ps.rackDown && !ps.lost && !ps.rebuilt && ps.progress > 0;
   D.rect(xs, yDisk, diskW, diskH, `disk ${ps.rebuilt ? 'rebuilt' : 'spare'}`, { rx: 3, owner: 'spare' });
   if (rebuilding) D.rect(xs + 1.5, yDisk + diskH - 1.5 - (diskH - 3) * ps.progress, diskW - 3, (diskH - 3) * ps.progress, 'fill-rebuild', { owner: 'spare', mark: false });
-  D.place([[xs + diskW / 2, yName, 'middle'], [xs + diskW - 1, yName, 'end']], [[ps.rebuilt ? failedName(m) : 'spare', 'tiny', ps.rebuilt ? 'ok-ink' : 'muted']], { owner: 'spare', margin: 1 });
-  // The rebuild's reads: a stub from every piece it reads, down to one bus, then up into the spare.
-  const yBus = yDisk + diskH + 14;
+  if (ps.rebuilt) D.place([[xs + diskW / 2, yName, 'middle'], [xs + diskW - 1, yName, 'end']], [[`→${failedName(m)}`, 'tiny', 'ok-ink']], { owner: 'spare', margin: 1, data: ' data-disk="1"' });
+  // The rebuild's reads: a stub from every piece it reads, down to one bus, then up into the free disk; under it the read
+  // volume drawn to scale, one block a piece read, each the size of one disk.
+  const yBus = yDisk + diskH + 16;
   const yReadText = yBus + 20;
   const showReads = ps.failed && !ps.rackDown && !ps.lost;
-  if (hid.reads) {
-    const bx = X0;
-    D.add('marks', `<rect class="bar-hidden" x="${r1(bx)}" y="${r1(yDisk + diskH + 5)}" width="${r1(IW)}" height="19" rx="3"/>`);
-    D.text(X0 + 8, yDisk + diskH + 18.5, [[tw('the rebuild’s reads show after your answer', 'small') <= IW - 16 ? 'the rebuild’s reads show after your answer' : 'its reads show after your answer', 'small']], { owner: 'reads' });
+  D.meta.readsBox = false;
+  if (ps.lost) {
+    D.text(X0, yReadText, [['nothing is left to rebuild from', 'small', 'lost-ink']], { owner: 'reads' });
+  } else if (hid.reads) {
+    const by = frameBot + 3;
+    const bh = yReadText + 7 - by;
+    D.add('marks', `<rect class="bar-hidden" data-box="reads" x="${r1(X0)}" y="${r1(by)}" width="${r1(IW)}" height="${r1(bh)}" rx="3"/>`);
+    D.text(X0 + 8, by + bh / 2 + 4, [[tw('the rebuild’s reads show after your answer', 'small') <= IW - 16 ? 'the rebuild’s reads show after your answer' : 'its reads show after your answer', 'small']], { owner: 'reads' });
+    D.meta.readsBox = true;
   } else if (showReads) {
     const xsC = xs + diskW / 2;
     const left = Math.min(...srcs.map((i) => diskX(i) + diskW / 2));
     for (const i of srcs) {
       const cx = diskX(i) + diskW / 2;
-      D.line(cx, yDisk + diskH + 3, cx, yBus, 'read', { owner: 'reads' });
+      D.line(cx, yDisk + diskH + 1, cx, yBus, 'read', { owner: 'reads' });
     }
-    D.add('links', `<path class="read" d="M${r1(left)} ${r1(yBus)}H${r1(xsC)}V${r1(yDisk + diskH + 8)}" data-owner="reads"/>`);
-    D.link([...sampleLine(left, yBus, xsC, yBus), ...sampleLine(xsC, yBus, xsC, yDisk + diskH + 8)], 'reads');
-    D.add('marks', `<path class="read-head" d="M${r1(xsC - 3.5)} ${r1(yDisk + diskH + 9)}l3.5 -5 3.5 5z"/>`);
-    // While the rebuild runs, one dot a source travels its stub, the bus and into the spare (bounded by the sources).
+    D.add('links', `<path class="read" d="M${r1(left)} ${r1(yBus)}H${r1(xsC)}V${r1(yDisk + diskH + 6)}" data-owner="reads"/>`);
+    D.link([...sampleLine(left, yBus, xsC, yBus), ...sampleLine(xsC, yBus, xsC, yDisk + diskH + 6)], 'reads');
+    D.add('marks', `<path class="read-head" d="M${r1(xsC - 3.5)} ${r1(yDisk + diskH + 7)}l3.5 -5 3.5 5z"/>`);
     if (rebuilding && !view.reducedFrame) {
       const phase = ((view.tau ?? 0) * 0.9) % 1;
       for (const [j, i] of srcs.entries()) {
         const cx = diskX(i) + diskW / 2;
         const segs = [
-          [cx, yDisk + diskH + 3, cx, yBus],
+          [cx, yDisk + diskH + 1, cx, yBus],
           [cx, yBus, xsC, yBus],
-          [xsC, yBus, xsC, yDisk + diskH + 8],
+          [xsC, yBus, xsC, yDisk + diskH + 6],
         ];
         const lens = segs.map(([a, b, c, d]) => Math.hypot(c - a, d - b));
         const tot = lens.reduce((a, b) => a + b, 0);
@@ -1781,35 +1801,62 @@ function buildStage(W, m, view) {
         }
       }
     }
-    D.place([[X0, yReadText], [X0, yReadText]], [[readWords(m, 0), 'small']], { owner: 'reads', optional: true }) ??
-      D.place([[X0, yReadText]], [[readWords(m, 1), 'small']], { owner: 'reads', optional: true }) ??
-      D.place([[X0, yReadText]], [[readWords(m, 2), 'small']], { owner: 'reads' });
-  } else if (!ps.failed) {
-    D.text(X0, yReadText, [['no repair is running', 'small']], { owner: 'reads' });
+    // The read volume: one block a piece read, each one disk (the conversion "6 × 20 TB = 120 TB", drawn).
+    const bw = wide ? 12 : 9;
+    for (let k = 0; k < m.repairRead; k++) D.rect(X0 + k * (bw + 2), yReadText - 9, bw, 10, 'read-block', { rx: 1.5, owner: 'reads' });
+    const bx = X0 + m.repairRead * (bw + 2) + 6;
+    let placed = null;
+    for (let form = 0; form < 4 && !placed; form++) placed = D.place([[bx, yReadText]], [[readWords(m, form), 'small']], { owner: 'reads', optional: form < 3 });
   } else {
-    D.text(X0, yReadText, [['nothing is left to rebuild from', 'small', 'lost-ink']], { owner: 'reads' });
+    D.text(X0, yReadText, [['no repair is running', 'small']], { owner: 'reads' });
   }
   D.region('pieces', { x: X0 - 6, y: yB - 22, w: IW + 12, h: yReadText + 10 - (yB - 22) });
+  D.meta.piecesTop = yB - 22;
 
-  // C: the repair race on one week's axis: the window, the rebuild filling it, the other pieces' failures (staged only).
+  // C: the repair race: the window, the rebuild filling it, the other pieces' failures (staged only). The axis is one
+  // week; a staged loss whose failures cannot stand apart on it is drawn on its window instead, said in the title.
   const yC = yReadText + 34;
   const fname = failedName(m);
-  const raceTitle = ps.rackDown ? (wide ? 'After the rack event: no race' : 'After the rack event') : wide ? `After ${fname} fails: the repair race` : `After ${fname} fails`;
-  D.text(X0, yC, [[raceTitle, 'label']]);
-  const tx = (h) => X0 + (h / 168) * IW;
+  const XR = X1 - 10;
+  const IWR = XR - X0;
+  const nameW = Math.max(0, ...stagedList.map((i) => tw(pcs[i].id, 'tiny')));
+  const need = Math.max(16, nameW + 6);
+  const zoom = stagedList.length > 0 && (IWR * s.repair) / 168 / (m.t + 1.6) < need;
+  const span = zoom ? s.repair * 1.5 : 168;
+  const tx = (h) => X0 + (h / span) * IWR;
+  D.meta.zoom = zoom;
+  let tagX = X1;
+  if (staged) {
+    const tag = 'STAGED, NOT SAMPLED';
+    const tw0 = tw(tag, 'smallB') + 12;
+    tagX = X1 - tw0;
+    D.rect(tagX, yC - 11, tw0, 15, 'staged-tag', { rx: 7.5, owner: 'stagedtag' });
+    D.text(tagX + 6, yC + 0.5, [[tag, 'smallB', 'lost-ink']], { owner: 'stagedtag', textCls: 'on-tag', data: ' data-tag-staged="1"' });
+  }
+  const titleForms = !ps.failed
+    ? ['The repair race', 'Repair race', 'Race']
+    : ps.rackDown
+      ? ['After the rack event', 'Rack event']
+      : zoom
+        ? [`After ${fname} fails: the race, zoomed to its window`, `After ${fname} fails: zoomed in`, `After ${fname} fails`, `${fname} fails`]
+        : [`After ${fname} fails: the repair race`, `After ${fname} fails`, `${fname} fails`];
+  D.text(X0, yC, [[pick(titleForms, (f) => X0 + tw(f, 'label') <= tagX - 8), 'label']], { owner: 'racetitle' });
   const yRep = yC + 22;
   const bandY = yRep + 8;
-  const repLabel = wide ? `Repair of ${fname}, from its failure at 0` : `Repair of ${fname}`;
-  D.text(X0, yRep, [[repLabel, 'small']], { owner: 'replabel' });
+  const repForms = !ps.failed ? ['Repair'] : ps.rackDown ? ['No repair: the rack took every piece at 0', 'No repair'] : [`Detection and rebuild of ${fname}, from its failure at 0`, `Detect and rebuild ${fname}`];
+  const repLabel = pick(repForms, (f) => tw(f, 'small') <= IW - 130);
+  D.text(X0, yRep, [[repLabel, 'small', ps.rackDown ? 'lost-ink' : '']], { owner: 'replabel' });
   const yOth = bandY + 32;
   const lineY = yOth + 12;
-  D.text(X0, yOth, [[m.t === m.n - 1 && m.n === 2 ? 'The other copy' : `The ${m.n - 1} others`, 'small']]);
+  const others = m.n - 1;
+  const othForms = ps.rackDown ? [`The ${others} others, in the same event`, `The ${others} others`] : m.n === 2 ? ['The other copy'] : [`The ${others} others`, `${others} others`];
   const yAx = lineY + 16;
-  for (const h of [0, 24, 48, 72, 96, 120, 144, 168]) D.line(tx(h), yRep + 4, tx(h), yAx, 'gridline', { layer: 'grid', solid: false });
-  D.line(X0, yAx, X1, yAx, 'axis', { layer: 'grid', solid: false });
-  const axisLabels = wide ? [0, 24, 48, 72, 96, 120, 144, 168] : [0, 24, 72, 168];
-  for (const h of axisLabels) D.text(tx(h), yAx + 14, [[h === 0 ? '0' : `${h} h`, 'small']], { anchor: h === 0 ? 'start' : h === 168 ? 'end' : 'middle', data: ' data-xtick="race"', ground: true });
-  D.line(X0, lineY, X1, lineY, 'track', { layer: 'grid', solid: false });
+  const grid = zoom ? [0, s.repair / 2, s.repair, span] : [0, 24, 48, 72, 96, 120, 144, 168];
+  for (const h of grid) D.line(tx(h), yRep + 4, tx(h), yAx, 'gridline', { layer: 'grid', solid: false });
+  D.line(X0, yAx, XR, yAx, 'axis', { layer: 'grid', solid: false });
+  const axisLabels = zoom ? [0, s.repair, span] : wide ? [0, 24, 48, 72, 96, 120, 144, 168] : [0, 24, 72, 168];
+  for (const h of axisLabels) D.text(tx(h), yAx + 14, [[h === 0 ? '0' : M.formatHours(h), 'small']], { anchor: h === 0 ? 'start' : h === span ? 'end' : 'middle', data: ' data-xtick="race"', ground: true });
+  D.line(X0, lineY, XR, lineY, 'track', { layer: 'grid', solid: false });
   if (ps.failed && !ps.rackDown) {
     const wx = tx(s.repair);
     D.rect(X0, bandY, Math.max(2, wx - X0), 10, `band${ps.lost ? ' lost' : ''}`, { rx: 2, owner: 'band', mark: false });
@@ -1819,39 +1866,43 @@ function buildStage(W, m, view) {
     const endX = ps.rebuilt ? wx + 10 : wx + 4;
     if (ps.rebuilt) checkGlyph(D, wx + 1, bandY + 5, 'band', 5.5);
     D.place([[endX + 4, bandY + 9], [X1, yRep, 'end'], [X0 + tw(repLabel, 'small') + 10, yRep]], lead, { owner: 'band' });
-    // Staged failures of the others, each at its moment, inside the window.
-    if (kind === 'staged') {
-      M.stagedFailures(m).forEach((piece, j) => {
-        if (!ps.stagedDown.includes(piece)) return;
-        const hx = tx(s.repair * M.stagedAt(j, m.t));
-        xGlyph(D, hx, lineY, `st${j}`, 3.5);
-        D.place([[hx, lineY - 9, 'middle'], [hx + 7, lineY - 9], [hx - 7, lineY - 9, 'end']], [[pcs[piece].id, 'tiny']], { owner: `st${j}`, optional: true });
-      });
+    // Staged failures of the others, each at its moment inside the window, each named above its ×; where the names
+    // cannot stand apart they are numbered, and the same numbers mark the struck disks.
+    if (staged) {
+      const shown = stagedList.map((piece, j) => ({ piece, j })).filter(({ piece }) => ps.stagedDown.includes(piece));
+      const xsOf = shown.map(({ j }) => tx(s.repair * M.stagedAt(j, m.t)));
+      shown.forEach(({ j }, k) => xGlyph(D, xsOf[k], lineY, `st${j}`, 3.5));
+      const named = shown.map(({ piece, j }, k) => D.place([[xsOf[k], lineY - 10, 'middle']], [[pcs[piece].id, 'tiny']], { owner: `st${j}`, ignore: `st${j}`, optional: true, data: ' data-staged-name="1"' }));
+      if (named.some((b) => !b)) {
+        shown.forEach(({ piece, j }, k) => {
+          if (named[k]) return;
+          D.place([[xsOf[k], lineY - 10, 'middle']], [[String(j + 1), 'tiny']], { owner: `st${j}`, ignore: `st${j}`, data: ' data-staged-name="1"' });
+          D.text(diskX(piece) + diskW / 2, yDisk + diskH - 5, [[String(j + 1), 'tiny']], { owner: `disk${piece}`, anchor: 'middle', textCls: 'on-box' });
+        });
+      }
+      D.meta.stagedShown = shown.length;
       if (ps.lost) {
-        const lx = tx(s.repair * M.stagedAt(M.stagedFailures(m).length - 1, m.t));
-        D.place([[lx + 9, lineY - 5], [lx - 9, lineY - 5, 'end']], [['lost', 'smallB', 'lost-ink']], { owner: 'lost', optional: true });
+        const lx = tx(s.repair * M.stagedAt(stagedList.length - 1, m.t));
+        D.place([[lx + 9, lineY + 4], [lx + 9, lineY - 5], [lx - 9, lineY - 5, 'end']], [['lost', 'smallB', 'lost-ink']], { owner: 'lost', optional: true, ground: true });
       }
     } else if (ps.rebuilt) {
-      D.place([[X1, lineY - 5, 'end'], [X1, yOth, 'end']], [['none failed', 'small']], { owner: 'others', optional: true });
+      D.place([[XR, lineY - 5, 'end'], [X1, yOth, 'end']], [['none failed', 'small']], { owner: 'others', optional: true });
     }
-    // The playhead, while the window runs.
     if (playing && ps.progress > 0 && ps.progress < 1 && !ps.lost) {
       const hx = X0 + (wx - X0) * ps.progress;
       D.line(hx, bandY - 3, hx, bandY + 13, 'playhead', { layer: 'top', solid: false });
       D.line(hx, lineY - 5, hx, lineY + 5, 'playhead', { layer: 'top', solid: false });
     }
   } else if (ps.rackDown) {
-    D.place([[X0, bandY + 9]], [['no repair: every piece went at once', 'small', 'lost-ink']], { owner: 'band' });
+    // Every other piece went in the same event, at 0: one × at 0 carries them, named.
+    xGlyph(D, X0 + 1, lineY, 'rackx', 3.5);
+    const ids = pcs.map((p) => p.id).filter((id) => id !== fname);
+    const forms = [`${ids.length <= 3 ? M.listOf(ids) : `all ${ids.length}`} lost at 0`, 'lost at 0'];
+    for (const f of forms) if (D.place([[X0 + 11, lineY + 4]], [[f, 'small', 'lost-ink']], { owner: 'rackx', optional: f !== forms[forms.length - 1], ground: true, data: ' data-rack-lost="1"' })) break;
   }
-  if (kind === 'staged') {
-    const tag = 'STAGED, NOT SAMPLED';
-    const tw0 = tw(tag, 'smallB') + 12;
-    const tagX = X1 - tw0;
-    if (X0 + 8 < tagX && D.free({ x0: tagX, x1: X1, y0: yC - 11, y1: yC + 4 })) {
-      D.rect(tagX, yC - 11, tw0, 15, 'staged-tag', { rx: 7.5, owner: 'stagedtag' });
-      D.text(tagX + 6, yC + 0.5, [[tag, 'smallB', 'lost-ink']], { owner: 'stagedtag', textCls: 'on-tag' });
-    }
-  }
+  // Row two's words, placed after its marks: at the left, or at the axis end where staged crosses take the left.
+  const othFit = othForms.filter((f) => tw(f, 'small') <= IW / 2);
+  for (const [k, f] of (othFit.length ? othFit : othForms.slice(-1)).entries()) if (D.place([[X0, yOth], [XR, yOth, 'end'], [X1, yOth, 'end']], [[f, 'small']], { owner: 'othlabel', optional: k < othFit.length - 1 })) break;
   const raceText = raceSentence(m, ps, kind, hid);
   const yRaceText = yAx + 36;
   D.para(X0, yRaceText, wrap(raceText, 'cap', IW), 'cap', LH, { owner: 'racetext' });
@@ -1864,140 +1915,190 @@ function buildStage(W, m, view) {
   const yT = yRule + 28;
   D.text(X0, yT, [[wide ? 'The yearly chance of losing it, from the model' : 'Yearly loss, from the model', 'capB']]);
   const yH = yT + 24;
+  // A figure lands with the mark that computes it: during a play NINES waits for the last row.
+  const ninesNow = hid.loss ? '?' : playing && !ps.rows.final ? '…' : M.formatNines(m.nines);
   const cols = [
     ['Stored', M.formatX(m.overhead)],
     ['Survives', `any ${m.t}`],
-    ['Nines', hid.loss ? '?' : M.formatNines(m.nines)],
+    ['Nines', ninesNow],
   ];
   const cw = IW / 3;
   cols.forEach(([k, v], i) => {
     D.text(X0 + i * cw, yH, [[k, 'label']]);
-    D.text(X0 + i * cw, yH + 21, [[v, 'head', v === '?' ? 'muted' : '']], { owner: 'headline' });
+    D.text(X0 + i * cw, yH + 21, [[v, 'head', v === '?' || v === '…' ? 'muted' : '']], { owner: 'headline', data: i === 2 ? ' data-nines="1"' : '' });
   });
   D.region('headline', { x: X0 - 6, y: yH - 17, w: IW + 12, h: 47 });
   const yAxT = yH + 78;
   const nx = (n) => X0 + ((Math.max(NMIN, Math.min(NMAX, n)) - NMIN) / (NMAX - NMIN)) * IW;
-  const ROW = 30;
+  const ROW = 34;
   const rowsShown = [];
-  const rows = [];
-  m.steps.forEach((st) => rows.push(st));
-  if (s.rack) rows.push({ kind: 'rack', level: M.RACK_EVENT });
-  rows.push({ kind: 'final', level: m.loss });
   const plotTop = yAxT + 10;
-  const nRows = rows.length;
-  const plotBottom = plotTop + (hid.steps ? 2 * ROW + (s.rack ? 0 : 0) : (nRows - 1) * ROW) + ROW + 4;
+  const yrF = plotTop + STEP_ROWS * ROW;
+  const lyF = yrF + 11;
+  const ayF = yrF + 42;
+  const yBot = ayF + 14;
   D.text(X0, yAxT - 14, [[wide ? 'Nines, each step right is 10× less likely' : 'Nines · a step is 10× less likely', 'label']]);
   const ticks = wide ? [0, 3, 6, 9, 12, 15, 18, 21, 24] : [0, 6, 9, 12, 18, 24];
-  for (const n of [0, 3, 6, 9, 12, 15, 18, 21, 24]) D.line(nx(n), plotTop - 4, nx(n), plotBottom, `gridline${n === 9 ? ' nine' : ''}`, { layer: 'grid', solid: false });
+  for (const n of [0, 3, 6, 9, 12, 15, 18, 21, 24]) D.line(nx(n), plotTop - 4, nx(n), yBot, `gridline${n === 9 ? ' nine' : ''}`, { layer: 'grid', solid: false });
   for (const n of ticks) D.text(nx(n), yAxT, [[String(n), 'small']], { anchor: 'middle', data: ' data-xtick="nines"', ground: true });
-  // Rows, each a step on the walk: a dot at its level, an arrow from the row before.
   const levelN = (lv) => -Math.log10(lv);
-  const tFmt = M.formatHours(s.repair);
-  function rowLabel(row) {
-    if (row.kind === 'first') return [`First failures: ${m.n} ${pieceWord(m, m.n)} × ${M.formatPct(s.afr)} a year`, `First failures: ${m.n} × ${M.formatPct(s.afr)}`];
-    if (row.kind === 'window') {
-      if (row.i === 1) return [`A given other ${pieceWord(m, 1)} fails before the ${tFmt} repair ends`, `Another fails within ${tFmt}`, `One more within ${tFmt}`];
-      return [`And a ${M.ordinal(row.i)} given ${pieceWord(m, 1)}`, `And a ${M.ordinal(row.i)}`];
-    }
-    if (row.kind === 'ways') return m.ways === 1 ? [`One choice only: ${m.t === 1 ? 'the other copy' : `the ${m.t} other copies`}`, `One choice only`] : [`Any ${m.t} of the ${m.n - 1} others will do`, `Any ${m.t} of the ${m.n - 1}`];
-    if (row.kind === 'rack') return [`Or a rack event takes every ${pieceWord(m, 1)} at once (assumed)`, `Or a rack event (assumed)`];
-    return hid.loss ? ['Lost in a year'] : [`Lost in a year: ${M.oneIn(m.loss)}`, `Lost a year: ${M.oneIn(m.loss)}`];
-  }
-  function rowValue(row, prevLevel, ghostRow) {
-    if (row.kind === 'first') return M.formatRate(row.level);
-    if (row.kind === 'window') return `× ${M.oneIn(row.factor)}${ghostRow ? ` (was ${M.oneIn(ghostRow.factor)})` : ''}`;
-    if (row.kind === 'ways') return `× ${M.formatCount(row.factor)}`;
-    if (row.kind === 'rack') return `${M.formatPct(M.RACK_EVENT * 100)} a year`;
-    return `${M.formatNines(m.nines)} nines`;
-  }
   const ghostM = view.ghost && !hid.ghost ? M.run(view.ghost) : null;
-  const showRow = (row) => (row.kind === 'final' ? ps.rows.final || !playing : row.kind === 'first' ? ps.rows.first || !playing : row.kind === 'window' ? ps.rows.steps >= row.i || !playing : row.kind === 'ways' ? ps.rows.ways || !playing : ps.rows.rack || !playing);
-  let yr = plotTop;
-  let prev = null;
+  const ghostSame = !!ghostM && ghostM.settings.scheme === s.scheme;
+  const showRow = (row) => (row.kind === 'final' ? ps.rows.final || !playing : row.kind === 'first' ? ps.rows.first || !playing : row.kind === 'window' ? ps.rows.steps >= row.i || !playing : ps.rows.ways || !playing);
+  const valRole = wide ? 'capB' : 'small';
+  D.meta.ghostSteps = [];
   if (hid.steps) {
     // One box whatever the scheme, so its height does not tell how many steps a loss needs.
-    D.add('marks', `<rect class="bar-hidden" x="${r1(X0)}" y="${r1(yr)}" width="${r1(IW)}" height="${2 * ROW - 6}" rx="4"/>`);
-    D.text(X0 + IW / 2, yr + ROW - 3 + 4, [['The steps show after your answer', 'small']], { anchor: 'middle', owner: 'stepsq' });
-    yr += 2 * ROW;
-  }
-  if (view.phase === 'challenge') {
-    const gx = nx(-Math.log10(M.CHALLENGE_BOUNDS.perBillion / M.OBJECTS));
-    const fy = plotTop + (rows.length - 1) * ROW + 31;
-    D.line(gx, fy - 9, gx, fy + 9, `goal-line${view.met ? ' met' : ''}`, { owner: 'goal' });
-    D.meta.goal = { gx, fy };
-  }
-  const drawRows = hid.steps ? rows.filter((r) => r.kind === 'final') : rows;
-  for (const row of drawRows) {
-    const ly = yr + 11;
-    const ay = row.kind === 'final' ? yr + 31 : yr + 21;
-    const forms = rowLabel(row);
-    const isFinal = row.kind === 'final';
-    const shown = showRow(row);
-    const finalHidden = isFinal && hid.loss;
-    // A row's words land with its mark: nothing is said for a step before the play reaches it.
-    if (shown || finalHidden) D.text(X0, ly, [[pick(forms, (f) => tw(f, isFinal ? 'smallB' : 'small') <= IW), isFinal ? 'smallB' : 'small']], { owner: `row-${row.kind}${row.i ?? ''}` });
-    if (finalHidden) {
-      D.add('marks', `<rect class="bar-hidden" x="${r1(X0)}" y="${r1(ay - 7)}" width="${r1(IW)}" height="14" rx="3"/>`);
-      D.text(X0 + IW - 6, ay + 4, [['after your answer', 'small']], { anchor: 'end', owner: 'finalq' });
-    } else if (shown) {
-      const lvN = levelN(row.level);
-      const x = nx(lvN);
-      if (row.kind === 'first') {
-        D.line(nx(0), ay, x, ay, 'step-arrow first', { owner: `row-${row.kind}` });
-        D.add('dots', `<circle class="head-first" cx="${r1(x)}" cy="${r1(ay)}" r="3.5"/>`);
-        D.mark({ x0: x - 4, x1: x + 4, y0: ay - 4, y1: ay + 4 }, 'row-first');
-      } else if (row.kind === 'window' || row.kind === 'ways') {
-        const px = nx(levelN(prev.level));
-        const right = x >= px;
-        D.line(px, ay - 5, px, ay + 5, 'from-tick', { owner: `row-${row.kind}${row.i ?? ''}` });
-        const hx = right ? x - 5 : x + 5;
-        if (Math.abs(x - px) >= 7) {
-          D.line(px, ay, hx, ay, `step-arrow${right ? '' : ' up'}`, { owner: `row-${row.kind}${row.i ?? ''}` });
-          D.add('dots', `<path class="${right ? 'head-cur' : 'head-up'}" d="M${r1(x)} ${r1(ay)}L${r1(hx)} ${r1(ay - 4)}L${r1(hx)} ${r1(ay + 4)}z"/>`);
+    D.add('marks', `<rect class="bar-hidden" data-box="steps" x="${r1(X0)}" y="${r1(plotTop)}" width="${r1(IW)}" height="${2 * ROW - 6}" rx="4"/>`);
+    D.text(X0 + IW / 2, plotTop + ROW + 1, [['The steps show after your answer', 'small']], { anchor: 'middle', owner: 'stepsq' });
+  } else {
+    let prev = null;
+    m.steps.forEach((row, k) => {
+      const yr = plotTop + k * ROW;
+      const ly = yr + 11;
+      const ay = yr + 21;
+      const own = `row-${row.kind}${row.i ?? ''}`;
+      if (showRow(row)) {
+        D.text(X0, ly, [[pick(M.stepWords(m, row), (f) => tw(f, 'small') <= IW), 'small']], { owner: own });
+        const x = nx(levelN(row.level));
+        const px = prev ? nx(levelN(prev.level)) : nx(0);
+        if (row.kind === 'first') {
+          D.line(nx(0), ay, x, ay, 'step-arrow first', { owner: own });
+          D.add('dots', `<circle class="head-first" cx="${r1(x)}" cy="${r1(ay)}" r="3.5"/>`);
+          D.mark({ x0: x - 4, x1: x + 4, y0: ay - 4, y1: ay + 4 }, own);
+        } else {
+          const right = x >= px;
+          D.line(px, ay - 5, px, ay + 5, 'from-tick', { owner: own });
+          const hx = right ? x - 5 : x + 5;
+          if (Math.abs(x - px) >= 7) {
+            D.line(px, ay, hx, ay, `step-arrow${right ? '' : ' up'}`, { owner: own });
+            D.add('dots', `<path class="${right ? 'head-cur' : 'head-up'}" d="M${r1(x)} ${r1(ay)}L${r1(hx)} ${r1(ay - 4)}L${r1(hx)} ${r1(ay + 4)}z"/>`);
+          }
+          D.mark({ x0: Math.min(px, x) - 1, x1: Math.max(px, x) + 1, y0: ay - 5, y1: ay + 5 }, own);
         }
-        D.mark({ x0: Math.min(px, x) - 1, x1: Math.max(px, x) + 1, y0: ay - 5, y1: ay + 5 }, `row-${row.kind}${row.i ?? ''}`);
-      } else if (row.kind === 'rack') {
-        D.rect(nx(0), ay - 3, x - nx(0), 6, 'bar-rack', { rx: 1.5, owner: 'row-rack' });
-      } else {
-        D.rect(nx(0), ay - 4, x - nx(0), 8, `bar-final${s.rack ? ' rack' : ''}`, { rx: 2, owner: 'row-final' });
-        D.add('dots', `<circle class="dot-final" cx="${r1(x)}" cy="${r1(ay)}" r="5"/>`);
-        D.mark({ x0: x - 5, x1: x + 5, y0: ay - 5, y1: ay + 5 }, 'row-final');
-      }
-      const ghostX = isFinal && ghostM && Math.abs(ghostM.nines - m.nines) > 0.04 ? nx(ghostM.nines) : null;
-      if (ghostX !== null) {
-        D.add('top', `<path class="ghost-caret" d="M${r1(ghostX - 4)} ${r1(ay - 15)}L${r1(ghostX)} ${r1(ay - 10)}L${r1(ghostX + 4)} ${r1(ay - 15)}"/>`);
-        D.mark({ x0: ghostX - 5, x1: ghostX + 5, y0: ay - 16, y1: ay - 9 }, 'ghost');
-      }
-      const gRow = ghostM && ghostM.settings.scheme === s.scheme && row.kind === 'window' ? ghostM.steps.find((g) => g.kind === 'window' && g.i === row.i && Math.abs(g.factor - row.factor) > 1e-15) : null;
-      const val = rowValue(row, prev, gRow);
-      const lo = Math.min(x, prev && row.kind !== 'final' && row.kind !== 'rack' ? nx(levelN(prev.level)) : nx(0));
-      const hi = Math.max(x, prev && row.kind !== 'final' && row.kind !== 'rack' ? nx(levelN(prev.level)) : nx(0));
-      const role = isFinal ? 'smallB' : 'small';
-      D.place(
-        [
-          [hi + 9, ay + 4],
-          [lo - 9, ay + 4, 'end'],
+        // The old walk, drawn: each changed step's old arrow as a hairline under the new one, its tip an open caret.
+        const g = !ghostM ? null : row.kind === 'first' ? ghostM.steps[0] : ghostSame ? ghostM.steps[k] : null;
+        let was = null;
+        if (g) {
+          const gx = nx(levelN(g.level));
+          const gpx = row.kind === 'first' ? nx(0) : nx(levelN(ghostM.steps[k - 1].level));
+          if ((Math.abs(gx - x) > 1 || Math.abs(gpx - px) > 1) && Math.abs(gx - gpx) >= 2) {
+            const gy = ay + 12;
+            const dir = gx >= gpx ? 1 : -1;
+            D.line(gpx, gy, gx - dir * 3, gy, 'ghost-step', { owner: `ghost-${own}`, solid: false });
+            D.add('dots', `<path class="ghost-tip" d="M${r1(gx - dir * 3.5)} ${r1(gy - 2.5)}L${r1(gx)} ${r1(gy)}L${r1(gx - dir * 3.5)} ${r1(gy + 2.5)}"/>`);
+            D.mark({ x0: Math.min(gx, gpx) - 1, x1: Math.max(gx, gpx) + 1, y0: gy - 1.5, y1: gy + 1.5 }, `ghost-${own}`);
+            D.mark({ x0: gx - 4, x1: gx + 4, y0: gy - 2.5, y1: gy + 2.5 }, `ghost-${own}`);
+            D.meta.ghostSteps.push({ kind: row.kind, i: row.i, len: Math.abs(gx - gpx), newLen: Math.abs(x - px), dir: Math.sign(gx - gpx), newDir: Math.sign(x - px) });
+          }
+          if (row.kind === 'first' && Math.abs(g.factor / row.factor - 1) > 1e-9) was = `${M.formatRate(row.factor)} (was ${M.formatRate(g.factor)})`;
+          if (row.kind === 'window' && Math.abs(g.factor / row.factor - 1) > 1e-9) was = `× ${M.oneIn(row.factor)} (was ${M.oneIn(g.factor)})`;
+        }
+        const val = row.kind === 'first' ? M.formatRate(row.level) : row.kind === 'window' ? `× ${M.oneIn(row.factor)}` : `× ${M.formatCount(row.factor)}`;
+        const lo = Math.min(x, px);
+        const hi = Math.max(x, px);
+        const cands = [
+          [hi + 9, ay + 4.5],
+          [lo - 9, ay + 4.5, 'end'],
           [X1, ly, 'end'],
-        ],
-        [[val, role, isFinal ? '' : 'ink']],
-        { owner: `val-${row.kind}${row.i ?? ''}`, optional: !!gRow || isFinal },
-      ) ??
-        (isFinal ? D.place([[x - 9, ay + 4, 'end']], [[val, 'smallB', 'on-bar']], { owner: 'val-final row-final', ignore: 'row-final', textCls: 'on-chip' }) : null) ?? (gRow ? D.place([[hi + 9, ay + 4], [lo - 9, ay + 4, 'end'], [X1, ly, 'end']], [[rowValue(row, prev, null), role, 'ink']], { owner: `val-${row.kind}${row.i ?? ''}` }) : null);
-    }
-    if (!hid.steps || isFinal) rowsShown.push(row.kind);
-    prev = row;
-    yr += ROW + (isFinal ? 10 : 0);
+        ];
+        (was ? D.place(cands, [[was, valRole, 'ink']], { owner: `val-${own} was`, optional: true }) : null) ?? D.place(cands, [[val, valRole, 'ink']], { owner: `val-${own}` });
+        rowsShown.push(row.kind);
+      }
+      prev = row;
+    });
   }
-  // The challenge's goal on the last row: a mark at 10 nines.
-  if (view.phase === 'challenge') {
+
+  // The last row: the yearly loss as a bar to a dot at the model's nines. Its value is placed first, beside the dot;
+  // then the ghost's caret and its words, as one unit in the lane above the bar, with a bracket to the dot carrying the
+  // ratio; then the goal's words beside its mark; whatever finds no place goes into the row's words.
+  const finalRow = { kind: 'final', level: m.loss };
+  const finalShown = showRow(finalRow);
+  const ly = lyF;
+  const ay = ayF;
+  const yb = ay - 12;
+  const extras = [];
+  D.meta.final = null;
+  if (challenge) {
     const gx = nx(-Math.log10(M.CHALLENGE_BOUNDS.perBillion / M.OBJECTS));
-    const met = view.met;
-    const { fy } = D.meta.goal;
-    D.place([[gx + 6, fy - 11], [gx - 6, fy - 11, 'end'], [gx + 6, fy + 4], [gx - 6, fy + 4, 'end'], [X1, fy - 15, 'end']], [['goal: 10 nines', 'small', met ? 'ok-ink' : '']], { owner: 'goal' });
+    D.line(gx, ay - 9, gx, ay + 9, `goal-line${view.met ? ' met' : ''}`, { owner: 'goal' });
+    D.meta.goal = { gx, y: ay };
   }
-  const yBot = Math.max(yr, plotTop + 3 * ROW + 10) + 4;
+  if (hid.loss) {
+    D.add('marks', `<rect class="bar-hidden" data-box="final" x="${r1(X0)}" y="${r1(ay - 11)}" width="${r1(IW)}" height="22" rx="3"/>`);
+    D.text(X0 + IW - 8, ay + 4, [['after your answer', 'small']], { anchor: 'end', owner: 'finalq' });
+  } else if (finalShown) {
+    const x = nx(m.nines);
+    D.rect(nx(0), ay - 5, x - nx(0), 10, `bar-final${s.rack ? ' rack' : ''}`, { rx: 2, owner: 'row-final' });
+    D.add('dots', `<circle class="dot-final" cx="${r1(x)}" cy="${r1(ay)}" r="5"/>`);
+    D.mark({ x0: x - 5, x1: x + 5, y0: ay - 5, y1: ay + 5 }, 'row-final');
+    const ghostX = ghostM && Math.abs(ghostM.nines - m.nines) > 0.04 ? nx(ghostM.nines) : null;
+    let caret = ghostX !== null && Math.abs(ghostX - x) >= 16;
+    const col = () => (caret ? D.mark({ x0: ghostX - 15, x1: ghostX + 15, y0: yb - 10, y1: ay + 6 }, 'ghostcol') : null);
+    const unmark = () => (D.marks = D.marks.filter((mk) => mk.owner !== 'ghostcol'));
+    col();
+    const val = `${M.formatNines(m.nines)} nines`;
+    const vRole = wide ? 'capB' : 'smallB';
+    const tryValue = () =>
+      D.place([[x + 9, ay + 4.5]], [[val, vRole]], { owner: 'val-final', optional: true }) ??
+      (x - 9 - tw(val, 'smallB') >= nx(0) + 3 ? D.place([[x - 9, ay + 4, 'end']], [[val, 'smallB', 'on-bar']], { owner: 'val-final row-final', ignore: 'row-final', textCls: 'on-chip', optional: true }) : null) ??
+      D.place([[x, yb, 'middle']], [[val, vRole]], { owner: 'val-final', optional: true, data: ' data-above="1"' });
+    let vb = tryValue();
+    if (!vb && caret) {
+      unmark();
+      caret = false;
+      vb = tryValue();
+    }
+    if (!vb) D.missing.push(val);
+    D.meta.final = { x, y: ay, box: vb };
+    unmark();
+    if (caret) {
+      const before = `before ${M.formatNines(ghostM.nines)}`;
+      const outer = ghostX > x ? [[ghostX + 7, yb]] : [[ghostX - 7, yb, 'end']];
+      D.mark({ x0: ghostX - 5, x1: ghostX + 5, y0: ay - 14, y1: ay - 7 }, 'ghost');
+      const cw0 = D.place(outer, [[before, 'small']], { owner: 'ghost', optional: true, minX: X0, maxX: X1, data: ' data-ghost-words="1"' });
+      if (!cw0) {
+        D.marks = D.marks.filter((mk) => mk.owner !== 'ghost');
+        caret = false;
+      } else {
+        D.add('top', `<path class="ghost-caret" d="M${r1(ghostX - 4)} ${r1(ay - 13)}L${r1(ghostX)} ${r1(ay - 8)}L${r1(ghostX + 4)} ${r1(ay - 13)}"/>`);
+        // The comparison the words claim, drawn: a bracket from the caret to the dot, its ratio on the dot's side.
+        const ratio = ratioWords(m, ghostM);
+        const bracketable = !(vb && vb.y1 < ay - 6);
+        if (bracketable) {
+          const a = Math.min(ghostX, x);
+          const b = Math.max(ghostX, x);
+          const by = ay - 10.5;
+          D.add('links', `<path class="ghost-bracket" d="M${r1(a)} ${r1(by + 2.5)}V${r1(by)}H${r1(b)}V${r1(by + 2.5)}"/>`);
+          D.link(sampleLine(a + 5, by, b - 5, by), 'ghost');
+        }
+        const side = ghostX > x ? [[x - 8, yb, 'end']] : [[x + 8, yb]];
+        const rb = bracketable ? D.place(side, [[ratio, 'small']], { owner: 'ghost ratio', optional: true, minX: X0, maxX: X1, data: ' data-ratio="1"' }) : null;
+        if (!rb) extras.push({ k: 'ratio', t: `, ${ratio}` });
+      }
+    }
+    if (ghostX !== null && !caret) extras.push({ k: 'before', t: ` (before ${M.oneIn(ghostM.loss)})` });
+    D.meta.caret = caret ? ghostX : null;
+  }
+  if (challenge) {
+    const { gx } = D.meta.goal;
+    const gw = D.place([[gx + 6, yb], [gx - 6, yb, 'end']], [['goal: 10 nines', 'small', view.met ? 'ok-ink' : '']], { owner: 'goal', optional: true, minX: X0, maxX: X1, data: ' data-goal-words="1"' });
+    if (!gw) extras.push({ k: 'goal', t: ' · goal: 10 nines' });
+  }
+  if (finalShown || hid.loss) {
+    const base = M.stepWords(m, finalRow, hid.loss);
+    const sets = [extras, extras.filter((e) => e.k !== 'ratio'), extras.filter((e) => e.k === 'goal')];
+    let chosen = null;
+    for (const set of sets) {
+      chosen = base.map((b) => b + set.map((e) => e.t).join('')).find((f) => tw(f, 'smallB') <= IW);
+      if (chosen) break;
+    }
+    chosen ??= base[base.length - 1];
+    D.text(X0, ly, [[chosen, 'smallB']], { owner: 'row-final', data: ' data-final-words="1"' });
+    rowsShown.push('final');
+  }
   D.line(X0, yBot, X1, yBot, 'axis', { layer: 'grid', solid: false });
-  // The billion-object conversion, drawn: the same axis, read as objects lost a year among a billion.
+  // The billion-object conversion, drawn: the same axis, read as objects lost a year among a billion, on average.
   const conv = wide
     ? [
         [3, '1 million'],
@@ -2012,13 +2113,13 @@ function buildStage(W, m, view) {
         [12, '0.001'],
       ];
   for (const [n, t] of conv) D.text(nx(n), yBot + 14, [[t, n === 9 ? 'smallB' : 'small']], { anchor: 'middle', data: ' data-xtick="billion"', ground: true });
-  D.text(X0, yBot + 32, [[wide ? 'Objects lost a year, among a billion' : 'Lost a year, of a billion', 'label']]);
+  const billionTitle = ['Objects lost a year on average, among a billion', 'Lost a year on average, of a billion', 'Lost a year, average, of a billion', 'Average lost a year'];
+  D.text(X0, yBot + 32, [[pick(billionTitle, (f) => tw(f, 'label') <= IW), 'label']]);
   D.region('steps', { x: X0 - 6, y: yAxT - 38, w: IW + 12, h: yBot + 40 - (yAxT - 38) });
   // Facts at the foot, lines reserved there.
   const yF = yBot + 60;
   D.para(X0, yF, wrap(factsSentence(m, hid, ghostM), 'cap', IW), 'cap', LH, { owner: 'facts' });
-  const maxBot = plotTop + 8 * ROW + 14;
-  const H = Math.round(maxBot + 60 + (res.facts + 1) * LH + 14);
+  const H = Math.round(yF + (res.facts - 1) * LH + 22);
   D.meta.rowsShown = rowsShown;
   D.label = summary(m, hid);
   return { D, H };
@@ -2143,8 +2244,9 @@ function controlsHtml(m, view) {
   const s = m.settings;
   const hid = hiding(view);
   const dis = hid.waits ? ' disabled' : '';
+  const full = { repair: 'Time to full redundancy: detect and rebuild' };
   const group = (name, legend, cls, opts, cur, keepNote = '', locked = false) =>
-    `<fieldset class="group ${name}-control"${dis}><legend class="control-label">${legend}${keepNote}</legend><div class="${cls}" role="radiogroup">${opts
+    `<fieldset class="group ${name}-control"${dis}><legend class="control-label">${legend}${keepNote}</legend><div class="${cls}" role="radiogroup"${full[name] ? ` aria-label="${full[name]}"` : ''}>${opts
       .map(([v, t, aria]) => `<label class="segment"><input type="radio" name="${name}" value="${v}" aria-label="${esc(aria ?? t)}" ${v === cur ? 'checked' : ''}${locked ? ' disabled' : ''}/><span>${esc(t)}</span></label>`)
       .join('')}</div></fieldset>`;
   const keep = view.phase === 'challenge' ? '<span class="why"> · the goal keeps 5%</span>' : '';
@@ -2163,9 +2265,6 @@ function controlsHtml(m, view) {
   )}${group('rack', 'Placement', 'segments2', [[0, 'A rack each', 'Each piece in its own rack'], [1, 'One rack', 'Every piece in one rack']], s.rack)}</div>
 <p class="readout" id="readout">${codeText(readoutText(m, hid)).replace(/\?/g, '<span class="q">?</span>')}</p>
 <p class="notice" role="status" aria-live="polite" aria-atomic="true">${codeText(noticeOf(m, view))}</p>`;
-}
-function readoutText(m, hid) {
-  return `Stored as ${SC(m)}, ${M.formatX(m.overhead)} · ${hid.loss ? '? nines' : `${M.formatNines(m.nines)} nines, ${M.formatBillion(m.perBillion)} among a billion`}`;
 }
 function noticeOf(m, view) {
   if (view.phase === 'asking' || view.phase === 'playing') return 'Play, Stage a loss and the settings wait for your answer.';
@@ -2186,7 +2285,7 @@ function goalChecks(m) {
   const o = m.overhead < b.overhead;
   const g = m.rebuildGbps < b.rebuildGbps;
   return [
-    { met: a, text: `${M.formatBillion(m.perBillion)} among a billion, fewer than 1 in 10 years: ${said(a)}` },
+    { met: a, text: `${M.billionWords(m)} among a billion, fewer than 1 in 10 years: ${said(a)}` },
     { met: o, text: `${M.formatX(m.overhead)} stored, at most 1.5×: ${said(o)}` },
     { met: g, text: `a rebuild reads ${M.formatGbps(m.rebuildGbps)}, under 10 Gb/s: ${said(g)}` },
   ];
@@ -2227,8 +2326,9 @@ function describeRows(m, compact) {
   const head = compact ? ['Step', 'Factor', 'Nines'] : ['Step', 'Factor', 'Chance a year', 'Nines'];
   const rows = [];
   for (const st of m.steps) {
-    const name =
-      st.kind === 'first' ? (compact ? 'First failures' : `First failures, ${m.n} × ${M.formatPct(s.afr)}`) : st.kind === 'window' ? (compact ? `Fails within ${M.formatHours(s.repair)}` : `A ${M.ordinal(st.i)} given piece fails within ${M.formatHours(s.repair)}`) : compact ? `Any ${m.t} of ${m.n - 1}` : `Any ${m.t} of the ${m.n - 1} others`;
+    // Describe's row headers are the stage's row words (one words module): its middle form, or its shortest when compact.
+    const forms = M.stepWords(m, st);
+    const name = compact ? forms[forms.length - 1] : forms[Math.min(1, forms.length - 1)];
     const factor = st.kind === 'first' ? M.formatRate(st.factor) : st.kind === 'window' ? `× ${M.oneIn(st.factor)}` : `× ${M.formatCount(st.factor)}`;
     rows.push({ cells: compact ? [name, factor, M.formatNines(-Math.log10(st.level))] : [name, factor, st.level >= 0.01 ? M.formatRate(st.level) : M.oneIn(st.level), M.formatNines(-Math.log10(st.level))] });
   }
@@ -2245,7 +2345,7 @@ function describeHtml(m, view, compact) {
   const { head, rows } = describeRows(m, compact);
   const ps = M.playState(m.settings, view.playKind ?? 'repair', view.tau);
   const none = hiding({ phase: 'rest' });
-  return `${btn}<p class="summary">${codeText(summary(m, none))}</p><p class="summary">${codeText(raceSentence(m, ps, view.playKind ?? 'repair', none))} ${codeText(factsSentence(m, none, null))} The steps multiply the leading term of the model; its exact sum adds the rarer cases of more failures, under 1.5% here.</p><div class="table-box${compact ? ' compact' : ''}" tabindex="0" role="region" aria-label="The model's steps to the yearly loss"><table><thead><tr>${head.map((h) => `<th scope="col">${h}</th>`).join('')}</tr></thead><tbody>${rows
+  return `${btn}<p class="summary">${codeText(summary(m, none))}</p><p class="summary">${codeText(raceSentence(m, ps, view.playKind ?? 'repair', none))} ${codeText(factsSentence(m, none, null))} ${codeText(M.exactWords(m))}</p><div class="table-box${compact ? ' compact' : ''}" tabindex="0" role="region" aria-label="The model's steps to the yearly loss"><table><thead><tr>${head.map((h) => `<th scope="col">${h}</th>`).join('')}</tr></thead><tbody>${rows
     .map((r) => `<tr${r.now ? ' class="now"' : ''}>${r.cells.map((c, i) => (i === 0 ? `<th scope="row">${esc(c)}</th>` : `<td>${esc(c)}</td>`)).join('')}</tr>`)
     .join('')}</tbody></table></div>`;
 }
@@ -2260,6 +2360,7 @@ function overlaysHtml(D, view) {
   return D.hits
     .map((h) => {
       if (h.kind === 'play') return `<button class="play hit" data-owner="play" style="left:${h.x}px;top:${h.y}px" aria-label="${label}"${asking ? ' disabled' : ''}><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="16"/>${glyph}</svg></button>`;
+      // A toggle: pressed while the staged loss shows; a second press returns to the typical repair at rest.
       const pressed = view.playKind === 'staged';
       return `<button class="pill hit" data-owner="stage" style="left:${h.x}px;top:${h.y}px;width:${h.w}px" aria-pressed="${pressed}" aria-label="${asking ? 'Stage a loss, after your answer' : 'Stage a loss: play a loss, staged and named as staged'}"${asking ? ' disabled' : ''}><span>${esc(h.text)}</span></button>`;
     })
@@ -2289,6 +2390,8 @@ function drawStage(view, m) {
   well.style.height = H + 'px';
   well.innerHTML = D.svg(H, D.label) + overlaysHtml(D, view);
   window.__stage = { W, H, missingTags: D.missingTags ?? 0, summary: D.label, missing: D.missing };
+  window.__stageMeta = D.meta;
+  window.__D = D;
   return { W, H, D };
 }
 
@@ -2336,7 +2439,12 @@ function wire(view, m) {
     animate(free, m, M.playPlan(s, kind).total, () => renderView({ ...free, tau: null, focus: view.focus }));
   };
   if (play && !play.disabled) play.onclick = () => (view.tau !== null && view.tau !== undefined && !view.frozen ? stopPlay(view) : start('repair'));
-  if (stage && !stage.disabled) stage.onclick = () => start('staged');
+  if (stage && !stage.disabled)
+    stage.onclick = () => {
+      if (view.playKind !== 'staged') return start('staged');
+      running++;
+      renderView({ ...view, playKind: 'repair', tau: null, step: null, frozen: false });
+    };
   document.querySelectorAll('.card-btn').forEach((el, i) => {
     el.onclick = () => {
       running++;
@@ -2350,8 +2458,12 @@ function wire(view, m) {
         const playingV = { ...expView(view.spec, 'playing', 0), chosen: k };
         const pm = M.run(playingV.s);
         renderView(playingV);
-        // On a phone, the part of the stage the answer plays on comes into view first.
-        document.getElementById('well').scrollIntoView({ block: 'nearest' });
+        // On a phone, the play's region comes to the top: the disks' row, under any sticky header.
+        const well = document.getElementById('well');
+        if (well.getBoundingClientRect().height > window.innerHeight) {
+          const top = well.getBoundingClientRect().top + window.scrollY + (window.__stageMeta?.piecesTop ?? 0) - 8 - (document.querySelector('.sticky-header')?.offsetHeight ?? 0);
+          window.scrollTo({ top, behavior: 'instant' });
+        } else well.scrollIntoView({ block: 'nearest' });
         const reveal = () => {
           renderView({ ...expView(view.spec, 'revealed'), chosen: k });
           const first = document.querySelector('rect.focus-outline');
@@ -2391,7 +2503,7 @@ function collisions(well) {
     for (let i = 1; i < xt.length; i++) if (xt[i].x0 - xt[i - 1].x1 < 6) out.push(`${axis} axis labels ${xt[i - 1].s} and ${xt[i].s} ${(xt[i].x0 - xt[i - 1].x1).toFixed(1)} px apart`);
   }
   const inside = (p, t) => p.x > t.x0 + 0.5 && p.x < t.x1 - 0.5 && p.y > t.y0 + 0.5 && p.y < t.y1 - 0.5;
-  for (const el of svg.querySelectorAll('.read, .gridline, .axis, .rule, .track, .playhead, .step-arrow, .from-tick, .goal-line, .bar-hidden, .ghost-caret')) {
+  for (const el of svg.querySelectorAll('.read, .gridline, .axis, .rule, .track, .playhead, .step-arrow, .from-tick, .goal-line, .bar-hidden, .ghost-caret, .ghost-step, .ghost-tip, .ghost-bracket, .bracket')) {
     const grid = el.matches('.gridline, .axis, .rule, .track');
     const o = owners(el);
     const pts = [];
@@ -2428,6 +2540,15 @@ function collisions(well) {
     }
   }
   const outlines = [...svg.querySelectorAll('rect.focus-outline')].map((o) => ['x', 'y', 'width', 'height'].map((a) => Number(o.getAttribute(a))));
+  // Marks against an outline's stroke too: a glyph, dot or arrowhead sits inside or clear, never on it.
+  for (const [x, y, w, h] of outlines)
+    for (const el of svg.querySelectorAll('circle, path')) {
+      if (el.closest('pattern') || el.matches('.read')) continue;
+      const b = el.getBBox();
+      const inner = b.x >= x + 2 && b.x + b.width <= x + w - 2 && b.y >= y + 2 && b.y + b.height <= y + h - 2;
+      const clear = b.x + b.width <= x - 2 || b.x >= x + w + 2 || b.y + b.height <= y - 2 || b.y >= y + h + 2;
+      if (!inner && !clear) out.push(`mark at an outline's stroke: ${el.getAttribute('class')}`);
+    }
   for (let i = 0; i < outlines.length; i++)
     for (let j = i + 1; j < outlines.length; j++) {
       const [a, b] = [outlines[i], outlines[j]].sort((p, q) => p[1] - q[1]);
@@ -2447,6 +2568,9 @@ function collisions(well) {
   // Dots on dots: no two disks, glyphs or dots overlap unless they belong together.
   const dots = [...svg.querySelectorAll('circle.head-first, circle.dot-final, circle.read-dot')].map((c) => ({ x: Number(c.getAttribute('cx')), y: Number(c.getAttribute('cy')), r: Number(c.getAttribute('r')), c: c.getAttribute('class') }));
   for (let i = 0; i < dots.length; i++) for (let j = i + 1; j < dots.length; j++) if (dots[i].c !== 'read-dot' && Math.hypot(dots[i].x - dots[j].x, dots[i].y - dots[j].y) < dots[i].r + dots[j].r) out.push(`dot on dot: ${dots[i].c} / ${dots[j].c}`);
+  // Crosses on one track stand at least their width plus 4 px apart.
+  const crosses = [...svg.querySelectorAll('circle.xground')].map((c) => ({ x: Number(c.getAttribute('cx')), y: Number(c.getAttribute('cy')), r: Number(c.getAttribute('r')) }));
+  for (let i = 0; i < crosses.length; i++) for (let j = i + 1; j < crosses.length; j++) if (Math.abs(crosses[i].y - crosses[j].y) < 1 && Math.abs(crosses[i].x - crosses[j].x) < 2 * (crosses[i].r - 2.5) + 4) out.push('cross on cross');
   for (const el of svg.querySelectorAll('rect, line, circle, path')) {
     if (el.closest('pattern')) continue;
     const b = el.getBBox();
@@ -2474,7 +2598,7 @@ function tagMarks(well, D) {
 const unplaced = (D) => [...(D.missingTags ? [`${D.missingTags} focus tag(s) without a place`] : []), ...(D.missing ?? []).map((t) => `no room for "${t}"`)];
 
 // ---------- What must hold on every render, beyond collisions (the layout spec's assertions).
-const FALSE_CLAIMS = [/NaN/, /undefined/, /Infinity/, /\u2014/, /(^|[^\d.,])0 (pieces|copies|disks|TB|h|years)\b/, /\b1 (pieces|copies|disks|years|ways)\b/, /e[+-]\d/];
+const FALSE_CLAIMS = [/NaN/, /undefined/, /Infinity/, /\u2014/, /(^|[^\d.,])0 (pieces|copies|disks|TB|h|years)\b/, /\b1 (pieces|copies|disks|years|ways)\b/, /\de[+-]\d/, /Any (\d+) of (the )?\1\b/, /on the spare/];
 const stageText = (well) => [...well.querySelectorAll('text')].map((t) => t.textContent).join(' | ') + ' | ' + [...well.querySelectorAll('[aria-label]')].map((e) => e.getAttribute('aria-label')).join(' | ');
 function assertions(well, D, m, view) {
   const out = [];
@@ -2486,7 +2610,70 @@ function assertions(well, D, m, view) {
   // The stage agrees with its own sentence: a lost object is crossed and said lost; a rebuilt one is rebuilt and not lost.
   const raceText = D.meta.raceText;
   if (ps.lost !== /the object is lost|destroys the one rack/.test(raceText)) out.push(`the race sentence and the picture disagree on a loss`);
-  if (ps.rebuilt !== /is rebuilt on the spare/.test(raceText)) out.push('the race sentence and the picture disagree on the rebuild');
+  if (ps.rebuilt !== raceText.includes(`${M.failedName(m)} is rebuilt on a free disk`)) out.push('the race sentence and the picture disagree on the rebuild');
+  if (m.spread && ps.failed && !ps.lost && !ps.rackDown && view.playKind !== 'staged' && !raceText.includes(M.SPREAD)) out.push('a rebuild faster than one disk writes without its spread clause');
+  const textsOf = (sel) => [...svg.querySelectorAll(sel)].map((t) => t.textContent);
+  const boxOf = (el) => {
+    const b = el.getBBox();
+    return { x0: b.x + 0.5, x1: b.x + b.width - 0.5, y0: b.y + b.height * 0.2, y1: b.y + b.height * 0.95 };
+  };
+  const gap = (a, b) => Math.max(0, a.x0 - b.x1, b.x0 - a.x1, a.y0 - b.y1, b.y0 - a.y1);
+  // Words that contradict the picture: a rack event has no repair, and its other pieces are lost at 0.
+  if (ps.rackDown) {
+    if (/Repair of|Detection and rebuild|Detect and rebuild/.test(text)) out.push('a repair named under a rack event');
+    if (!svg.querySelector('[data-rack-lost]') || !svg.querySelector('[data-owner="rackx"].xmark')) out.push('the rack event draws no loss of the others at 0');
+  }
+  // Nothing names the failed piece in the race before its failure.
+  if (!ps.failed && [...svg.querySelectorAll('text')].some((t) => /racetitle|replabel|racetext|othlabel/.test(t.getAttribute('data-owner') ?? '') && t.textContent.includes(M.failedName(m)))) out.push('the race names the failed piece before it fails');
+  // A staged play always carries its tag, exactly once; each staged × is named or numbered.
+  if (view.playKind === 'staged' && svg.querySelectorAll('[data-tag-staged]').length !== 1) out.push(`${svg.querySelectorAll('[data-tag-staged]').length} staged tags`);
+  if (view.playKind === 'staged' && (D.meta.stagedShown ?? 0) !== svg.querySelectorAll('[data-staged-name]').length) out.push('a staged × without its name');
+  // No two disks share a name.
+  const names = textsOf('[data-disk]');
+  if (new Set(names).size !== names.length) out.push(`disk names repeat: ${names.join(' ')}`);
+  // A placeholder's words sit inside it with a 4 px inset; no reads box promises reads a lost object will not have.
+  for (const r of svg.querySelectorAll('.bar-hidden')) {
+    const bb = r.getBBox();
+    for (const t of svg.querySelectorAll('text')) {
+      const tb = boxOf(t);
+      const touches = !(tb.x1 <= bb.x || tb.x0 >= bb.x + bb.width || tb.y1 <= bb.y || tb.y0 >= bb.y + bb.height);
+      if (touches && !(tb.x0 >= bb.x + 4 && tb.x1 <= bb.x + bb.width - 4 && tb.y0 >= bb.y + 4 && tb.y1 <= bb.y + bb.height - 4)) out.push(`"${t.textContent}" not inside its placeholder with a 4 px inset`);
+    }
+  }
+  if (D.meta.readsBox && ps.plan.rebuiltAt === null) out.push('a reads placeholder where the play has nothing to rebuild');
+  // A value is anchored to its mark: the last value within 8 px of its dot, the goal's words within 8 px of the goal.
+  const fv = D.meta.final;
+  if (fv && fv.box && gap(fv.box, { x0: fv.x - 5, x1: fv.x + 5, y0: fv.y - 5, y1: fv.y + 5 }) > 8) out.push('the last value is far from its dot');
+  const finalWords = textsOf('[data-final-words]').join(' ');
+  if (view.phase === 'challenge') {
+    const gw = svg.querySelector('[data-goal-words]');
+    const g = D.meta.goal;
+    if (gw ? gap(boxOf(gw), { x0: g.gx - 1, x1: g.gx + 1, y0: g.y - 9, y1: g.y + 9 }) > 8 : !finalWords.includes('goal: 10 nines') && (fv || hid.loss)) out.push('the goal’s words are not at its mark');
+  }
+  // A ghost caret carries its words within 4 px, and no other value label stands within 12 px of it.
+  const caret = svg.querySelector('.ghost-caret');
+  if (caret) {
+    const cb = caret.getBBox();
+    const cbox = { x0: cb.x, x1: cb.x + cb.width, y0: cb.y, y1: cb.y + cb.height };
+    const words = svg.querySelector('[data-ghost-words]');
+    if (!words || gap(boxOf(words), cbox) > 4) out.push('a ghost caret without its words beside it');
+    for (const t of svg.querySelectorAll('text[data-owner^="val-"]')) {
+      const tb = boxOf(t);
+      if (tb.y1 > cbox.y0 - 14 && tb.y0 < cbox.y1 + 14 && tb.x1 > cbox.x0 - 12 && tb.x0 < cbox.x1 + 12) out.push(`a ghost caret within 12 px of "${t.textContent}"`);
+    }
+  }
+  const ghostM = view.ghost && !hid.ghost ? M.run(view.ghost) : null;
+  if (ghostM && D.W >= 520 && Math.abs(ghostM.nines - m.nines) > 0.04 && fv && !svg.querySelector('[data-ghost-words]') && !finalWords.includes('(before')) out.push('a ghost without "before" at a wide stage');
+  // Every "(was …)" row draws its old arrow; the window rows' old arrows differ from the new by one amount, the power.
+  for (const t of svg.querySelectorAll('text[data-owner*=" was"]')) {
+    const own = t.getAttribute('data-owner').split(' ')[0].replace('val-', '');
+    if (!svg.querySelector(`[data-owner="ghost-${own}"].ghost-step`)) out.push(`"${t.textContent}" without its old arrow`);
+  }
+  const wins = (D.meta.ghostSteps ?? []).filter((g) => g.kind === 'window' && g.len > 8 && g.newLen > 8);
+  for (const g of wins) if (Math.abs(g.len - g.newLen - (wins[0].len - wins[0].newLen)) > 1) out.push('the window rows’ old arrows differ by different amounts');
+  // The headline's nines lands with the last row: equal to it when drawn, never the value before it.
+  const hn = svg.querySelector('[data-nines]')?.textContent;
+  if (!hid.loss && (fv ? hn !== M.formatNines(m.nines) : view.tau !== null && view.tau !== undefined && !ps.done && hn !== '…')) out.push(`NINES reads ${hn} before or apart from the last row`);
   if (ps.lost && !svg.querySelector('[data-owner="obj"].xmark')) out.push('a lost object is not crossed');
   if (view.playKind === 'staged' && !/Staged, not sampled/.test(raceText)) out.push('a staged loss not named as staged');
   // The number of read stubs is the scheme's repair read, unless hidden or nothing is being read.
@@ -2594,7 +2781,7 @@ function giveawaysOf(spec) {
     window: [sl.ninesAfter + ' nines', sl.pAfter, sl.ratio, M.oneIn(M.run(actSettings(spec)).loss), `× ${sl.pBefore}`, 'And a second'],
     reads: [sl.readAfter, sl.gbpsAfter, '10 pieces'],
     batch: [sl.after + ' nines', M.oneIn(M.run(actSettings(spec)).loss), 'And a fourth', `× ${M.oneIn(M.run(spec.setup).p)}`],
-    rack: [sl.after + ' nines', '0.1% a year', 'Or a rack event'],
+    rack: [sl.after + ' nines', '0.1% a year', 'set by the rack', '(rack event)'],
   }[spec.id];
   return { right, list: lists };
 }
@@ -2628,7 +2815,8 @@ function noAnswerFor(spec, widths, hidingFn = hiding) {
       const want = hiding(view);
       if (want.steps && svg.querySelector('.step-arrow:not(.first), .bar-rack')) out.push(`E ${spec.id} ${view.phase}: steps drawn`);
       if (want.loss && svg.querySelector('circle.dot-final, .bar-final')) out.push(`E ${spec.id} ${view.phase}: the loss drawn`);
-      if (want.reads && svg.querySelector('line.read, .read-dot')) out.push(`E ${spec.id} ${view.phase}: reads drawn`);
+      if (want.reads && svg.querySelector('line.read, .read-dot, .read-block')) out.push(`E ${spec.id} ${view.phase}: reads drawn`);
+      if (svg.querySelector('[data-box="reads"]') && (D.meta.ps.plan.rebuiltAt === null || D.meta.ps.lost)) out.push(`E ${spec.id} ${view.phase}: a reads box where nothing will be rebuilt`);
       if (!svg.parentElement.querySelector('.play').disabled) out.push(`E ${spec.id} ${view.phase}: Play is live`);
       void saved;
       void D;
@@ -2683,9 +2871,28 @@ window.pageWords = () => {
       for (const sentence of t.split(/(?<=[.!?]) /)) if (/^\d/.test(sentence) && !/^\d+ (of|nines)/.test(sentence)) out.push(`${show(s)}: a sentence opens on a numeral: "${sentence}"`);
       if (/\s\s|\s[,.]/.test(t)) out.push(`${show(s)}: spacing in "${t}"`);
     }
+    // The HTML surfaces keep a count with its period on one line (g-code-text's DURABILITY_KEEP).
+    for (const t of [readoutText(m, none), summary(m, none), settingSentence(m), ...goalChecks(m).map((c) => c.text)]) out.push(...nowrapFindings(t, show(s)));
+    // Describe's row headers: the stage's words, unique, never "Any 2 of the 2".
+    for (const compact of [false, true]) {
+      const heads = describeRows(m, compact).rows.map((r) => r.cells[0]);
+      if (new Set(heads).size !== heads.length) out.push(`${show(s)}: Describe's row headers repeat: ${heads.join(' / ')}`);
+    }
   }
   return out;
 };
+const KEEP_UNITS = [/\d[\d.,]* every [\d.,]+(?: (?:million|billion|trillion))? years/g, /\d[\d.,]*%? a year/g, /1 in \d[\d,]*(?: (?:million|billion|trillion))? years/g];
+function nowrapFindings(t, where) {
+  const html = codeText(t);
+  const spans = [...html.matchAll(/<span class="nowrap">([^<]*)<\/span>/g)].map((x) => x[1]);
+  const out = [];
+  for (const re of KEEP_UNITS) for (const x of t.matchAll(re)) if (!spans.some((sp) => sp.includes(x[0]))) out.push(`${where}: "${x[0]}" can wrap`);
+  return out;
+}
+window.experimentWords = () => M.EXPERIMENTS.flatMap((spec) => {
+  const e = M.renderExperiment(spec);
+  return [e.ask, e.reveal, ...e.choices].flatMap((t) => nowrapFindings(t, e.id));
+});
 window.heights = (widths) => {
   const out = {};
   for (const W of widths) {

@@ -74,13 +74,24 @@ const server = http.createServer((req, res) => {
       for (const state of STATES) {
         await page.goto(`${base}?${query(state)}&theme=${theme}`);
         await page.waitForSelector('body[data-ready="1"]', { timeout: 20000 });
-        const { issues, stage, overflow } = await page.evaluate(() => ({
+        const { issues, stage, overflow, html } = await page.evaluate(() => ({
           issues: window.__collisions,
           stage: window.__stage,
           overflow: document.documentElement.scrollWidth > window.innerWidth,
+          // HTML surfaces: a kept phrase never breaks; a Stored as label stands 6 px clear of its segment's border.
+          html: [
+            ...[...document.querySelectorAll('.nowrap')].filter((e) => e.getClientRects().length > 1).map((e) => `"${e.textContent}" breaks across lines`),
+            ...[...document.querySelectorAll('.scheme-control .segment span')].flatMap((sp) => {
+              const r = document.createRange();
+              r.selectNodeContents(sp);
+              const t = r.getBoundingClientRect();
+              const b = sp.getBoundingClientRect();
+              return Math.min(t.left - b.left, b.right - t.right) < 6 ? [`"${sp.textContent}" ${Math.min(t.left - b.left, b.right - t.right).toFixed(1)} px from its segment's border`] : [];
+            }),
+          ],
         }));
         await page.screenshot({ path: path.join(DIR, 'shots', `${file(state)}-${width}-${theme}.png`), fullPage: true });
-        const all = [...issues, ...(overflow ? ['the page scrolls sideways'] : [])];
+        const all = [...issues, ...html, ...(overflow ? ['the page scrolls sideways'] : [])];
         total += all.length;
         console.log(`${state.padEnd(16)} ${String(width).padStart(4)} ${theme.padEnd(5)} stage ${stage.W}x${stage.H}  ${all.length ? `${all.length} collisions` : 'clean'}`);
         for (const i of all.slice(0, 8)) console.log(`    ${i}`);
@@ -104,7 +115,7 @@ const server = http.createServer((req, res) => {
     const planted = await page.evaluate(() => window.plantedLeaks(322));
     console.log(`planted leaks caught: ${planted.filter(Boolean).length} of ${planted.length}`);
     if (!planted.every(Boolean)) total++;
-    const words = await page.evaluate(() => window.pageWords());
+    const words = await page.evaluate(() => [...window.pageWords(), ...window.experimentWords()]);
     console.log(`page sentences (summary, notice, race, facts, readout, goal checks, note) over every setting: ${words.length} findings`);
     for (const w of words.slice(0, 8)) console.log(`    ${w}`);
     total += words.length;
@@ -137,6 +148,19 @@ const server = http.createServer((req, res) => {
     console.log('stage heights by width (each should be one value):', JSON.stringify(heights));
     for (const hs of Object.values(heights)) if (hs.length !== 1) total++;
     await page.close();
+    // On a phone, an answer's play brings the disks' row to the top: the free disk stays in view while it plays.
+    const phone = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
+    await phone.goto(`${base}?state=ask&exp=1`);
+    await phone.waitForSelector('body[data-ready="1"]', { timeout: 20000 });
+    await phone.click('button.g-choice >> nth=0');
+    await phone.waitForTimeout(1500);
+    const inView = await phone.evaluate(() => {
+      const r = document.querySelector('rect.disk.spare, rect.disk.rebuilt').getBoundingClientRect();
+      return r.top >= 0 && r.bottom <= window.innerHeight;
+    });
+    console.log(`phone: the free disk is ${inView ? '' : 'NOT '}in view while the answer plays`);
+    if (!inView) total++;
+    await phone.close();
   }
   await browser.close();
   server.close();
