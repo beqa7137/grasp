@@ -68,7 +68,7 @@ const reviewRound = async (round, scopeNote) => {
 
 const history = []
 let scope = `Review the whole ${A.id} change.`
-for (let round = 1; round <= 3; round++) {
+for (let round = 1; round <= (A.rounds ?? 2); round++) {
   phase('Review')
   const { confirmed, refuted } = await reviewRound(round, scope)
   history.push({ round, confirmed: confirmed.map((f) => ({ title: f.title, severity: f.severity, from: f.from })), refuted })

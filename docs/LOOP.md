@@ -1037,7 +1037,7 @@ found by the 2026-10-21 audit of surfaces without a picture).
 - Fix rounds run only the affected browser specs on desktop after typecheck, unit tests and the build; the full suite
   (verify and every browser project) runs once, on the head that fast-forwards. When that head's tree is the one a builder
   already ran `npm run verify` on, the build and the browser suite are enough, since CI runs verify on the push.
-- Review depth follows risk (owner decision 2026-11-24). Full depth (three reviewers with refuters, up to three fix
+- Review depth follows risk (owner decision 2026-11-24). Full depth (three reviewers with refuters, up to two fix
   rounds) for new widgets, anything touching stored data, schemas, sync, auth, payments or AI spend, and any change a
   learner sees on many screens. One review round for low-risk changes (docs, tests only, config, a fix confined to one
   component with a spec): one reviewer pass with refuters, one fix round, and no re-review unless the fix changes

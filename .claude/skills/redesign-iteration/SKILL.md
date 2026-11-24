@@ -62,9 +62,9 @@ from cache.
 
 - A finding counts when at least two of three refuters could not refute it. Read the confirmed findings yourself; a
   fix that only moves the problem (each R2 round broke focus somewhere new) needs the rule fixed, not the case.
-- The workflow stops after three review rounds even if the last fix round was not reviewed. Decide whether a further
+- The workflow stops after `rounds` review rounds (args; default 2, and 1 for a low-risk iteration) even if the last fix round was not reviewed. Decide whether a further
   focused check is worth it; record in the LOOP row when it was skipped.
 - Review depth follows risk (docs/LOOP.md, Rules for picking): a low-risk iteration needs one review round, so stop
   after the first fix round unless the fix changed behavior; widgets and anything touching data, sync, auth or AI spend
-  keep the full three rounds.
+  keep two rounds.
 - Then land it with `.claude/skills/land-change/SKILL.md`.
