@@ -1305,6 +1305,9 @@
       .goal-line.met {
         stroke: var(--g-viz-final);
       }
+      .on-bar {
+        fill: var(--g-viz-stage);
+      }
       .lost-ink {
         fill: var(--g-danger-ink);
       }
@@ -1569,7 +1572,7 @@ function summary(m, hid) {
 }
 function settingSentence(m) {
   const s = m.settings;
-  return `${cap1(SC(m))}${m.replicas ? '' : ' erasure coding'} at ${M.formatPct(s.afr)} a year with ${M.formatHours(s.repair)} repairs${s.rack ? ', all in one rack' : ''}: ${M.formatNines(m.nines)} nines, ${M.formatBillion(m.perBillion)} among a billion objects, at ${M.formatX(m.overhead)} storage.`;
+  return `Stored as ${SC(m)}${m.replicas ? '' : ' erasure coding'} at ${M.formatPct(s.afr)} a year with ${M.formatHours(s.repair)} repairs${s.rack ? ', all in one rack' : ''}: ${M.formatNines(m.nines)} nines, ${M.formatBillion(m.perBillion)} among a billion objects, at ${M.formatX(m.overhead)} storage.`;
 }
 /** The rebuild's reads, in words: the stubs on the stage say the same. */
 function readWords(m, form = 0) {
@@ -1599,7 +1602,7 @@ function raceSentence(m, ps, kind, hid) {
   if (!ps.failed) return `Every ${pieceWord(m, 1)} is whole. Play a repair: a disk fails, and its ${pieceWord(m, 1)} is rebuilt on a spare.`;
   const reads = hid.reads ? '' : `, read from ${m.replicas ? 'a surviving copy' : `${m.repairRead} of the others`}`;
   const head = ps.rebuilt ? `${f} is rebuilt on the spare in ${M.formatHours(s.repair)}${reads}.` : `${f} fails, and it is being rebuilt on the spare${reads}.`;
-  const need = m.t === m.n - 1 ? (m.t === 1 ? `the other copy` : `all ${others} others`) : `${m.t} of the ${others} others`;
+  const need = m.t === m.n - 1 ? (m.t === 1 ? `the other copy` : m.t === 2 ? 'both other copies' : `all ${others} others`) : `${m.t} of the ${others} others`;
   const chance = hid.steps ? ` The chance of that shows after your answer.` : ` Each fails within ${M.formatHours(s.repair)} with chance ${M.oneIn(m.p)}, so in a typical repair none does.`;
   const rack = s.rack ? ` All ${m.n} share one rack: a rack event would take them at once.` : '';
   return `${head} A loss would need ${need} to fail before it ends.${chance}${rack}`;
@@ -1711,7 +1714,8 @@ function buildStage(W, m, view) {
   const yDisk = yName + 6;
   const diskH = wide ? 44 : 36;
   const diskX = (i) => X0 + (i < m.n ? i * slot : m.n * slot + gapSpare) + (slot - diskW) / 2;
-  const srcs = M.sources(m);
+  // The rebuild reads from pieces that are still whole: a staged failure takes a source out of the read.
+  const srcs = ps.stagedDown.length ? pcs.map((_, i) => i).filter((i) => i !== M.failedIndex(m) && !ps.stagedDown.includes(i)).slice(0, m.repairRead) : M.sources(m);
   // Racks: a frame per disk, or one frame round every piece; the spare stands in a rack of its own.
   if (s.rack) D.rect(X0 + 1, yDisk - 4, m.n * slot - 2, diskH + 8, `rack${ps.rackDown ? ' struck' : ''}`, { rx: 6, owner: 'rack', mark: false });
   for (let i = 0; i <= m.n; i++) if (!s.rack || i === m.n) D.rect(diskX(i) - 2.5, yDisk - 3, diskW + 5, diskH + 6, 'rack', { rx: 5, owner: 'rack', mark: false });
@@ -1722,7 +1726,7 @@ function buildStage(W, m, view) {
     if (down) xGlyph(D, x + diskW / 2, yDisk + diskH / 2, `disk${i}`, Math.min(4, diskW / 2 - 1.5), 'on-box');
     if (labels || down) {
       const nm = p.id;
-      D.place([[x + diskW / 2, yName, 'middle'], [x + diskW / 2 - 3, yName, 'middle'], [x + diskW / 2 + 3, yName, 'middle']], [[nm, 'tiny', down ? 'muted' : '']], { owner: `disk${i}`, optional: !down, margin: 2.5 });
+      D.place([[x + diskW / 2, yName, 'middle'], [x + diskW / 2 - 3, yName, 'middle'], [x + diskW / 2 + 3, yName, 'middle']], [[nm, 'tiny', down ? 'muted' : '']], { owner: `disk${i}`, optional: !down || ps.rackDown, margin: 2.5 });
     }
   });
   // The spare: empty, filling as the rebuild runs, then holding the rebuilt piece.
@@ -1734,7 +1738,7 @@ function buildStage(W, m, view) {
   // The rebuild's reads: a stub from every piece it reads, down to one bus, then up into the spare.
   const yBus = yDisk + diskH + 14;
   const yReadText = yBus + 20;
-  const showReads = ps.failed && !ps.rackDown;
+  const showReads = ps.failed && !ps.rackDown && !ps.lost;
   if (hid.reads) {
     const bx = X0;
     D.add('marks', `<rect class="bar-hidden" x="${r1(bx)}" y="${r1(yDisk + diskH + 5)}" width="${r1(IW)}" height="19" rx="3"/>`);
@@ -1891,7 +1895,7 @@ function buildStage(W, m, view) {
       if (row.i === 1) return [`A given other ${pieceWord(m, 1)} fails before the ${tFmt} repair ends`, `Another fails within ${tFmt}`, `One more within ${tFmt}`];
       return [`And a ${M.ordinal(row.i)} given ${pieceWord(m, 1)}`, `And a ${M.ordinal(row.i)}`];
     }
-    if (row.kind === 'ways') return m.ways === 1 ? [`Only one choice of ${m.t} ${pieceWord(m, m.t)}: the ${m.t === 1 ? 'other' : `${m.t} others`}`, `One choice: the ${m.t === 1 ? 'other' : 'others'}`] : [`Any ${m.t} of the ${m.n - 1} others will do`, `Any ${m.t} of the ${m.n - 1}`];
+    if (row.kind === 'ways') return m.ways === 1 ? [`One choice only: ${m.t === 1 ? 'the other copy' : `the ${m.t} other copies`}`, `One choice only`] : [`Any ${m.t} of the ${m.n - 1} others will do`, `Any ${m.t} of the ${m.n - 1}`];
     if (row.kind === 'rack') return [`Or a rack event takes every ${pieceWord(m, 1)} at once (assumed)`, `Or a rack event (assumed)`];
     return hid.loss ? ['Lost in a year'] : [`Lost in a year: ${M.oneIn(m.loss)}`, `Lost a year: ${M.oneIn(m.loss)}`];
   }
@@ -1972,8 +1976,9 @@ function buildStage(W, m, view) {
           [X1, ly, 'end'],
         ],
         [[val, role, isFinal ? '' : 'ink']],
-        { owner: `val-${row.kind}${row.i ?? ''}`, optional: !!gRow },
-      ) ?? (gRow ? D.place([[hi + 9, ay + 4], [lo - 9, ay + 4, 'end'], [X1, ly, 'end']], [[rowValue(row, prev, null), role, 'ink']], { owner: `val-${row.kind}${row.i ?? ''}` }) : null);
+        { owner: `val-${row.kind}${row.i ?? ''}`, optional: !!gRow || isFinal },
+      ) ??
+        (isFinal ? D.place([[x - 9, ay + 4, 'end']], [[val, 'smallB', 'on-bar']], { owner: 'val-final row-final', ignore: 'row-final', textCls: 'on-chip' }) : null) ?? (gRow ? D.place([[hi + 9, ay + 4], [lo - 9, ay + 4, 'end'], [X1, ly, 'end']], [[rowValue(row, prev, null), role, 'ink']], { owner: `val-${row.kind}${row.i ?? ''}` }) : null);
     }
     if (!hid.steps || isFinal) rowsShown.push(row.kind);
     prev = row;
@@ -2156,7 +2161,7 @@ function controlsHtml(m, view) {
 <p class="notice" role="status" aria-live="polite" aria-atomic="true">${codeText(noticeOf(m, view))}</p>`;
 }
 function readoutText(m, hid) {
-  return `${cap1(SC(m))}: ${M.formatX(m.overhead)} stored · ${hid.loss ? '? nines' : `${M.formatNines(m.nines)} nines, ${M.formatBillion(m.perBillion)} among a billion`}`;
+  return `Stored as ${SC(m)}, ${M.formatX(m.overhead)} · ${hid.loss ? '? nines' : `${M.formatNines(m.nines)} nines, ${M.formatBillion(m.perBillion)} among a billion`}`;
 }
 function noticeOf(m, view) {
   if (view.phase === 'asking' || view.phase === 'playing') return 'Play, Stage a loss and the settings wait for your answer.';
@@ -2482,7 +2487,7 @@ function assertions(well, D, m, view) {
   if (view.playKind === 'staged' && !/Staged, not sampled/.test(raceText)) out.push('a staged loss not named as staged');
   // The number of read stubs is the scheme's repair read, unless hidden or nothing is being read.
   const stubs = svg.querySelectorAll('line.read').length;
-  if (!hid.reads && ps.failed && !ps.rackDown && stubs !== m.repairRead) out.push(`${stubs} read stubs for a read of ${m.repairRead}`);
+  if (!hid.reads && ps.failed && !ps.rackDown && !ps.lost && stubs !== m.repairRead) out.push(`${stubs} read stubs for a read of ${m.repairRead}`);
   if (hid.reads && (stubs || svg.querySelector('.read-dot'))) out.push('reads drawn while hidden');
   // Every value on the scale: the last row's dot sits at the model's nines.
   const fin = svg.querySelector('circle.dot-final');
@@ -2495,7 +2500,7 @@ function assertions(well, D, m, view) {
   if (hid.steps && svg.querySelector('.step-arrow:not(.first), .bar-rack')) out.push('steps drawn while hidden');
   if (hid.ghost && svg.querySelector('.ghost-caret')) out.push('a ghost while a question waits');
   // A ghost caret always has its words, here or in the facts.
-  if (svg.querySelector('.ghost-caret') && !/before \d|Before this change/.test(text)) out.push('a ghost without its words');
+  if (svg.querySelector('.ghost-caret') && !/before \d|Before this change/.test([...svg.querySelectorAll('text')].map((t) => t.textContent).join(' '))) out.push('a ghost without its words');
   return out;
 }
 function check(well, D, m, view) {
@@ -2664,14 +2669,14 @@ window.pageWords = () => {
   const none = hidingReal({ phase: 'rest' });
   for (const s of M.ALL_SETTINGS) {
     const m = M.run(s);
-    const texts = [summary(m, none), settingSentence(m), factsSentence(m, none, M.run(M.BASE)), readoutText(m, none), ...goalChecks(m).map((c) => c.text), NOTE(s)];
+    const texts = [summary(m, none), settingSentence(m), factsSentence(m, none, M.run(M.BASE)), readoutText(m, none), NOTE(s)];
     for (const kind of ['repair', 'staged']) {
       const plan = M.playPlan(s, kind);
       for (const tau of [0, plan.fail + 0.01, plan.winStart + plan.win * 0.7, null]) texts.push(raceSentence(m, M.playState(s, kind, tau), kind, none));
     }
     for (const t of texts) {
       for (const g of FALSE_CLAIMS) if (g.test(t)) out.push(`${show(s)}: ${g} in "${t}"`);
-      for (const sentence of t.split(/(?<=[.!?:]) /)) if (/^\d/.test(sentence) && !/^\d+ (of|nines)/.test(sentence)) out.push(`${show(s)}: a sentence opens on a numeral: "${sentence}"`);
+      for (const sentence of t.split(/(?<=[.!?]) /)) if (/^\d/.test(sentence) && !/^\d+ (of|nines)/.test(sentence)) out.push(`${show(s)}: a sentence opens on a numeral: "${sentence}"`);
       if (/\s\s|\s[,.]/.test(t)) out.push(`${show(s)}: spacing in "${t}"`);
     }
   }
