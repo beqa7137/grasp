@@ -2391,7 +2391,6 @@ function drawStage(view, m) {
   well.innerHTML = D.svg(H, D.label) + overlaysHtml(D, view);
   window.__stage = { W, H, missingTags: D.missingTags ?? 0, summary: D.label, missing: D.missing };
   window.__stageMeta = D.meta;
-  window.__D = D;
   return { W, H, D };
 }
 

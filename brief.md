@@ -8,7 +8,7 @@ orphan branch `design/r42-durability`:
 | File          | What it is |
 | ------------- | ---------- |
 | `model.js`    | The exact model (today's `durability()` formula unchanged, with its steps, the rack event and the cost of a billion objects), the play clock and the staged loss, the formats, and the six experiments as slot templates; ported to `widgets/durability.ts`, `durability-format.ts`, `durability-plays.ts` and `durability-experiments.ts` |
-| `enum.cjs`    | Prints every experiment number, proves the challenge passes at exactly one of 160 settings, checks the model against today's engine function, the binomial tail against brute-force enumeration of failure sets, the drawn steps against the exact tail, every word claim of the reveals and the lesson's nines, every format at every setting, and the whole model against a discrete-event simulation of disks failing and being repaired at rates high enough to see thousands of losses (7,086 checks; `--fast` halves the simulation) |
+| `enum.cjs`    | Prints every experiment number, proves the challenge passes at exactly one of 160 settings, checks the model against today's engine function, the binomial tail against brute-force enumeration of failure sets, the drawn steps against the exact tail, every word claim of the reveals and the lesson's nines, every format at every setting, and the whole model against a discrete-event simulation of disks failing and being repaired at rates high enough to see thousands of losses (7,094 checks; `--fast` halves the simulation) |
 | `mockup.html` | The live mockup with the app's tokens and fonts: `?state=default\|copies2\|ec63\|ec104\|slow\|batch\|rack\|before\|playing\|playing104\|staging\|staged\|staged104\|rackevent\|describe\|reduced\|ask&exp=1..5\|reveal&exp=1..5\|challenge&theme=light\|dark`; `ask` takes `&phase=playing&frac=0..1` (the answer's play, hiding held), `challenge` takes `&start=1`, `&motion=off` plays as Reduced motion does. The settings, Play a repair, Stage a loss, the cards and the choices all work |
 | `shoot.cjs`   | Screenshots every state at 1280, 390 and 320 px in both themes with the page's collision report and layout assertions, then sweeps all 160 settings at 12 widths at rest and through both plays (with ghosts), every experiment asking, playing and revealed, the no-answer sweep with six planted leaks, every page sentence of every setting, and the stage heights |
 | `changes.md`  | What the mockup's own rounds found and what changed; the critics' items go there next |
@@ -79,7 +79,7 @@ settings. The free-play default is three copies at 2% and 24 h, a rack each: 9.7
   window and the rarer cases of more failures, and is slightly *less* than the steps (0.01% to 0.72% less at the
   widget's settings), so the drawn walk is conservative.
 
-**Checks** (`node enum.cjs`, 7,086 pass): today's engine function at every setting; the binomial tail equals
+**Checks** (`node enum.cjs`, 7,094 pass): today's engine function at every setting; the binomial tail equals
 brute-force enumeration of every failure set (n 1 to 13, k 1 to 4, three rates); the steps within 0.006 nines of the
 exact model; the window's power at every setting (a window k times longer multiplies the loss by k^t within 0.006
 nines); every reveal claim ("49×", "7 × 7 is 49", "two more nines", "about 3,100 from the rate and 2,400 from the

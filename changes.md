@@ -146,4 +146,4 @@ Duplicates across the three lists are answered once; each line names every item 
 
 Sweep at the end of round 3: 5,600 setting renders, 384 experiment renders, 540 no-answer renders, 6 of 6 planted leaks,
 every page sentence and every experiment sentence clean, 198 screenshots at zero collisions, the phone scroll check,
-enum.cjs 7,086 checks.
+enum.cjs 7,094 checks.
