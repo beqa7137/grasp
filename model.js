@@ -35,13 +35,14 @@
   const WINDOW_TICKS = 8;
   /**
    * The stated requests, in microseconds after the clock's start, for G0, G1 and G2. Chosen so that one tick holds
-   * three ids from one generator (G0 at 1 ms: sequence 0, 1, 2), every tick but one holds ids from more than one
+   * three ids from one generator (G0 at 1 ms: sequence 0, 1, 2), one id has a generator and a sequence above 0 (G2 at
+   * 2.9 ms, the id the bits show at rest), every tick but one holds ids from more than one
    * generator, and in the tick at 7 ms the generator made last (G0) sorts first.
    */
   const ARRIVALS_US = [
-    [300, 1200, 1500, 1800, 3500, 5100, 7800],
+    [300, 1100, 1500, 1900, 3500, 5100, 7800],
     [600, 2200, 3100, 4400, 5200, 6300, 7400],
-    [100, 2600, 3700, 6600, 7100],
+    [100, 2600, 2900, 3700, 6600, 7100],
   ];
   const GENERATORS = 3;
   /** Random ids: the bit counts offered, and the counts of ids made (powers of ten). */
@@ -330,12 +331,14 @@
   function date(ms) {
     if (!Number.isFinite(ms) || ms > 8.64e15) return null;
     const d = new Date(ms);
+    if (d.getUTCFullYear() > 9999) return null;
     return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
   }
   /** The end of the timestamp: a date while one exists, else how far off it is. */
   const endWords = (L) => date(L.endMs) ?? `about ${years(L.years)} after the epoch`;
   const ms = (us) => {
     const v = us / 1000;
+    if (v >= 100) return `${int(v)} ms`;
     return `${Number.isInteger(v) ? v : v.toFixed(v < 10 ? 2 : 1).replace(/0$/, '')} ms`;
   };
   /** A chance from the birthday bound, always with "about": it is an approximation. */
@@ -426,8 +429,8 @@
       const t = m.lastBurst;
       parts.push(
         t.wait > 0
-          ? `G0's burst of ${int(BURST)} requests needs ${plural(Math.ceil(BURST / L.perTick), 'tick', 'ticks')} of ${int(L.perTick)} ids, so its last request waits ${ms(t.wait)}.`
-          : `G0's burst of ${int(BURST)} requests fits in one tick of ${int(L.perTick)} ids, so none waits.`,
+          ? `G0's burst of ${int(BURST)} requests needs ${plural(Math.ceil(BURST / L.perTick), 'tick', 'ticks')} of ${plural(L.perTick, 'id', 'ids')}, so its last request waits ${ms(t.wait)}.`
+          : `G0's burst of ${int(BURST)} requests fits in one tick of ${plural(L.perTick, 'id', 'ids')}, so none waits.`,
       );
     } else {
       const full = m.waited.filter((x) => x.why === 'full').length;
@@ -501,7 +504,7 @@
           { text: `About ${years(lifeAfter.years)}`, value: lifeAfter.years },
         ],
         truth: lifeAfter.years,
-        reveal: `${pow2(lifeAfter.timeBits)} ticks × 1 ms is ${years(lifeAfter.years)}, ending on ${endWords(lifeAfter)} instead of ${endWords(lifeBefore)}. A bit is a doubling, so every bit moved out of the timestamp halves its lifetime, and every bit moved in doubles it: the marker on the ruler steps one bit left.`,
+        reveal: `The timestamp now holds ${pow2(lifeAfter.timeBits)} ticks, and ${pow2(lifeAfter.timeBits)} × 1 ms is ${years(lifeAfter.years)}, ending on ${endWords(lifeAfter)} instead of ${endWords(lifeBefore)}. A bit is a doubling, so every bit moved out of the timestamp halves its lifetime, and every bit moved in doubles it: the marker on the ruler steps one bit left.`,
         focus: ['ledgerTime', 'ruler'],
         hide: ['lifetime'],
       },
@@ -512,8 +515,8 @@
         act: { set: { load: LOAD_BURST }, run: 'mint' },
         ask: `With ${setup.burst.seq} sequence bits a generator has ${int(2 ** setup.burst.seq)} sequence numbers a tick. G0 gets ${int(BURST)} requests at ${ms(BURST_AT_US)}. How long does the last of them wait for its id?`,
         choices: [
-          { text: `About ${Math.round(last.wait / 1000)} ms`, value: Math.round(last.wait / 1000) },
-          { text: 'No wait: they all get ids in that tick', value: 0 },
+          { text: `About ${Math.round(last.wait / 1000)} ms, ${NUMBER_WORDS[Math.ceil(BURST / 2 ** setup.burst.seq) - 1].toLowerCase()} ticks later`, value: Math.round(last.wait / 1000) },
+          { text: 'None: they all fit in that tick', value: 0 },
           { text: 'About 1 ms, until the next tick', value: 1 },
         ],
         truth: Math.round(last.wait / 1000),
