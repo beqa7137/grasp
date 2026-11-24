@@ -311,8 +311,9 @@ and the replay. Each full backup reads all 2 TB from the primary, so run one at 
 `pitrRto` below 60, `base` at least 6; keep `size: 2000, archive: 60` (the archive keeps the RPO). Of the 27
 configurations it tunes exactly one passes: 50 GB/min, every 6 h, 20× (40 + 18 = 58 min); hourly backups are fast
 enough but break the bound; `enum.cjs` prints the table. 4 of the 972 settings pass, all that configuration (the
-disaster and the standby play no part). While the challenge is open the 1 min tick in A and the 1 h tick in B read
-"1 min goal" and "1 h goal" in the accent, with accent grid lines. The status is the house checklist ("Goal met:"
+disaster and the standby play no part). While the challenge is open the 1 h tick in B reads "1 h goal" in the accent
+with accent grid lines, and the 1 min tick in A reads "1 min goal" where the tick row has room for it (not on a 252 px
+stage, where the disaster's name takes the row's end; the checklist and the PITR row's "loses 1 min" carry it). The status is the house checklist ("Goal met:"
 only while it holds): "point-in-time recovery serves again in 5.7 h, under 1 h: not yet" / "a full backup every 24 h,
 at most one every 6 h: met"; off the keep, "The goal keeps 2 TB and the log archived every 1 min.". Reveal: "Restore at
 50 GB/min, a full backup every 6 h and replay at 20×: 40 min to restore 2 TB, then at most 6 h of log in 18 min, 58 min
