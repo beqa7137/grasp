@@ -7,13 +7,15 @@
 // URLs an object. Each cache (one per location, and the shield) keeps a copy for `ttl` seconds after the miss that
 // fetched it. Requests are independent Poisson streams, so a key requested at rate r at one cache hits with
 // probability rT / (1 + rT) (one miss, then on average rT hits, per copy). The shield sees every location's misses
-// combined and is given the same rule at their combined rate (enum.cjs measures how close that is). Objects never
+// combined; a location's own earlier misses can never have left it a copy (they are at least a TTL old), so its miss
+// hits the shield by the same rule at the other locations' combined miss rate (enum.cjs simulates it). Objects never
 // change during their TTL, caches are unlimited, a miss is fetched at once (request collapsing makes requests that
 // arrive during a fetch wait for it, not fetch again).
 //
 // Every number the learner reads comes from the functions here. The old `cdnOutcome`'s edge hit rate, origin share
-// and rate are unchanged at every setting; its mean response time is too at 20 locations, the lesson's case. What
-// changed: users reach the nearest of `pops` locations in 10 ms × √(20 / pops) (users spread evenly over a plane, so
+// and rate are unchanged at every setting without a shield, and its mean response time too at 20 locations. What
+// changed: the shield counts only the other locations' misses (the old rule gave one location and a shield 5.4% shield
+// hits, where a simulation finds none, since both copies expire together), and users reach the nearest of `pops` locations in 10 ms × √(20 / pops) (users spread evenly over a plane, so
 // the nearest of n evenly spread locations is about 1 / √n away), so more locations bring the edge closer and the
 // trade the lesson describes appears in the numbers.
 (function (root) {
@@ -49,7 +51,9 @@
     const perPop = rate / s.pops;
     const edge = hit(perPop, s.ttl);
     const toShield = rate * (1 - edge); // every location's misses of this URL, combined
-    const shieldHit = s.shield ? hit(toShield, s.ttl) : 0;
+    // A location that misses fetched its last copy at least a TTL ago, so only the other locations' misses can have
+    // left a copy at the shield: they arrive at (P - 1) / P of the combined rate (enum.cjs: the simulation agrees).
+    const shieldHit = s.shield ? hit((toShield * (s.pops - 1)) / s.pops, s.ttl) : 0;
     return { rate, perPop, edge, toShield, shieldHit, perTtl: perPop * s.ttl, shieldPerTtl: toShield * s.ttl };
   }
 
@@ -74,8 +78,8 @@
     const meanMs = edgeShare * paths.edge + shieldShare * paths.shield + originShare * paths.origin;
     // The rank whose copies hit half the time: asked for once per TTL at each location (rT = 1).
     const edgeKnee = (s.rps * s.ttl) / (HN * s.variants * s.pops);
-    // At the shield: rT (1 - h) = 1 with h the edge's, so rT = P / (P - 1).
-    const shieldKnee = s.shield && s.pops > 1 ? (s.rps * s.ttl * (s.pops - 1)) / (HN * s.variants * s.pops) : 0;
+    // At the shield, the other locations' misses: rT (1 - h) (P - 1) / P = 1 with h the edge's, so rT = P / (P - 2).
+    const shieldKnee = s.shield && s.pops > 2 ? (s.rps * s.ttl * (s.pops - 2)) / (HN * s.variants * s.pops) : 0;
     const out = {
       s,
       edgeShare,
@@ -371,7 +375,7 @@
         { text: 'About {less}: fewer than with {pops20} locations and no shield', right: true },
       ],
       reveal:
-        'About {less}: {originRps2} a second. The edge hit rate does not move ({edgeShare}), but the shield sees every location\'s misses combined, {missRps} a second, so for each object it sees the misses of all {pops} locations and keeps far more objects warm than any one location can: it answers {shieldShare2} of all requests, and its half-hit rank is the {shieldKnee2}, against the edge\'s {knee}. A shield hit costs {shieldMsExtra} more than an edge hit, but the mean response falls from {meanMs} to {meanMs2}, because far fewer requests cross to the origin.',
+        'About {less}: {originRps2} a second. The edge hit rate does not move ({edgeShare}), but the shield\'s one cache sees the misses of all {pops} locations combined, {missRps} a second, so it keeps warm objects that no single location is asked for often enough: it answers {shieldShare2} of all requests, and its half-hit rank is the {shieldKnee2}, against the edge\'s {knee}. That is about what {pops20} locations and a shield send the origin ({at20Shield} a second): with a shield, origin load hardly depends on the number of locations. A shield hit costs {shieldMsExtra} more than an edge hit, but the mean response falls from {meanMs} to {meanMs2}, because far fewer requests cross to the origin.',
       focus: ['tiers', 'square'],
     },
     {
@@ -474,6 +478,7 @@
       v.fewer = sig2(a.originRps * 0.5);
       v.less = sig2(b.originRps);
       v.back20 = sig2(scenario({ ...s1, pops: 20 }).originRps);
+      v.at20Shield = sig3(scenario({ ...s2, pops: 20 }).originRps);
       v.tenfold = sig2(a.originRps * 10);
       v.more4 = sig2(b.originRps);
       v.noShield = sig2(scenario({ ...s2, shield: 0 }).originRps);
