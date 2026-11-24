@@ -32,8 +32,10 @@ someone drops a table?", needs three taps and a memory. Far below the bar.
   before it; an async standby holds everything but its lag, a sync one everything; a delayed replica has received the
   log seconds behind but applied it an hour behind.
 - **Forwards: the recovery time (RTO).** Restoring copies the database back at a fixed speed (size over throughput);
-  point-in-time recovery then replays every change since the base backup at a multiple of the speed it was written,
-  and only after the copy is done; a replica only needs promoting, a delayed one first applies the hour it holds.
+  point-in-time recovery then replays every change since the base backup at a multiple of the speed it was written,  and only after the copy is done; a replica only needs promoting, a delayed one first applies the hour it holds.
+  After a dropped table the primary keeps serving: every plan recovers *beside* it (a restore to the side, a paused
+  delayed replica) and copies the table back, because restoring or promoting in place would throw away every write
+  made since the drop (the lesson's worked example 2). So after a drop the RTO is the time until the table is back.
 - **A replica is not a backup.** A replica applies every change, so a drop, a bad migration or ransomware reaches it in
   seconds: it answers a dead disk and never a bad delete. Only a copy that can stop before the mistake (point-in-time
   recovery, a delayed replica caught in time) brings the table back.
@@ -48,13 +50,15 @@ serve again to its right, and the knobs sit beside the side they move.
 | RPO and RTO, the two numbers a plan is judged by | core | The stage's two blocks ("What each plan loses · RPO", "Time until it serves again · RTO"), the step line at rest, every row's two values, the challenge |
 | Restore time = size / throughput | core | The full backups' ledger "restore 2 TB at 10 GB/min: 200 min", its blue bar, the same blue first step of point-in-time recovery's bar; E4; the challenge |
 | PITR = base backup + continuous log archiving; RPO = the archive interval for a dead disk, zero for a pinpointed drop | core | The PITR row: the base backup's box, the amber comb of shipped segments, the recovery point at the last one and the lost hatch after it; after a drop, the comb to the disaster and "loses nothing"; E3 |
-| PITR's RTO = restore, then replay of everything since the base | core | Its bar: blue restore then amber replay; the ledger "restore: 200 min; replay 24 h of log at 10×: 144 min; 344 min in all"; E2, E3, the challenge |
+| PITR's RTO = restore, then replay of everything since the base | core | Its bar on a linear axis, so restore and replay are drawn at their minutes: blue restore then amber replay; the ledger "restore: 200 min; replay 24 h of log at 10×: 144 min; 344 min in all"; the first-90-min inset; E2, E3, the challenge |
+| After a drop, recover beside the primary and copy the table back | core | Drop mode's words ("TIME UNTIL THE TABLE IS BACK", "table back in 5.8 h", "restore 2 TB beside the primary", "copy the table back: 1 min", the primary's "keeps serving; only the table is gone"); E1, E5 |
 | Base backup frequency trades RTO (less replay) against cost (each reads the whole database) | core | The "Full backup every" control moves the box, the full backups' loss and the replay; the challenge's bound |
 | Async and sync standbys: failover in a minute, RPO the lag or zero | core | The standby row: blue band to its lag, its ring, "loses 5 s" or "loses nothing"; green 1 min bar; the Sync control |
 | Replicas copy logical errors | core | After a drop, the standby's ✕ at the disaster, "cannot bring it back", "never", the ledger "it has applied the drop too"; E1 |
 | Delayed replicas | high | Its row: applied band an hour behind, received log after it, the drop waiting in its log; E5 and the challenge's reveal |
 | Worst case, not expected | high | The workload sentence ("at the worst moment: just before the next full backup and the next log archive"), the model note, `enum.cjs` section 2 |
-| Backups off the primary's failure domain, immutable | medium | The full backups' note "in another account", E1's reveal, the lesson's 3-2-1 concept |
+| Backups off the primary's failure domain, immutable, retained | medium | The full backups' note "in another account", E1's reveal (immutable, in another account, retained long enough to reach back before a mistake noticed weeks later), the lesson's 3-2-1 concept |
+| Lower RPO and RTO cost more | medium | The model note (more frequent full backups read the primary more often, a sync standby adds a round trip to every commit), E3's reveal (requests), the challenge's bound |
 | Restore drills | medium | The model note ("the clocks start when recovery starts"), the challenge's last sentence, the lesson |
 | Full, incremental, differential | medium | Lesson text and its third worked example: a restore chain drawn would double the backup row for a point the example already prices |
 | Snapshots, DR tiers, runbooks | low | Lesson text; E4's and the challenge's reveals name snapshots |
@@ -68,25 +72,33 @@ lag 5 s (`LAG_S`), promotion 1 min (`PROMOTE_MIN`), the replica's delay 1 h (`DE
 **Formulas** (all in `model.js`, ported 1:1; the disaster strikes just before the next full backup and the next archive):
 
 - restore = size / restore speed (minutes); replay = base × 60 / replay speed (minutes: the whole cycle of log).
-- Full backups: RPO = base × 3,600 s, either disaster; RTO = restore.
-- Point-in-time recovery: RPO = archive (dead disk) or 0 (drop); RTO = restore + replay.
+- Full backups: RPO = base × 3,600 s, either disaster; RTO = restore (+ 1 min copy-back after a drop).
+- Point-in-time recovery: RPO = archive (dead disk) or 0 (drop); RTO = restore + replay (+ 1 min copy-back after a drop).
+- After a drop, full backups, point-in-time recovery and the delayed replica end with a fixed 1 min step,
+  `COPY_BACK_MIN`, copying the table back to the primary, which kept serving; none promotes (checked over every drop
+  setting). Full backups' drop loss is "24 h of the table's writes".
 - Standby: dead disk, RPO = 5 s (async) or 0 (sync), RTO = 1 min; drop: it cannot bring the data back (RPO and RTO
   infinite, drawn and said as "cannot bring it back" and "never", never as a number).
 - Delayed replica: RPO = 5 s (dead disk) or 0 (drop, noticed within the hour); RTO = 60 / replay speed + 1 min (it
-  applies the hour it holds, then is promoted). Its delay counts from the primary's commit time, as Postgres's
+  applies the hour it holds, then is promoted; after a drop it is paused before the drop, rolled forward to just
+  before it, and the table is copied back). Its delay counts from the primary's commit time, as Postgres's
   `recovery_min_apply_delay` and MySQL's `SOURCE_DELAY` do.
 - Every step is a whole number of minutes at every setting (checked), so every ledger adds up as printed. Spans print
   as seconds under a minute, whole hours as hours, minutes under 100, then hours to a tenth (200 min is "3.3 h").
-- Scales. Before the disaster: 1 s to 24 h on a log scale, ending 14 px before the disaster line (zero losses sit on
-  that gap's far side, 6 px before the line). After it: 0 to 24 h, the first hour drawn 12 times wider per minute than
-  the other 23 (a two-piece linear scale; its seam is the stronger 1 h grid line and the block's subtitle says
-  "first hour 12× wider"). Recovery times run 1 min to 21.5 h and losses up to 24 h, all on the scales (checked).
+- Scales. Before the disaster: 1 s to 24 h on a log scale from a ring's radius in (so a ring at 24 h stays over the
+  track), ending 14 px before the disaster line (zero losses sit 10 px before the line, the ring's outer edge 2 px
+  clear of it). After it: 0 to 24 h, linear, so every step's length is proportional to its minutes in every bar
+  (checked over every setting in `enum.cjs` and asserted per drawn step); a step under 1.5 px is drawn 1.5 px and its
+  minutes are in the ledger. Under block B an inset, "FIRST 90 MIN, ZOOMED", redraws only the part of each bar inside
+  0 to 90 min on its own linear scale (no bar ever mixes two scales), where the 1 min promotion, the delayed replica's
+  minutes and the challenge's 1 h goal read at their lengths; a bar that runs on past 90 min ends at the inset's edge
+  with a chevron. Recovery times run 1 min to 21.5 h and losses up to 24 h, all on the scales (checked).
 
 The old `recovery()` returned a day of loss for the nightly backup and a day of replay for point-in-time recovery: the
 new model is the same at the default (every lesson number holds: 200, 144, 344 minutes, 3.3, 5.7 and 19.1 h, 1 min,
 5 s), and makes the cycle a setting and adds the delayed replica and the sync standby.
 
-**Checks** (`node enum.cjs`, 12,108 pass).
+**Checks** (`node enum.cjs`, 20,866 pass).
 
 1. The lesson's numbers (above), the "10 s interval moves the loss and not the time" claim, worked example 1's 200 and
    36 minutes.
@@ -100,10 +112,11 @@ new model is the same at the default (every lesson number holds: 200, 144, 344 m
    between the base and the target (the last archived segment, or just before the drop), promote. The model is never
    under the simulation, and over it by at most one minute (it replays the whole cycle where a dead disk's replay stops
    at the last segment, `archive` seconds short); every shown time agrees as printed.
-4. The experiments: no digit outside a slot, one right answer each, positions 3, 2, 1, 3, 1; every word claim held by
-   rule over all 972 settings ("the archive interval never moves the recovery time", "size grows exactly the two
-   restores, never the replicas or the replay"); every compared value on the scales (E2's 9.3 h, E5's 61 min); no
-   answer on the load-time stage; and the challenge (below) at exactly one configuration.
+4. The experiments: no digit outside a slot, one right answer each, positions 3, 2, 1, 3, 1; every word claim held by   rule over all 972 settings ("the archive interval never moves the recovery time", "size grows exactly the two
+   restores, never the replicas or the replay"); every compared value on the scales (E2's 8.1 h, E5's 73 min); E2's
+   three times distinct with the answer the middle one; E5 asks for the earliest time; no drop sentence of E1 or E5
+   says "serve again", "promote" or "back in" without "table"; no answer on the load-time stage; and the challenge
+   (below) at exactly one restore, base and replay triple.
 
 **Honesty rule.** Every number the learner reads is the model's, and the model says what it is where the numbers are
 read: "A schematic model, worst case" opens the note under the stage, which states every assumption (a fixed restore
@@ -111,9 +124,10 @@ speed, replay at a fixed multiple of the write rate, a fixed 5 s lag and 1 min p
 the drop noticed within it, the clocks starting when recovery starts); the summary ends "A schematic, worst-case
 model."; the workload sentence names the worst moment; Describe's note says "Worst case, from a schematic model." The
 drawn moments are the ones the numbers come from: a ring sits at its loss on the before scale and the lost hatch runs
-from it to the disaster line, so the drawn gap is the RPO; a bar ends at its time on the after scale, its steps the
-ledger's steps, so the drawn bar is the RTO (asserted at every setting and width). A step under 1.5 px (a 1 min
-promotion on a phone) is drawn 1.5 px, and its minutes are in the ledger under it.
+from it to the disaster line, so the drawn gap is the RPO; a bar ends at its time on the linear after scale, its
+steps the ledger's steps at the ledger's minutes, so the drawn bar is the RTO (asserted at every setting and width).
+A step under 1.5 px (a 1 min promotion) is drawn 1.5 px from its own start (the next step keeps its own length), and
+its minutes are in the ledger under it.
 
 **Engine work.** New `widgets/recovery.ts` (`recoveryScenario(settings)`, `RECOVERY_SETTINGS`, the constants, the two
 scale functions `beforeX` and `afterX`), retiring `recovery()`, `RecoveryRun`, `RecoveryPlan` and `Disaster` (their
@@ -145,15 +159,21 @@ disaster's name in the critical ink, "DISKS FAIL" or "DROP". The disaster is one
 down through every row's track. Five rows, each a name line (name left in ink, value right), a 12 px track, a note line:
 
 - **Primary** "disks lost" / "table dropped": a grey band of writes all day, a critical ✕ at the line (a dead disk) or
-  a critical drop tick (a drop). Note "takes writes all day; its disks fail at the worst moment".
-- **Full backups** "loses 24 h": a blue box at each full backup of the day (1, 4 or 24 of them: at 1 h they narrow to
-  keep 1 px apart), a soft blue band to the newest (what it holds), the recovery point ring there and the lost hatch
-  from it to the line. Note "a full copy every 24 h, in another account".
+  a critical drop tick (a drop). Note "takes writes all day; its disks fail at the worst moment" / after a drop "keeps
+  serving; only the table is gone".
+- **Full backups** "loses 24 h": a blue box (3 by 7 px) at each full backup of the day (1, 4 or 24 of them: at 1 h they
+  narrow to keep 1 px apart), drawn above a soft blue band to the newest (what it holds); the recovery point ring
+  round the newest box and the lost hatch from the ring's outer edge to the line. Note "a full copy every 24 h, in
+  another account" (after a drop "…: the table as it was then").
+- **The ring** is stroke only, r 7 with a 2 px stroke, centred on its moment: round a backup box it clears the box by
+  2 px, so the box shows inside it (asserted: every full and base box has no filled mark over it and no ring stroke
+  across it, at every setting and width). Grid ticks leave a gap round a ring, the challenge's goal tick included.
 - **Point-in-time recovery** "loses 1 min": the base backup's box, then the archived log in amber: a tick a segment
-  where they stand 2.5 px apart (the comb thickens toward the left as the log scale compresses the hours) and a solid
-  amber band where they would crowd, up to the last segment shipped, the ring there, the hatch after it. After a drop
-  the comb runs to the line, the drop tick on it, the ring just before the line: "loses nothing". Note "the base
-  backup, then the log archived every 1 min".
+  where they stand 2.5 px apart, and from the base backup to where they would crowd a solid band in the ticks' own
+  ink and opacity (asserted), so the log only gets denser toward the left and never fades to the pale received-log
+  fill; up to the last segment shipped, the ring there, the hatch after it. After a drop the comb runs to the line, the
+  drop tick on it, the ring just before the line: "loses nothing". Note "the base backup, then the log archived every
+  1 min".
 - **Standby, asynchronous** "loses 5 s": the blue applied band to 5 s, ring, hatch. Sync: band to the line, "loses
   nothing". After a drop: the band to the line and a ✕ there, "cannot bring it back", note "applies every change 5 s
   after the primary: the drop too".
@@ -161,24 +181,45 @@ down through every row's track. Five rows, each a name line (name left in ink, v
   hatch. After a drop: the received log runs to the line with the drop tick on it, ring just before: "loses nothing",
   note "the drop waits in its log for 1 h before it applies".
 
-The values are critical ink for a loss, green for "loses nothing", critical for "cannot bring it back". Under the
+The values are critical ink for a loss, green for "loses nothing", critical for "cannot bring it back". Each plan's
+name form ("Point-in-time recovery" or "Point-in-time", "Standby, asynchronous", "Async standby" or "Standby") is chosen
+once per width, the longest that leaves room for its shortest value in both blocks at every setting, so a row reads as
+the same plan in A and B. Under the
 rows: three on-stage controls, native radio groups drawn as `g-segmented`, each in a `fieldset.group`: "Full backup
 every" (24 h, 6 h, 1 h), "Log archived every" (10 s, 1 min, 5 min), "Standby" (Async, Sync); one row from a 520 px
 stage (widths by segment count), stacked under it.
 
-**Block B: time until it serves again.** Head "TIME UNTIL IT SERVES AGAIN · RTO", subtitle "TIME AFTER THE DISASTER ·
-FIRST HOUR 12× WIDER" (shorter forms, then its own line). Ticks 0, 15 min, 30 min, 1 h, 6 h, 12 h, 18 h, 24 h as width
-allows (0, 1 h and 24 h always); the 1 h grid line is the stronger seam of the two scales. Four rows, the same plans,
-each a name line (value right: "back in 3.3 h", green, or "never", critical), a track, and a ledger that wraps (its
-longest form's lines reserved at this width):
+**Block B: time until it serves again** (after a drop: until the table is back). Head "TIME UNTIL IT SERVES AGAIN ·
+RTO" / "TIME UNTIL THE TABLE IS BACK · RTO" ("UNTIL THE TABLE IS BACK · RTO" where the long form does not fit),
+subtitle "TIME AFTER THE DISASTER" / "TIME AFTER THE DROP" (right, or its own line where any variant would not fit:
+decided by width alone). During the recovery the subtitle's slot counts the clock in the ink ("NOW 2.9 h AFTER THE
+DISASTER"), so a phone that has block B in view sees the clock beside the bars. The disaster is the axis's origin: its
+tick reads "DISKS FAIL" / "DROP" in the critical ink and the 2 px critical line crosses every track at x0 (drawn
+across tracks only, never through a label). Ticks 1 h, 3 h, 6 h, 12 h, 18 h, 24 h as width allows (6 h, 12 h and
+24 h always), linear. Four rows, the same plans, each a name line (value right: "back in 3.3 h" / "table back in 3.4 h",
+green, or "never", critical; a ghost's "· was 5.7 h" in the muted ink), a track, and a ledger that wraps. A row takes
+only its own ledger lines, so the rows keep equal gaps (asserted); the slack up to the most any setting needs collects
+in one reserved band at the block's foot, above its controls, so the height stays a function of the width:
 
-- **Full backups**: a blue restore bar, a green serve dot at its end; "restore 2 TB at 10 GB/min: 200 min".
+- **Full backups**: a blue restore bar, a green serve dot at its end; "restore 2 TB at 10 GB/min: 200 min" (after a
+  drop "restore 2 TB beside the primary at 10 GB/min: 200 min; copy the table back: 1 min", the copy-back step green).
 - **Point-in-time recovery**: blue restore, then amber replay; "restore: 200 min; replay 24 h of log at 10×: 144 min;
-  344 min in all" ("… replay 24 h of log to just before the drop …").
+  344 min in all" (after a drop "restore beside the primary: 200 min; replay 24 h of log to just before the drop at
+  10×: 144 min; copy the table back: 1 min; 345 min in all").
 - **Standby**: a green 1 min promotion; "promote it: 1 min". After a drop: no bar but a solid hairline the axis's
   width (an empty set is never a dashed box), "never", "it has applied the drop too: no copy without it".
 - **Delayed replica**: amber replay of its hour, green promotion; "replay its 1 h of log at 10×: 6 min; promote it:
-  1 min".
+  1 min" (after a drop "pause it, replay its 1 h of log to just before the drop at 10×: 6 min; copy the table back:
+  1 min").
+- A serve dot centres on its bar's end only when the bar is at least the dot's diameter long; otherwise it sits just
+  right of the end, so a 1.5 px step stays visible and nothing is drawn left of the origin.
+
+**The inset, "FIRST 90 MIN, ZOOMED"**, under block B's rows: ticks 0, 15 min … 1 h, 75 min, 90 min as width allows
+(0, 1 h, 90 min always), four 6 px tracks with the short plan names in a left column, each bar redrawn from 0 to 90
+min at the inset's scale (its own steps, colours and green dot when it ends inside), a chevron where it runs on, the
+origin line at x0, the playhead while the recovery's clock is inside the first 90 min. In the challenge its 1 h tick
+reads "1 h goal" in the accent with accent grid lines: the goal sits inside the inset, never at its edge, so 58 min
+and 76 min read apart.
 
 Then "Restore speed" (10, 25, 50 GB/min) and "Log replay" (5×, 10×, 20× the writes; "5×" where the long form does
 not fit) on stage. The colours carry one meaning each across both blocks: blue a copy of the data (a backup, a
@@ -187,8 +228,8 @@ green a promotion and serving again, critical hatch writes lost, the critical li
 said in the row's words.
 
 **Ghosts** keep the setting before a change, in words: "back in 3.9 h · was 5.7 h" with a solid ink tick across the
-bar at the old time, "loses 10 s · was 1 min" in block A. No tick without its "was" (asserted); none while a question
-is open.
+bar at the old time, "loses 10 s · was 1 min" in block A; the "· was …" part is set in the muted ink, the new value in
+its semantic colour. No tick without its "was" (asserted); none while a question is open.
 
 **Off the stage** (`_widget-controls.scss`): "The disaster" (Disks lost, Table dropped) and "Database" (500 GB, 2 TB,
 10 TB), native radio groups drawn as `g-segmented` in `fieldset.group`s, and the polite notice. Under the stage: Play's
@@ -210,22 +251,35 @@ measures 944 px at a 620 px stage (1280), about 1,330 at a 252 px stage (320) an
   cursor reaches its moment (full backups, the base, each archived segment, the replicas' bands), so nothing is drawn
   for an event before it happens. Step: "The day before: full backups, the archived log and both replicas copy every
   write."
+- **Words keep the clock** (prevention 6). Before its moment a value slot is empty (no text, so no false claim): the
+  primary's value, the disaster's name (in A's tick row and at B's origin) and every note that tells the disaster
+  ("its disks fail", "the drop too", "the drop waits in its log", "only the table is gone") land at the strike; each
+  row's loss lands with its ring; block B's values are empty until the recovery starts, then "recovering", then "back
+  in …" or "never" (the standby after a drop has no copy, so "never" lands as the recovery starts); a ledger shows its
+  step names with "…" and each step's minutes land as the playhead passes that step's end, "in all" with the green
+  dot. `motionSweep` checks this at every 0.05 of the clock, at three widths, for five settings.
 - **The strike** (0.24): the disaster line drops through block A, the primary takes its ✕ or drop tick, and after a
   drop the drop lands on the archived log, on the standby (its ✕) and in the delayed replica's received log. Step:
   "The disks fail: everything on the primary is gone." / "A table is dropped, and every copy that applies the change
   loses it too."
 - **The recovery points** (0.30 to 0.39, a row at a time): each ring lands and its hatch grows to the line, its value
   appearing with it. Step: "Each plan's recovery point: the newest moment it can bring back."
-- **The recovery, the climax** (0.44 to 0.96): a playhead runs down block B from 0 to the last plan's time, x-uniform
-  (time runs twelve times slower in the first hour, as the axis draws it). Each bar grows behind it, restore then
-  replay then promotion; when the playhead passes a bar's end its green dot and "back in 3.3 h" land; until then the
-  row reads "recovering". The step counts the clock ("Recovering: 2.1 h after the disaster.") and ends with "Point-in-
-  time recovery serves last, 5.7 h after the disaster." After a drop the standby's "never" lands at the end.
-- **An answer's play** applies the act (a control changes, the marks move over 240 ms), then plays the clock; hidden
-  words stay "?" through it and the step does not count (3). At the reveal the values settle (400 ms) and the focus
-  outlines pulse.
-- **Stop.** During a free play Play is Stop ("Stop the disaster and the recovery"); Stop or any change ends the play and
-  draws the rest state at once.
+- **The recovery, the climax** (0.44 to 0.96): a playhead runs down block B from 0 to the last plan's time at a uniform
+  speed (the axis is linear, so x and time agree), and through the inset while the clock is inside its 90 min. Each
+  bar grows behind it, restore then replay then promotion or copy-back; when the playhead passes a bar's end its green
+  dot and "back in 3.3 h" land; until then the row reads "recovering". The step and block B's head count the clock
+  ("Recovering: 2.1 h after the disaster.") and the step ends with "Point-in-time recovery serves last, 5.7 h after the
+  disaster." ("… gets the table back last, 5.8 h after the drop."). In the one-column layout, at 0.44 block B is
+  scrolled into view (`scrollIntoView({ block: 'nearest' })`, as an answer's play does); reduced motion has no play.
+- **An answer's play** applies the act (a control changes, the marks move over 240 ms), then plays the clock. One
+  rule for a hidden region: its mechanism is drawn (the drop travelling into each replica's log, the bars growing) and
+  its outcome marks (✕, ring, hatch, green dot, the "never" hairline) and words are held until the reveal, where they
+  land together in the 400 ms settle. Hidden values read "loses ?" and "back in ?" from their moments ("recovering"
+  is kept for rows whose outcome shows: a hidden standby is not recovering, so the word would be a claim). The step
+  reads "Recovering after the disaster: the times show after your answer." (3). The no-answer sweep's structural check
+  enforces the held marks at every play moment, proven by two planted leaks. At the reveal the focus outlines pulse.
+- **Stop.** During a free play Play shows a stop square (it ends the play, it does not pause): "Stop the disaster and
+  the recovery"; Stop or any change ends the play and draws the rest state at once.
 - **Plays pause** by the widget host's visibility (IntersectionObserver on the host, its latest entry, plus
   `visibilitychange`), never the stage's.
 - **Reduced motion:** nothing moves. The rest state is the end state, every mark and number on it. Play writes the
@@ -245,7 +299,8 @@ middle number; E4's is the only one without the word "five", E1's and E5's right
 the first. A card sets the widget up with complete settings, as a new start (no ghost); answering plays its act; the
 dock holds "your guess" through the play; the reveal is read out politely and its regions get a solid focus outline
 with the house "Look here" tag. In the one-column layout, choosing an answer first scrolls the block its play is about
-into view (block A for E1, E3 and E5; block B for E2 and E4), then plays.
+into view (block A for E1, E3 and E5; block B for E2 and E4), then plays. The dock's question is a `fieldset` legend
+in every phase (asking, playing, revealed) with the same box, so it never rewraps when an answer is chosen (checked).
 
 **E1 "A replica is not a backup".** Setup the default with a dropped table (the load-time stage shows a dead disk);
 act `run: 'recover'`. Ask: "Just before the nightly full backup, someone drops the orders table. The standby applies
@@ -253,23 +308,26 @@ every change 5 s after the primary does. What can the standby bring back?" Choic
 the drop: it runs 5 s behind" / "Everything but the last 5 s of writes, as after a dead disk" / **"Nothing: it applies
 the drop 5 s after the primary does"**. Reveal: "Nothing: a standby copies every change within seconds, the drop
 included, so 5 s after the primary loses the table, the standby loses it too. A replica protects against losing a
-machine, not against losing the data: a bad migration or ransomware reaches it the same way. Point-in-time recovery
-stops just before the drop and loses nothing, but serves again only in 5.7 h. The delayed replica, which applies the
-log 1 h behind, still holds the table." Hides `replicasDrop` (both replicas, since the delayed replica surviving would
+machine, not against losing the data: a bad migration or ransomware reaches it the same way. Point-in-time recovery,
+restored beside the primary, stops just before the drop and loses nothing, but gets the table back only in 5.8 h. The
+delayed replica, which applies the log 1 h behind, still holds the table. So keep backups immutable in another
+account, retained long enough to reach back before a mistake noticed weeks later." Hides `replicasDrop` (both replicas, since the delayed replica surviving would
 answer by contrast): while it asks, each replica's band stops at what it held at the drop and a dashed box runs from
-there to the line, no ring, no ✕, no drop tick; values "loses ?" and "back in ?", notes "What it can bring back shows
-after your answer.", block B a dashed box the axis's width and "Its time to serve again shows after your answer.".
-Its play draws the drop landing on both (the answer drawn), words still "?". Focus: the standby's rows in A and B.
+there to the line, no ring, no ✕, no drop tick; values "loses ?" and "table back in ?", notes "What it can bring back shows after your answer.", block B and the inset a
+dashed box the axis's width and "Whether and when it gets the table back shows after your answer.". A hidden box in
+block A ends at the disaster line's left edge, never across it (asserted). Its play draws the drop travelling into
+both logs; the ✕, rings and dots wait for the reveal. Focus: the standby's rows in A and B.
 
 **E2 "Restore, then replay".** Setup 10 TB, 50 GB/min, a full backup every 6 h, 1 min archive, replay 5× (the
 load-time stage shows none of these); act `run`. Ask: "A 10 TB database restores at 50 GB/min. A full base backup runs
 every 6 h, the log is archived every 1 min, and replay runs 5× as fast as the writes came in. The disks fail just
 before the next base backup. How long until point-in-time recovery serves again?" Choices: "3.3 h: the restore, since
-the log replays while the backup copies" / **"4.5 h: the restore, then 6 h of log at 5×"** / "9.3 h: the restore, then
-6 h of log as fast as it was written". Reveal: "Replay can start only once the restore is done, and it must apply every
-change since the base backup: 200 min to copy 10 TB at 50 GB/min, then 6 h of log at 5×, 72 min, so 272 min in all,
-4.5 h. The size and the restore speed set the first term; the time since the base backup and the replay speed set the
-second. Only the last 1 min of writes, not yet archived, is lost." Hides `pitrTime`: its value, ledger and bar (a
+the log replays while the backup copies" / **"4.5 h: the restore, then 6 h of log at 5×"** / "8.1 h: the restore, then
+the day's 24 h of log at 5×" (the base-versus-day misconception; the ask itself rules out a 1× replay). Reveal:
+"Replay can start only once the restore is done, and it must apply every change since the base backup: 200 min to
+copy 10 TB at 50 GB/min, then 6 h of log at 5×, 72 min, so 272 min in all, 4.5 h. The size and the restore speed set
+the first term. The second is the log since the newest base backup, 6 h here and not the whole day, at the replay
+speed. Only the last 1 min of writes, not yet archived, is lost." Hides `pitrTime`: its value, ledger and bar (a
 dashed box the axis's width while asking); the full backups' "restore 10 TB at 50 GB/min: 200 min" stands, the premise
 of the first term. The step does not count the clock. Focus: PITR's rows in B and A.
 
@@ -296,28 +354,33 @@ plays (every block B value and ledger; the bars growing are the play). Focus: bl
 **E5 "A replica an hour behind".** Setup the default with a dropped table and replay 5× (13 min, not the 7 min a
 learner may have seen at E1's reveal); act `run`. Ask: "Someone drops a table just before the nightly backup and
 notices within minutes. A delayed replica receives the log 5 s after the primary writes it but applies it only 1 h
-later, and its replay runs 5× as fast as the writes came in. What can it do?" Choices: **"13 min, nothing lost: stop it
-before it applies the drop, roll it forward to just before, promote it"** / "61 min, nothing lost: it waits out its
-hour, then is promoted" / "Nothing: like the standby, it applies the drop and loses the table". Reveal: "Back in 13 min
-with nothing lost: the drop sits in its log, received but not applied, for 1 h. Stop its replay, roll it forward to
-just before the drop, at most 1 h of log at 5×, 12 min, and promote it in 1 min. Point-in-time recovery answers the
-same drop in 8.1 h. The catch is the hour: a drop noticed later has reached this replica too, which is why it adds to
-backups and never replaces them." Hides `delayedOutcome` (the delayed replica's rows, as E1 hides them; the standby's
+later, and its replay runs 5× as fast as the writes came in. How soon can it give the table back, at the earliest, and
+how much is lost?" Choices: **"13 min, nothing lost: pause it before it applies the drop, roll it forward to just
+before, copy the table back"** / "73 min, nothing lost: its 1 h delay cannot be skipped, so it must wait out the hour
+before replaying" (a real misconception, not a slower valid procedure) / "Nothing: like the standby, it applies the
+drop and loses the table". Reveal: "The table is back in 13 min with nothing lost: the drop sits in its log, received
+but not applied, for 1 h. The delay only holds back applying, so pause it before it applies the drop and replay what it
+has received, up to just before the drop, as fast as it can: at most 1 h of log at 5×, 12 min. Then copy the table
+back in 1 min, while the primary keeps serving. Point-in-time recovery gets the same table back in 8.2 h. The catch is
+the hour: a drop noticed later has reached this replica too, which is why it adds to backups and never replaces
+them." Hides `delayedOutcome` (the delayed replica's rows, as E1 hides them; the standby's
 "cannot bring it back" stands: it is the trap the third choice names). Focus: the delayed replica's rows.
 
 **E6 Challenge "One minute, one hour".** Setup the default (point-in-time recovery 1 min and 5.7 h). Ask: "Meet an RPO
 of 1 min and an RTO of 1 h for this 2 TB database with point-in-time recovery: tune the restore speed, the full backups
-and the replay. Each full backup reads all 2 TB from the primary, so run one at most every 6 h." Goal `all`:
-`pitrRto` below 60, `base` at least 6; keep `size: 2000, archive: 60` (the archive keeps the RPO). Of the 27
-configurations it tunes exactly one passes: 50 GB/min, every 6 h, 20× (40 + 18 = 58 min); hourly backups are fast
-enough but break the bound; `enum.cjs` prints the table. 4 of the 972 settings pass, all that configuration (the
-disaster and the standby play no part). While the challenge is open the 1 h tick in B reads "1 h goal" in the accent
-with accent grid lines, and the 1 min tick in A reads "1 min goal" where the tick row has room for it (not on a 252 px
-stage, where the disaster's name takes the row's end; the checklist and the PITR row's "loses 1 min" carry it). The status is the house checklist ("Goal met:"
-only while it holds): "point-in-time recovery serves again in 5.7 h, under 1 h: not yet" / "a full backup every 24 h,
-at most one every 6 h: met"; off the keep, "The goal keeps 2 TB and the log archived every 1 min.". Reveal: "Restore at
-50 GB/min, a full backup every 6 h and replay at 20×: 40 min to restore 2 TB, then at most 6 h of log in 18 min, 58 min
-in all, losing at most 1 min. At 10× the replay alone takes 36 min and misses the hour; hourly full backups would make
+and the replay. Each full backup reads all 2 TB from the primary, so run one no more often than every 6 h." Goal
+`all`: `pitrRpo` at most 60, `pitrRto` below 60, `base` at least 6; keep `size: 2000, disaster: DISK` (after a drop the
+archive sets no loss, so the RPO bound would mean nothing). Of the 27 restore, base and replay triples exactly one
+passes: 50 GB/min, every 6 h, 20× (40 + 18 = 58 min), at a 10 s or 1 min archive (5 min misses the RPO); hourly
+backups are fast enough but break the bound; `enum.cjs` asserts the triple is unique and prints the table. 4 of the
+972 settings pass. While the challenge is open the inset's 1 h tick reads "1 h goal" in the accent with accent grid
+lines (block B's linear axis has no room for it next to the origin), and the 1 min tick in A reads "1 min goal" where
+the tick row has room (grid lines keep a gap round a ring). The status is the house checklist ("Goal met:" only while
+it holds), each line the goal first and the current value in parentheses: "point-in-time recovery loses at most 1 min
+(now up to 1 min): met" / "point-in-time recovery serves again in under 1 h (now 5.7 h): not yet" / "no more than one
+full backup every 6 h (now every 24 h): met"; off the keep, "The goal keeps 2 TB and the disks lost.". Reveal: "Restore
+at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min to restore 2 TB, then at most 6 h of log in 18 min, 58
+min in all; with the log archived every 1 min or more often, it loses at most that. At 10× the replay alone takes 36 min and misses the hour; hourly full backups would make
 it, but read 2 TB from the primary 24 times a day. At 10 TB nothing here meets the hour: copying it at 50 GB/min takes
 3.3 h alone. So large databases restore from volume snapshots, or fail over to a standby for the dead disk and a
 delayed replica for the bad delete, and keep point-in-time recovery for the rest. And a recovery time is real only
@@ -327,11 +390,12 @@ once a drill has measured it." Describe waits until the goal is met.
 
 | Region | When | On the stage | Elsewhere |
 | ------ | ---- | ------------ | --------- |
-| `replicasDrop` | asking and playing (E1) | both replicas' values "?" and outcome notes; while asking also their rings, hatches, ✕, drop tick and bars (dashed boxes, block B's the axis's width) | the summary, the step, the story, Describe |
+| `replicasDrop` | asking and playing (E1) | both replicas' values "?" and outcome notes; while asking also their rings, hatches, ✕, drop tick and bars (dashed boxes, block B's and the inset's the axis's width); while playing their outcome marks (`outcomesHeld`) | the summary, the step, the story, Describe |
 | `pitrTime` | asking and playing (E2) | PITR's time and ledger; while asking its bar (a dashed box the axis's width); the step's clock | as above |
 | `pitrAfter` | playing (E3) | PITR's loss and time and their words at the act's setting | as above |
 | `rtoAfter` | playing (E4) | every time and ledger in block B, the step's clock | as above |
 | `delayedOutcome` | asking and playing (E5) | the delayed replica's as `replicasDrop` | as above |
+| `outcomesHeld` | playing | every hidden region's ✕, ring, hatch, green dot and "never" hairline wait for the reveal | none |
 | ghost | any question open | no tick, no "was" | none |
 | locked | any question open | Play and every control disabled | the notice "Play and every setting wait for your answer." (never blank), the model note "A schematic model. Its assumptions show after your answer." (two of its assumptions answer E1 and E5), Describe "Describe waits for your answer." |
 
@@ -360,9 +424,10 @@ once a drill has measured it." Describe waits until the goal is met.
   one hit box on another, a control on a label, at every setting and width.
 - **Describe** (a `g-data-table` in a `minmax(0, 1fr)` grid, scrolling inside its own box): the summary, then a row
   for each plan against each disaster (8 rows), the current disaster's rows marked (`aria-current`), and a note naming
-  the settings ("Rows are this setting's: 2 TB restored at 10 GB/min, a full backup every 24 h, the log archived every
-  1 min and replayed at 10×, the standby 5 s behind. Worst case, from a schematic model."). Columns: Plan, Disaster,
-  Loses (RPO), Back in (RTO). Under a 560 px stage `compact`: Plan ("Point-in-time, drop"), Loses, Back in. It fits at
+  the settings ("Rows are this setting's: 2 TB restored at 10 GB/min, a full backup every 24 h, the log archived every  1 min and replayed at 10×, the standby 5 s behind. Worst case, from a schematic model."). Columns: Plan, Disaster,
+  Loses (RPO), Back in (RTO); the standby after a drop loses "the table" and is back "never". Tabular digits only on the
+  two figure columns (`td.num`), never on prose, labels or the checklist (Inter's tabular hyphen spreads
+  "point-in-time"; checked). Under a 560 px stage `compact`: Plan ("Point-in-time, drop"), Loses, Back in. It fits at
   320, 412, 1280 and 1440 px with no kept run on two lines (checked).
 
 ## 5. The prevention list
@@ -388,11 +453,13 @@ once a drill has measured it." Describe waits until the goal is met.
    right edge, values end 10 px before it; every text has a stage-coloured halo; the ring is a stroke round its own
    point; tick labels keep 6 px (asserted per axis); the checker flags text on text, labels under 6 px apart, any line
    through text, any mark under text, dots on dots, off-stage marks, and controls on labels.
-5. **Look-here tags.** A tag sits on its outline's foot or top, never on a label; rows keep an 18 px gap so a row's
-   outline has room for its tag at the foot; `sweepExperiments` asserts a tag for every outline of every reveal at 14
+5. **Look-here tags.** A tag sits on its outline's foot (or top) from its left end toward the middle, never in the
+   column where the values right-align, and keeps 6 px from every text in both directions (checked); rows keep a
+   28 px gap and an outline runs 14 px under its texts, so a row's outline has room for its tag at the foot; `sweepExperiments` asserts a tag for every outline of every reveal at 14
    widths, and `touchingOutlines()` proves the 6 px rule on two neighbouring rows.
-6. **Marks before their event.** One clock, every mark at its moment (the history cursor, the strike, a row's point,
-   the playhead); a value lands with its mark ("recovering" until the bar ends).
+6. **Marks and words before their event.** One clock, every mark and every word at its moment (the history cursor, the
+   strike, a row's point, the playhead, a ledger step's end); a value slot is empty before its moment; "recovering"
+   until the bar ends; `motionSweep` checks every 0.05 of the clock.
 7. **Visibility and reduced motion.** The host's visibility pauses the play; reduced motion's rest state is the end
    state with every number, and Play writes the story.
 8. **CSS specificity.** Every `fieldset.group` carries zero padding; on-stage groups are placed by the layout in
@@ -417,15 +484,16 @@ once a drill has measured it." Describe waits until the goal is met.
     (`recovery-lesson.spec.ts`) runs on desktop, the Android phone and the WebKit iPhone.
 17. **Marks mean one thing.** Dashed only for hidden (asserted; the focus outline is solid here, unlike the house's
     dashed one, so a dash never means two things); an empty set is a solid hairline; the hatch is loss only; the ring
-    is a recovery point only.
+    is a recovery point only, stroke only, never covering the box it points at; Play's square means Stop.
 18. **On the scale.** Both axes are fixed and hold every setting and every compared value (checked); nothing is cut;
     a ghost's old value is said beside it.
 19. **Units and conversions.** Every figure keeps its unit in every form; conversions are drawn: size to restore time
     (the ledger beside the bar), log hours to replay minutes (the ledger and the amber step), minutes to hours (the
     ledger's minutes beside the value's hours), seconds to the scale (the log axis's ticks), the two scales of block B
     (its seam and subtitle).
-20. **Layout.** Reserved lines collect at each block's foot (the workload's, the step's, each ledger's); a checked
-    segment keeps its weight; in the one-column layout an answer scrolls its block into view before its play.
+20. **Layout.** Reserved lines collect at each block's foot (block B's ledger slack in one band above its controls, so
+    its rows keep equal gaps, asserted); a checked segment keeps its weight; in the one-column layout an answer scrolls
+    its block into view before its play, and a free play scrolls block B in as the recovery starts.
 21. **Wraps** use `stage-text.ts`'s measurement with the keep rules and the no-orphan rule; the reserved lines are
     computed from the same wrap over every setting, never from the browser's wrap.
 22. **One state, every surface.** One `scenario` feeds the stage, the dock's checklist, the notice and Describe; no
@@ -444,8 +512,10 @@ once a drill has measured it." Describe waits until the goal is met.
   archiving more often."
 - "A standby gives me a minute of RTO and seconds of RPO for a dead machine, zero with synchronous replication, and
   nothing for a dropped table: it applies the drop five seconds later. Replicas are not backups."
+- "When someone drops a table the primary is still serving, so I never restore it in place: I restore point-in-time
+  recovery beside it, or pause a delayed replica, roll it to just before the drop, and copy the table back."
 - "For 10 TB with RPO one minute and RTO one hour: a standby in another zone for the dead disk, a replica delayed by
-  an hour for the bad delete (stop it, roll forward to just before, promote: minutes), and point-in-time recovery to
+  an hour for the bad delete (pause it, roll forward to just before, copy the table back: minutes), and point-in-time recovery to
   object storage in another account with object lock as the backstop, restored from snapshots, because copying 10 TB
   takes hours. And I schedule restore drills, because an untested backup is a hope."
 
@@ -458,12 +528,14 @@ once a drill has measured it." Describe waits until the goal is met.
   everything since the base backup, one after the other", the sentence E2 tests.
 - Nothing else changes; checked against the model: worked example 1's 200, 144, 344 and 36 minutes, example 2's 200
   and 79 (13 h of log, not worst case: the lesson says so by its 14:05 timing), the why text quotes no answer.
+  Worked example 2's "restore to the side, not in place" is now what the widget draws after a drop.
 
 ## Notes for the builder
 
-- The mockup's geometry is the spec: the header's reserved lines, `labelRow`, `fitTicks`, the row (name line, 12 px
-  track, note line, 18 px gap), the comb's 2.5 px rule, the ring and hatch, the 1.5 px step floor, the control rows'
-  520 px switch, the scales in `model.js`. Suggested files: `recovery-layout.ts` (a pure `buildStage(width, model,
+- The mockup's geometry is the spec: the header's reserved lines, `labelRow`, `fitTicks`, `nameFor`, the row (name
+  line, 12 px track, note line, 28 px gap), the comb's 2.5 px rule and solid crowd band, the stroke-only ring and its
+  hatch, the 1.5 px step floor, the inset, the ledger slack band, the control rows' 520 px switch, the scales in
+  `model.js` (`afterX` linear, `insetX`). Suggested files: `recovery-layout.ts` (a pure `buildStage(width, model,
   view)` returning marks), `recovery-words.ts` (`hiding()`, names, values, notes, ledgers, the summary, the notice, the
   steps, the story, Describe, the goal checks), `recovery-motion.ts` (the clock's moments, the cursor and the
   playhead), a prims component, the widget component and its spec (the no-answer sweep with its eighteen leaks and the

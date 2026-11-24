@@ -1176,7 +1176,7 @@
             if (!struck) return ['takes writes all day'];
             return drop ? ['keeps serving; only the table is gone', 'only the table is gone'] : ['takes writes all day; its disks fail at the worst moment', 'its disks fail at the worst moment'];
           case 'full':
-            return drop && struck ? [`a full copy every ${every}: the table as it was then`, `a full copy every ${every}`] : [`a full copy every ${every}, in another account`, `a full copy every ${every}`];
+            return drop && struck ? [`a full copy every ${every}: the table as of that copy`, `a full copy every ${every}`] : [`a full copy every ${every}, in another account`, `a full copy every ${every}`];
           case 'pitr':
             return [`the base backup, then the log archived every ${span(s.archive)}`, `base backup, log every ${span(s.archive)}`];
           case 'standby': {
@@ -1226,6 +1226,7 @@
           ? `A ${fSize(s.size)} database takes writes all day. At the worst moment, just before the next full backup, someone drops a table.`
           : `A ${fSize(s.size)} database takes writes all day. Its disks fail at the worst moment: just before the next full backup and the next log archive.`;
       const REST_STEP = 'Each plan is judged by two numbers: the writes it loses (RPO) and the time until it serves again (RTO).';
+      const REST_STEP_DROP = 'Each plan is judged by two numbers: the writes it loses (RPO) and the time until the table is back (RTO).';
 
       // ---------- The play: one clock (0 to 1). A mark and its words show once the clock has reached their moment, so
       // nothing is drawn or said for an event before it happens (prevention 6): the primary's value and the disaster's
@@ -1243,7 +1244,7 @@
       function stepOf(m, frac, hid) {
         const s = m.settings;
         const drop = s.disaster === DROP;
-        if (frac === null) return REST_STEP;
+        if (frac === null) return drop ? REST_STEP_DROP : REST_STEP;
         if (frac < PLAN.historyEnd) return HISTORY_STEP;
         if (frac < PLAN.points[0]) return drop ? 'A table is dropped, and every copy that applies the change loses it too.' : 'The disks fail: everything on the primary is gone.';
         if (frac < PLAN.recoverStart) return POINTS_STEP;
@@ -1253,7 +1254,7 @@
         const name = NAMES[last](s)[0].split(',')[0];
         return drop ? `${name} gets the table back last, ${rtoSpan(m.plans[last].rtoMin)} after the drop.` : `${name} serves last, ${rtoSpan(m.plans[last].rtoMin)} after the disaster.`;
       }
-      const allSteps = () => [REST_STEP, HISTORY_STEP, 'A table is dropped, and every copy that applies the change loses it too.', POINTS_STEP, 'Point-in-time recovery gets the table back last, 21.5 h after the drop.', 'Recovering after the disaster: the times show after your answer.', 'Recovering: 99 min after the disaster.'];
+      const allSteps = () => [REST_STEP, REST_STEP_DROP, HISTORY_STEP, 'A table is dropped, and every copy that applies the change loses it too.', POINTS_STEP, 'Point-in-time recovery gets the table back last, 21.5 h after the drop.', 'Recovering after the disaster: the times show after your answer.', 'Recovering: 99 min after the disaster.'];
       /** The recovery clock: the playhead runs at a uniform speed from 0 to the last plan's time (the axis is linear). */
       const recoverFrac = (frac) => Math.min(1, Math.max(0, (frac - PLAN.recoverStart) / (PLAN.recoverEnd - PLAN.recoverStart)));
       const recoverMinAt = (m, frac) => recoverFrac(frac) * m.lastRtoMin;
@@ -2483,7 +2484,7 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story
         const spec = M.EXPERIMENTS[0];
         const caught = widths.filter((W) => {
           well.style.width = W + 2 + 'px';
-          const view = { ...expView(spec, 'revealed'), focus: ['a-pitr', 'a-standby'] };
+          const view = { ...expView(spec, 'revealed'), focus: ['i-pitr', 'i-standby'] };
           const m = M.run(view.s);
           const { D } = drawInto(well, W, m, view);
           return check(well, D, m, view).some((o) => /^focus outlines/.test(o));
@@ -2666,7 +2667,8 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story
               const out = [];
               if (frac < PLAN.strike) {
                 if (tx('a-primary-value') || has('strike-label') || has('origin-label') || has('strike') || svg.querySelector('.xmark, .drop-tick')) out.push('the disaster shown before it strikes');
-                if (/drop too|waits in its log|table is gone|disks fail/.test(svg.textContent.replace(tx('workload'), '').replace(tx('step'), ''))) out.push('a note tells the disaster before it strikes');
+                const notes = [...svg.querySelectorAll('text')].filter((t) => t.dataset.owner !== 'head').map((t) => t.textContent).join(' | ');
+                if (/drop too|waits in its log|table is gone|disks fail/.test(notes)) out.push('a note tells the disaster before it strikes');
               }
               for (const k of M.PLANS) {
                 const p = m.plans[k];
@@ -2742,6 +2744,8 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story
           const words = [...sentences, ...tables].join(' | ');
           for (const g of FALSE_CLAIMS) if (g.test(words)) out.push(`${show(s)}: ${g} in "${words.match(g)[0]}"`);
           if (s.disaster === DROP) for (const t of sentences.flatMap((x) => x.split(/(?<=[.?!])\s+|;\s+/))) if (/serve again|serves again|promote|back in/i.test(t) && !/table/i.test(t)) out.push(`${show(s)}: a drop sentence without the table: "${t}"`);
+          // Describe's cells are whole words: no "cannot" spliced from a sentence.
+          for (const c of [true, false]) for (const r of describeRows(m, c).rows) if (r.cells.some((x) => /^cannot$/.test(x))) out.push(`${show(s)}: a spliced Describe cell`);
           // A checklist line names its goal first, the current value in parentheses.
           for (const g of goalChecks(m)) if (!/\(now [^)]+\): (met|not yet)$/.test(g.text)) out.push(`${show(s)}: a checklist line without its goal first: "${g.text}"`);
           for (const t of [...sentences, describeRows(m, false).note]) {
