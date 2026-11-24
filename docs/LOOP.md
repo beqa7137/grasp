@@ -158,6 +158,30 @@ The local audit of `4beccbd` used an isolated Postgres fixture with 25,000 learn
 | 14        | P2                                 | Version and compress Pyodide, and cache safe startup responses. Component route warming is bounded in 23.        |
 | 15        | P2, P3                             | Export all account data, mark private reads `no-store`, and prompt stale tabs to reload safely.                  |
 
+## 1.0 release plan
+
+Owner decision 2026-11-24: ship a production-ready 1.0 as soon as possible rather than after the whole redesign. 1.0
+is the app as it stands plus the items below; the rest of REDESIGN.md ships after 1.0, in 5.1's order. The loop works
+this list top to bottom, one item per run, before any post-1.0 iteration.
+
+| #   | Item                         | Done when                                                                                                                              |
+| --- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | R51 Microsoft target         | Landed (REDESIGN.md 5.2).                                                                                                              |
+| 2   | R42's four widgets           | Unique IDs, Durability, Backups & Recovery and CDNs & Edge landed (already in progress).                                               |
+| 3   | Retire older API instances   | No deployment older than the paid-AI ledger and route-limit changes (iterations 21 and 22) serves traffic, and old URLs are protected. |
+| 4   | Native privacy (readiness 4) | Native crash uploads filtered of learner text, ids and tokens, then re-enabled; third-party console logging reviewed.                  |
+| 5   | Data rights (readiness 15)   | A learner can export all account data; private reads are `no-store`; stale tabs are prompted to reload safely.                         |
+| 6   | Score completion (8)         | Atomic score completion verified on production data shapes with a rehearsal, not only locally.                                         |
+| 7   | Trustworthy CI               | Root causes fixed for `picks.spec.ts:156` and `:215` on phone and the gateway interviewer streaming spec; no known flaky test remains. |
+| 8   | R22 Lab on phone             | The Design Lab is usable on a phone (REDESIGN.md 5.2).                                                                                 |
+| 9   | Release check                | Production smoke and read-only audit in both themes, a load re-check, and a rollback rehearsed on the release head.                    |
+| 10  | Store and legal readiness    | Signed iOS and Android release builds, store listings, privacy labels, privacy policy and terms, and an AI spend cap.                  |
+
+Item 10's store accounts, signing keys, legal text and pricing are the owner's: the loop prepares builds, checklists and
+drafts and asks the owner for each decision. The mock system design round stays chat only for 1.0 (a diagram surface
+is a post-1.0 candidate). Readiness item 14 (Pyodide versioning) is post-1.0 unless a measurement shows it hurts first
+use.
+
 ## Open follow-ups
 
 - CI tests that failed and passed on retry, each needing a root cause: run 43953166315 on b9948f07, `[phone] picks.spec.ts:156` (element not found, a click timeout) and `picks.spec.ts:215` (`toBeVisible`); earlier, run 43810150061 `[iphone] design-missions.spec.ts:89`, `diagnostic.spec.ts:53` and `workspace.spec.ts:40`, and run 43803940051 `[desktop] coding-hub.spec.ts:254`. The WebKit import-cancel class is fixed by 9d7c248f, and the same run's `[iphone] visualize.spec.ts:369` by 34cb5bd1.
@@ -966,7 +990,7 @@ Follow-ups from R41 (Storage Engines):
 - Content review of the six experiments and the labels (`content.md` on `design/r41-storage`).
 - Fix-round polish left: `storage-text.ts` still measures − and ≈ as + and wraps with its own keep pairs beside `stage-text`'s (moving them into the shared table changes other widgets' measurements, so it waits for the shared `stage-draw.ts`); `experiments.ts` imports `widgets/storage-format.ts` and `storage-prims` is a second copy of `latency-prims` (both go with that extraction); one-line dock choices are 43 px tall in the shared `widget-check` (a house-wide 1 px change, for its own pixdiff); focus outlines and their tags sit 2 to 4 px from text and controls, and some tags land on stage rules; fit-ladder fallbacks change head words ("The leaf page" against "Leaf page"); the LSM write's step label switches on arrival, not departure; "after your answer" and "at the reveal" both stay, since a number hidden only while the answer plays is shown at the reveal; the model has no range scan, so the read-heavy side rests on filters off and E4's reveal; the staircase may want axis labels for a five-second read.
 
-Next: R42's remaining widgets (Unique IDs `id-layout`, Durability `durability`, Backups & Recovery `recovery` and CDNs & Edge `cdn`), in REDESIGN.md 5.2's order. R41 is complete: R42's Data Modeling `feed-model` (122), Consistency & Quorums `quorum` (123), Latency & Queueing `queue-latency` (124), Capacity & Scaling `pipeline` (125), Reliability `availability` (126), Sharding `hash-ring` (127) and Storage Engines `storage-engine` (128) have landed. The owner decided on 2026-10-21 that the lesson and case widgets (R41 to R47) come before R22 and everything else, each starting from a design brief, a mockup and two design critics (REDESIGN.md 5.1 and 5.2); then R50, R22 and the rest in 5.1's order.
+Next: R51 Microsoft target (lands first), then R42's remaining widgets (Unique IDs `id-layout`, Durability `durability`, Backups & Recovery `recovery` and CDNs & Edge `cdn`), then the 1.0 release plan above, top to bottom; the rest of REDESIGN.md follows 1.0. R41 is complete: R42's Data Modeling `feed-model` (122), Consistency & Quorums `quorum` (123), Latency & Queueing `queue-latency` (124), Capacity & Scaling `pipeline` (125), Reliability `availability` (126), Sharding `hash-ring` (127) and Storage Engines `storage-engine` (128) have landed. On 2026-10-21 the owner put the lesson and case widgets (R41 to R47) before R22 and everything else; the 1.0 plan of 2026-11-24 now puts R22 and the release items before R43 to R47, each starting from a design brief, a mockup and two design critics (REDESIGN.md 5.1 and 5.2); then R50, R22 and the rest in 5.1's order.
 
 ## Content ideas
 
@@ -1013,5 +1037,10 @@ found by the 2026-10-21 audit of surfaces without a picture).
 - Fix rounds run only the affected browser specs on desktop after typecheck, unit tests and the build; the full suite
   (verify and every browser project) runs once, on the head that fast-forwards. When that head's tree is the one a builder
   already ran `npm run verify` on, the build and the browser suite are enough, since CI runs verify on the push.
+- Review depth follows risk (owner decision 2026-11-24). Full depth (three reviewers with refuters, up to three fix
+  rounds) for new widgets, anything touching stored data, schemas, sync, auth, payments or AI spend, and any change a
+  learner sees on many screens. One review round for low-risk changes (docs, tests only, config, a fix confined to one
+  component with a spec): one reviewer pass with refuters, one fix round, and no re-review unless the fix changes
+  behavior. The full three-device suite in CI on the exact head is required at every depth.
 - One cohesive improvement per run. Measure before and after; never ship a change that makes something else slower or
   worse without saying so here.
