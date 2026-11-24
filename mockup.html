@@ -884,10 +884,10 @@
             </div>
             <p class="caption" id="story" hidden></p>
           </div>
-          <div class="dock" id="dock"></div>
           <div class="describe" id="describe"></div>
         </div>
         <div class="side">
+          <div class="dock" id="dock"></div>
           <form class="controls" id="controls" onsubmit="return false">
             <h2>Try it</h2>
             <fieldset class="group" id="g-layout">
@@ -1260,7 +1260,7 @@ function build(W) {
     const first = total[0] === sp;
     const width = sp.x1 - sp.x0;
     const forms = first ? [`${FIELD_NAME[sp.field]} · ${n} bits`, `${FIELD_NAME[sp.field]} ${n}`, `${sp.field === 'time' ? 'time' : sp.field} ${n}`, `${n}`] : [];
-    const form = forms.find((f) => measure('smallB', f) <= width) ?? (first ? `${n}` : null);
+    const form = forms.find((f) => measure('smallB', f) <= width + gap - 6) ?? (first ? `${n}` : null);
     if (!form) continue;
     const ly = sp.row === 0 ? labelRowY : sp.y - 7;
     const cx = Math.min(Math.max((sp.x0 + sp.x1) / 2, pad + measure('smallB', form) / 2), W - pad - measure('smallB', form) / 2);
@@ -1297,7 +1297,18 @@ function build(W) {
     y += 4;
     const idTxt = `id ${F.int(inspectId.id)}`;
     text('monoL', pad, y + 4, idTxt, { region: 'values' });
-    if (inspectId.repeatOf && !H.repeats) text('smallB', pad + measure('monoL', idTxt) + 10, y + 4, 'made twice', { cls: 'bad' });
+    if (inspectId.repeatOf && !H.repeats) {
+      const twice = 'made twice: an earlier id has the same 64 bits';
+      if (measure('monoL', idTxt) + 10 + measure('smallB', twice) <= inner) text('smallB', pad + measure('monoL', idTxt) + 10, y + 4, twice, { cls: 'bad' });
+      else {
+        y += 17;
+        for (const ln of wrap('smallB', twice, inner)) {
+          text('smallB', pad, y + 4, ln, { cls: 'bad' });
+          y += 15;
+        }
+        y -= 15;
+      }
+    }
     y += 14;
   } else if (!L.fits) {
     for (const ln of wrap('capB', `No id: the clock is past the timestamp's end, ${F.endWords(L)}. A generator must refuse to mint.`, inner)) {
@@ -1403,10 +1414,11 @@ function plural(n, one) {
 
 function pickInspect(m, t) {
   if (!m.ids.length) return null;
-  const done = m.byMade.filter((x) => x.issued <= t);
+  const H = hiding();
+  const done = m.byMade.filter((x) => x.issued <= t && !(H.burstAfter && x.lane === 0 && x.column > 0));
   if (view.phase === 'playing') return done[done.length - 1] ?? null;
   if (Q.has('inspect')) return m.ids.find((x) => x.key === Q.get('inspect')) ?? m.ids[0];
-  return m.lanes[2].ids.find((x) => x.seq === 1) ?? m.repeats[0] ?? m.byMade[m.byMade.length - 1];
+  return m.repeats[0] ?? m.lanes[2].ids.find((x) => x.seq === 1) ?? m.byMade[m.byMade.length - 1];
 }
 
 /** The lifetime on a log scale in bits: each step is one bit, twice as long as the step before. */
@@ -1453,7 +1465,7 @@ function drawRuler(W, pad, x0, w, y, L, H, ghostL) {
   el('path', { d: `M${X(now).toFixed(1)} ${top - 4} l-4 -7 h8 z`, class: 'now-mark' });
   reg.marks.push({ x0: X(now) - 4, y0: top - 11, x1: X(now) + 4, y1: top - 4, cls: 'now' });
   if (!H.lifetime) {
-    dot(X(life), top, 5.5, L.fits ? 'marker' : 'marker bad', { region: 'ruler' });
+    dot(X(life), top, 5.5, L.fits ? 'marker life-marker' : 'marker life-marker bad', { region: 'ruler' });
   } else {
     // The lifetime's marker is left off while hidden; the ledger's hidden box above says so.
   }
@@ -1501,7 +1513,8 @@ function drawMint(W, pad, y, m, L, H, t, narrow, inspectId) {
     y += 15;
   }
   y += 10;
-  const laneH = 40;
+  const afterLanes = new Set(m.ids.filter((x) => x.issued >= M.WINDOW_US).map((x) => x.lane));
+  const laneH = m.lanes.some((l) => laneNote(l, narrow) && afterLanes.has(l.lane)) ? 54 : 40;
   const lanesTop = y;
   const tickUs = view.s.tick * 1000;
   // Tick columns: one band per tick, so ids in the same tick share a band.
@@ -1539,9 +1552,9 @@ function drawMint(W, pad, y, m, L, H, t, narrow, inspectId) {
   if (view.s.fault === M.FAULT.stepBack && m.lanes[1].runs) {
     const xs = X(M.STEP_AT_US);
     const ly = laneY(1);
-    el('path', { d: `M${xs.toFixed(1)} ${ly - 13} v9 M${xs.toFixed(1)} ${ly - 13} l-5 3 M${xs.toFixed(1)} ${ly + 13} v-9`, class: 'bracket bad' });
+    line(xs, ly - 12, xs, ly + 12, 'bracket bad', { check: false });
   }
-  const r = narrow ? 3.5 : 4.5;
+  const r = narrow ? (W < 290 ? 3 : 3.5) : 4.5;
   const after = new Map();
   for (const gr of groups) {
     const lane = gr.lane;
@@ -1582,12 +1595,16 @@ function drawMint(W, pad, y, m, L, H, t, narrow, inspectId) {
   }
   // Burst labels: one bracket over the full gauges, one figure over the last.
   if (view.s.load === M.LOAD_BURST && m.lanes[0].runs) burstLabels(X, laneY(0), groups.filter((g) => g.lane === 0), L, H, t, narrow, tickUs);
-  for (const [lane, n] of after) text('small', pad, laneY(lane) + 12, `+${F.int(n)} after 8 ms`, { cls: 'warn' });
+  for (const [lane, n] of after) {
+    const forms = [`+${F.int(n)} after 8 ms`, `+${F.int(n)} later`];
+    const form = forms.find((f) => measure('small', f) <= gutter - 6) ?? forms[1];
+    if (!(H.burstAfter && lane === 0)) text('small', pad, laneY(lane) + (laneNote(m.lanes[lane], narrow) ? 25 : 12), form, { cls: 'warn' });
+  }
   if (H.burstAfter) hiddenBox(X(tickUs) + 2, laneY(0) - 16, x1 - X(tickUs) - 2, 30, 'burstAfter', narrow ? '?' : 'Later ticks hidden until you answer');
   // The axis.
   const axY = lanesTop + laneH * 3 + 6;
   line(x0, axY, x1, axY, 'axis', { check: false });
-  const every = narrow ? 2 : 1;
+  const every = (x1 - x0) / 8 < 44 ? 2 : 1;
   for (let k = 0; k <= 8; k += every) {
     line(X(k * 1000), axY, X(k * 1000), axY + 4, 'axis', { check: false });
     text('small', X(k * 1000), axY + 16, k === 8 ? '8 ms' : String(k), { anchor: k === 8 ? 'end' : 'middle' });
@@ -1665,6 +1682,7 @@ function burstLabels(X, ly, grs, L, H, t, narrow, tickUs) {
 /** The ids in id order, one row each (a burst's tick as one row), each with a dot at the moment it was made. */
 function drawSorted(W, pad, y, m, L, H, t, narrow, X, inspectId, groups) {
   const gutter = X(0) - pad;
+  const headTop = y - 6;
   text('label', pad, y + 9, 'Sorted by id');
   const sub = narrow ? 'the order an index keeps them in' : 'the order a database index keeps them in; the dot is when each was made';
   if (measure('label', 'Sorted by id') + 12 + measure('small', sub) < W - 2 * pad) text('small', pad + measure('label', 'Sorted by id') + 12, y + 9, sub);
@@ -1694,7 +1712,7 @@ function drawSorted(W, pad, y, m, L, H, t, narrow, X, inspectId, groups) {
   if (hideRows) {
     const h = Math.max(rows.length, 6) * rowH;
     hiddenBox(pad - 2, top, W - 2 * pad + 4, Math.min(h, 120), 'order', 'The order is hidden until you answer');
-    reg.regions.sorted = { x0: pad - 4, y0: top - 30, x1: W - pad + 4, y1: top + Math.min(h, 120) + 4 };
+    reg.regions.sorted = { x0: pad - 4, y0: headTop, x1: W - pad + 4, y1: top + Math.min(h, 120) + 4 };
     return top + Math.min(h, 120) + 10;
   }
   const pts = [];
@@ -1739,17 +1757,24 @@ function drawSorted(W, pad, y, m, L, H, t, narrow, X, inspectId, groups) {
   if (!rows.length) text('small', pad, top + 12, 'No id yet.');
   const after = m.sorted.length - made.length;
   let yy = bottom + 16;
+  if (m.lateByTick.some((x) => x.issued <= t) && !H.repeats) {
+    for (const ln of wrap('small', 'An amber dot is an id made before ids that sort above it: out of time order across ticks.', W - 2 * pad)) {
+      text('small', pad, yy, ln, { cls: 'warn' });
+      yy += 15;
+    }
+  }
   if (after && view.phase !== 'playing') {
     text('small', pad, yy, `${F.int(m.after)} more ${m.after === 1 ? 'id' : 'ids'} made after 8 ms ${m.after === 1 ? 'is' : 'are'} not drawn`, { cls: 'warn' });
     yy += 16;
   }
-  reg.regions.sorted = { x0: pad - 4, y0: top - 34, x1: W - pad + 4, y1: bottom + 4 };
+  reg.regions.sorted = { x0: pad - 4, y0: headTop, x1: W - pad + 4, y1: bottom + 4 };
   return yy;
 }
 
 function drawRandom(W, pad, y, H, narrow) {
   const s = view.s;
   text('label', pad, y + 9, 'Random ids beside them');
+  const headTop = y - 6;
   y += 24;
   const side = !narrow && W >= 620;
   const chartW = side ? Math.round((W - 2 * pad) * 0.6) : W - 2 * pad;
@@ -1772,7 +1797,7 @@ function drawRandom(W, pad, y, H, narrow) {
     text('small', xs(e), pb + 16, `10${F.sup(e)}`, { anchor: e === 15 ? 'end' : 'middle' });
   }
   text('small', (px0 + px1) / 2, pb + 31, 'ids made', { anchor: 'middle' });
-  reg.regions.chart = { x0: pad - 4, y0: y - 6, x1: pad + chartW + 2, y1: pb + 38 };
+  reg.regions.chart = { x0: pad - 4, y0: headTop, x1: pad + chartW + 2, y1: pb + 38 };
   if (H.chance) {
     hiddenBox(px0 + 2, ptop + 2, px1 - px0 - 4, ph - 4, 'chance', 'The curves are hidden until you answer');
   } else {
@@ -1793,7 +1818,7 @@ function drawRandom(W, pad, y, H, narrow) {
     const p = M.birthday(s.bits, n);
     // The square law, drawn as a transform ending at the marker: three decades along, six up, while the chance is small.
     const pBack = M.birthday(s.bits, n / 1000);
-    if (s.count >= 6 && p < 0.05 && pBack >= 1e-24) {
+    if (s.count >= 6 && p < 0.05 && pBack >= 1e-24 && ys(Math.log10(pBack)) + 18 < pb) {
       const tx0 = xs(s.count - 3);
       const tx1 = xs(s.count);
       const ty0 = ys(Math.log10(pBack));
@@ -1807,10 +1832,16 @@ function drawRandom(W, pad, y, H, narrow) {
     const cx = xs(s.count);
     const cy = ys(lp);
     line(cx, ptop, cx, pb, 'now-line', { check: false });
-    dot(cx, cy, 5.5, 'marker', { key: 'current' });
-    const val = lp <= -24 && p < 1e-24 ? `${F.chance(p)}, below the chart` : F.chance(p);
+    if (lp <= -24 && p < 1e-24) {
+      // Cut at the scale's end: a chevron pointing off the chart, its value said beside it.
+      el('path', { d: `M${(cx - 6).toFixed(1)} ${(pb - 9).toFixed(1)} h12 l-6 8 z`, class: 'marker' });
+      reg.marks.push({ x0: cx - 6, y0: pb - 9, x1: cx + 6, y1: pb - 1, cls: 'cut' });
+    } else dot(cx, cy, 5.5, 'marker', { key: 'current' });
+    const below = lp <= -24 && p < 1e-24;
+    const val = F.chance(p);
     const wv = measure('smallB', val);
     const cands = [
+      ...(below ? [[px1 - wv - 4, pb - 20]] : []),
       [cx + 10, cy + 16],
       [cx - 10 - wv, cy + 16],
       [cx + 10, cy - 10],
@@ -1820,6 +1851,11 @@ function drawRandom(W, pad, y, H, narrow) {
       [cx + 10, cy + 46],
       [cx - 10 - wv, cy + 46],
       [cx - 10 - wv, cy - 26],
+      [cx + 10, pb - 6],
+      [cx - 10 - wv, pb - 6],
+      [cx + 10, cy + 62],
+      [cx - 10 - wv, cy + 62],
+      [px0 + 4, ptop + 12],
     ].map(([lx, ly]) => [Math.min(Math.max(lx, px0 + 4), px1 - wv), Math.min(Math.max(ly, ptop + 12), pb - 6)]);
     const clear = (c) => clearAt(c, wv);
     function clearAt([lx, ly], wv) {
@@ -1828,8 +1864,9 @@ function drawRandom(W, pad, y, H, narrow) {
       if (reg.texts.some((tb) => overlap(tb, b, 6))) return false;
       return !reg.curves.some((cv) => cv.points.some((q, k) => k > 0 && segHitsBox({ x1: cv.points[k - 1][0], y1: cv.points[k - 1][1], x2: q[0], y2: q[1] }, b)));
     }
-    const [lx, ly] = cands.find(clear) ?? cands[0];
+    const [lx, ly] = below ? cands[0] : cands.find(clear) ?? cands[0];
     text('smallB', lx, ly, val, { cls: 'acc' });
+    if (below) text('small', px1 - 4, pb - 6, 'below the chart', { anchor: 'end' });
     // Curve names, placed after the marker's figure, where they cross no curve and no text.
     const name122 = narrow ? '122 bits' : '122 bits, UUIDv4';
     const end122 = ys(Math.log10(M.birthday(122, 1e15)));
@@ -1900,6 +1937,7 @@ function drawFocus(W, Hh) {
       [x1 - tw - 8, r.y1 - 5],
       [x0 + 8, r.y1 - 5],
     ];
+    for (let cx = x1 - tw - 48; cx > x0 + 8; cx -= 40) corners.push([cx, r.y0 - 13], [cx, r.y1 - 5]);
     const free = corners.find(([cx, cy]) => !reg.texts.some((tb) => tb.x1 > cx - 2 && tb.x0 < cx + tw + 2 && tb.y1 > cy - 2 && tb.y0 < cy + 20) && cy > 0 && cy + 18 < Hh);
     const [cx, cy] = free ?? corners[0];
     rect(cx, cy, tw, 18, 'tag', { rx: 9 });
@@ -1915,7 +1953,16 @@ function summaryText() {
   const H = hiding();
   const s = view.s;
   let lay = M.layoutSentence(s);
-  if (H.lifetime) lay = lay.replace(/The timestamp counts[^.]*\./, 'How long the timestamp lasts is hidden until you answer.');
+  if (H.lifetime) lay = lay.replace(/The timestamp counts.*?\.(?= There)/, 'How long the timestamp lasts is hidden until you answer.');
+  let mint = mintWords();
+  const rnd = H.chance ? 'The chance of a repeat among random ids is hidden until you answer.' : M.randomSentence(s);
+  return `${lay} ${mint} ${rnd}`;
+}
+
+/** The mint's sentences with the hidden ones replaced: the summary and the reduced-motion story both read this. */
+function mintWords() {
+  const H = hiding();
+  const s = view.s;
   let mint = M.mintSentence(s);
   const sent = mint.split(/(?<=\.) /);
   const keep = sent.filter((x) => {
@@ -1924,12 +1971,10 @@ function summaryText() {
     if (H.burstAfter && /burst/.test(x)) return false;
     return true;
   });
-  if (H.repeats) keep.push('Whether any id repeats is hidden until you answer.');
+  if (H.repeats) keep.push('Whether G1 makes any id twice is hidden until you answer.');
   else if (H.order) keep.push('The order the ids sort in is hidden until you answer.');
   if (H.burstAfter) keep.push("How long G0's burst waits is hidden until you answer.");
-  mint = keep.join(' ');
-  const rnd = H.chance ? 'The chance of a repeat among random ids is hidden until you answer.' : M.randomSentence(s);
-  return `${lay} ${mint} ${rnd}`;
+  return keep.join(' ');
 }
 
 function noticeText() {
@@ -1947,7 +1992,7 @@ function noticeText() {
 
 function storyText() {
   if (!REDUCED) return null;
-  return `Reduced motion: the mint is drawn at its end. ${M.mintSentence(view.s)}`;
+  return `Reduced motion: the mint is drawn at its end. ${mintWords()}`;
 }
 
 function renderDock() {

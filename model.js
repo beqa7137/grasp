@@ -290,7 +290,8 @@
         }
       }
     }
-    out.forEach((gr) => (gr.single = gr.count <= 3));
+    // A group stays dots only while its ids are made at different moments; a burst's tick is always a gauge.
+    out.forEach((gr) => (gr.single = gr.count <= 3 && new Set(gr.ids.map((x) => x.issued)).size === gr.count));
     return out;
   }
 
@@ -505,7 +506,7 @@
         ],
         truth: lifeAfter.years,
         reveal: `The timestamp now holds ${pow2(lifeAfter.timeBits)} ticks, and ${pow2(lifeAfter.timeBits)} × 1 ms is ${years(lifeAfter.years)}, ending on ${endWords(lifeAfter)} instead of ${endWords(lifeBefore)}. A bit is a doubling, so every bit moved out of the timestamp halves its lifetime, and every bit moved in doubles it: the marker on the ruler steps one bit left.`,
-        focus: ['ledgerTime', 'ruler'],
+        focus: ['ledgerTime'],
         hide: ['lifetime'],
       },
       {
@@ -520,7 +521,7 @@
           { text: 'About 1 ms, until the next tick', value: 1 },
         ],
         truth: Math.round(last.wait / 1000),
-        reveal: `Each tick gives G0 only ${int(burst.layout.perTick)} ids, so the ${int(BURST)} requests take ${plural(Math.ceil(BURST / burst.layout.perTick), 'tick', 'ticks')}: four full gauges and ${int(BURST - 4 * burst.layout.perTick)} ids in the fifth, and the last request waits ${ms(last.wait)}. The generator never repeats a sequence number; it waits for the clock. The other generators are not slowed at all.`,
+        reveal: `Each tick gives G0 only ${int(burst.layout.perTick)} ids, so the ${int(BURST)} requests take ${plural(Math.ceil(BURST / burst.layout.perTick), 'tick', 'ticks')}: ${NUMBER_WORDS[Math.floor(BURST / burst.layout.perTick)].toLowerCase()} full gauges, then ${int(BURST % burst.layout.perTick)} ids in the last, and the last request waits ${ms(last.wait)}. The generator never repeats a sequence number; it waits for the clock. The other generators are not slowed at all.`,
         focus: ['laneG0'],
         hide: ['burstAfter'],
       },

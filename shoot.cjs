@@ -89,7 +89,7 @@ async function load(page, url) {
         runs++;
         if (report.collisions.length) {
           sweepHits += report.collisions.length;
-          if (sweepHits < 60) console.log(`sweep ${w} ${q}: ${report.collisions.join(' | ')}`);
+          if (sweepHits < 400) console.log(`sweep ${w} ${q}: ${report.collisions.join(' | ')}`);
         }
       }
     }
@@ -122,9 +122,9 @@ async function load(page, url) {
       const truth = e.choices.find((c) => c.value === e.truth).text;
       const words = {
         'one-bit': [M.fmt.years(M.layout({ ...e.setup, gen: 11 }).years), '3 November 2060', 'lasts 34.8'],
-        burst: ['3.95 ms', 'waits 3.95', 'full ticks', '904', '4 × 1,024'],
+        burst: ['3.95 ms', 'waits 3.95', 'full ticks', '904', '4 × 1,024', '4 ms'],
         order: ['0 · 0 · 0'],
-        'clock-back': ['repeat', 'same id', 'made twice'],
+        'clock-back': ['ids repeat', 'id repeats', 'Two ids', 'same id', 'made twice', 'No id repeats'],
         birthday: ['2.7%', 'about 2.7'],
       }[e.id];
       return [...words, truth.replace(/^About /, '').split(',')[0]].filter((w) => !['Some repeat ids it already made'].includes(w));
@@ -144,7 +144,7 @@ async function load(page, url) {
         return {
           text: `${txt} || ${svg.querySelector('title').textContent} || ${document.getElementById('notice').textContent} || ${document.getElementById('describe').textContent} || ${labels} || ${document.getElementById('story').textContent}`,
           describeDisabled: document.getElementById('desc-btn').disabled,
-          markers: svg.querySelectorAll('circle.marker').length,
+          markers: svg.querySelectorAll('circle.life-marker').length,
           gaugesAfter: [...svg.querySelectorAll('rect.gauge-bg')].length > 1 ? 1 : 0,
           rows: svg.querySelectorAll('polyline.order-line').length + svg.querySelectorAll('circle[data-key^="row-"]').length,
           bits: svg.querySelectorAll('text.t-bit').length,
@@ -161,7 +161,8 @@ async function load(page, url) {
         for (const frac of fracs) {
           await load(page, `${base}?state=${st}&exp=${k}${frac !== null ? `&frac=${frac}` : ''}${leak ? `&leak=${leak}` : ''}${reduced ? '&reduced=1' : ''}`);
           const d = await probe();
-          for (const w of forbidden(e)) if (d.text.includes(w)) found.push(`${st} ${frac ?? ''} text "${w}"`);
+          const has = (w) => new RegExp(`(?<![\\d,.])${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\d,])`).test(d.text);
+          for (const w of forbidden(e)) if (has(w)) found.push(`${st} ${frac ?? ''} text "${w}"`);
           if (!structure[e.id](d)) found.push(`${st} ${frac ?? ''} structure`);
           if (!d.describeDisabled) found.push(`${st} describe enabled`);
         }
