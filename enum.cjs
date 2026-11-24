@@ -29,7 +29,7 @@ for (const spec of M.EXPERIMENTS) {
   console.log(`slots: ${JSON.stringify(e.slots)}\n`);
   check(new Set(e.choices.map((c) => c.split(':')[0])).size === e.choices.length, `${e.id}: two choices open on the same value`);
   for (const t of [e.ask, e.reveal, ...e.choices]) {
-    check(!/—/.test(t), `${e.id}: an em dash`);
+    check(!/\u2014/.test(t), `${e.id}: an em dash`);
     check(!/NaN|undefined|Infinity/.test(t), `${e.id}: NaN or undefined in "${t}"`);
   }
 }

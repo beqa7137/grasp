@@ -2474,7 +2474,7 @@ function tagMarks(well, D) {
 const unplaced = (D) => [...(D.missingTags ? [`${D.missingTags} focus tag(s) without a place`] : []), ...(D.missing ?? []).map((t) => `no room for "${t}"`)];
 
 // ---------- What must hold on every render, beyond collisions (the layout spec's assertions).
-const FALSE_CLAIMS = [/NaN/, /undefined/, /Infinity/, /—/, /(^|[^\d.,])0 (pieces|copies|disks|TB|h|years)\b/, /\b1 (pieces|copies|disks|years|ways)\b/, /e[+-]\d/];
+const FALSE_CLAIMS = [/NaN/, /undefined/, /Infinity/, /\u2014/, /(^|[^\d.,])0 (pieces|copies|disks|TB|h|years)\b/, /\b1 (pieces|copies|disks|years|ways)\b/, /e[+-]\d/];
 const stageText = (well) => [...well.querySelectorAll('text')].map((t) => t.textContent).join(' | ') + ' | ' + [...well.querySelectorAll('[aria-label]')].map((e) => e.getAttribute('aria-label')).join(' | ');
 function assertions(well, D, m, view) {
   const out = [];
