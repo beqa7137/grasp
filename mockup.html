@@ -1211,14 +1211,15 @@
       function settingSentence(m, hid = NOTHING_HIDDEN) {
         const s = m.settings;
         const P = m.plans;
-        const one = (key, name) => {
+        // "Full backups" is plural: its verbs agree.
+        const one = (key, name, many = false) => {
           const p = P[key];
           if (!p.recovers) return `${name} cannot bring the table back`;
-          const loss = p.rpoS === 0 ? 'loses nothing' : `loses up to ${span(p.rpoS)}`;
-          return `${name} ${loss} and serves again in ${rtoSpan(p.rtoMin)}`;
+          const loss = p.rpoS === 0 ? (many ? 'lose nothing' : 'loses nothing') : `${many ? 'lose' : 'loses'} up to ${span(p.rpoS)}`;
+          return `${name} ${loss} and ${many ? 'serve' : 'serves'} again in ${rtoSpan(p.rtoMin)}`;
         };
         const lead = s.disaster === DROP ? `With ${fSize(s.size)} and a table dropped` : `With ${fSize(s.size)} and the disks lost`;
-        return `${lead}, ${one('full', 'full backups')}; ${one('pitr', 'point-in-time recovery')}; ${one('standby', s.sync ? 'the synchronous standby' : 'the standby')}; ${one('delayed', 'the delayed replica')}.`;
+        return `${lead}, ${one('full', 'full backups', true)}; ${one('pitr', 'point-in-time recovery')}; ${one('standby', s.sync ? 'the synchronous standby' : 'the standby')}; ${one('delayed', 'the delayed replica')}.`;
       }
       function summary(m, hid) {
         const s = m.settings;
@@ -1246,7 +1247,7 @@
       const noteOf = (view) => (hiding(view).locked ? 'A schematic model. Its assumptions show after your answer.' : MODEL_NOTE);
 
       // ---------- The stage.
-      const ROW_GAP = 18;
+      const ROW_GAP = 22;
       function rowHeight(noteLines) {
         return 45 + 14 * (noteLines - 1);
       }
@@ -1338,7 +1339,7 @@
           if (t.x + tw(t.t, 'small') / 2 > dl.x0 - 6) continue;
           D.text(t.x, tickY, [[t.t, t.goal ? 'smallB' : 'small', t.goal ? 'accent-ink' : 'muted']], { anchor: t.sec === 86400 ? 'start' : 'middle', owner: 'axis-a', data: ` data-xtick="1" data-tick="${r1(t.x)}" data-anchor="${t.sec === 86400 ? 'start' : 'middle'}"` });
         }
-        y = tickY + 10;
+        y = tickY + 16;
         const rowsTop = y;
         const rowsA = ['primary', 'full', 'pitr', 'standby', 'delayed'];
         const gridXs = ticksA.map((t) => t);
@@ -1494,7 +1495,7 @@
           const anchor = t.sec === 0 ? 'start' : t.sec === 24 * 60 ? 'end' : 'middle';
           D.text(t.x, tickYB, [[t.t, t.goal ? 'smallB' : 'small', t.goal ? 'accent-ink' : 'muted']], { anchor, owner: 'axis-b', data: ` data-xtick="1" data-tick="${r1(t.x)}" data-anchor="${anchor}"` });
         }
-        y = tickYB + 10;
+        y = tickYB + 16;
         const rowsTopB = y;
         const ledgerW = cx1 - cx0;
         const playX0 = recoverX(frac ?? 1, cx0, cx1, m);
@@ -1509,12 +1510,14 @@
           const timeHidden = rtoHidden(hid, key);
           const marksOff = marksHidden(hid, key) || (key === 'pitr' && hid.pitrRtoMarks);
           for (const t of ticksB) D.add('grid', line(t.goal ? 'goal-line' : t.sec === 60 ? 'grid kink' : 'grid', t.x, trackY - 2, t.x, trackY + th + 2, ' data-grid="b"'));
+          // The playhead crosses each track, never a label line.
+          if (playing && frac < PLAN.recoverEnd) D.add('top', line('playhead', playX0, trackY - 4, playX0, trackY + th + 4, ` data-id="playhead-${key}"`));
           D.add('grid', line('track', cx0, trackY + th + 0.5, cx1, trackY + th + 0.5));
           const names = NAMES[key](s);
           let value;
           let valueCls = 'ink';
           const done = frac === null || (plan.recovers && headAt >= ax(plan.rtoMin) - 0.01) || (!plan.recovers && frac >= PLAN.recoverEnd);
-          if (timeHidden || marksOff) {
+          if (timeHidden) {
             value = ['back in ?', '?'];
             valueCls = 'muted';
           } else if (!done) {
@@ -1551,7 +1554,7 @@
               if (g !== null) D.add('marks', line('ghost-tick', ax(g), trackY - 4, ax(g), trackY + th + 4, ` data-id="ghost-${key}"`));
             }
           }
-          const ledger = timeHidden || marksOff ? HIDDEN_TIME : bLedger(key, m);
+          const ledger = timeHidden ? HIDDEN_TIME : bLedger(key, m);
           const lines = wrap(ledger, 'small', ledgerW);
           const ledgerLines = reserved(`ledger-${key}`, W, (mm) => wrap(bLedger(key, mm), 'small', ledgerW).length);
           lines.forEach((l, i) => D.text(cx0, y + 42 + i * 14, [[l, 'small', 'muted']], { owner, id: i === 0 ? `b-${key}-ledger` : undefined }));
@@ -1559,7 +1562,6 @@
           D.region(`b-${key}`, { x: cx0 - 2, y: r0, w: cx1 - cx0 + 4, h: rB - r0 });
           y = rB + ROW_GAP;
         }
-        if (playing && frac < PLAN.recoverEnd) D.add('top', line('playhead', playX0, rowsTopB, playX0, y - ROW_GAP, ' data-id="playhead"'));
         D.region('b-all', { x: cx0 - 2, y: rowsTopB, w: cx1 - cx0 + 4, h: y - ROW_GAP - rowsTopB });
         y = controlsRow(D, PAD, W - PAD, y - 2, [
           { group: 'restore', legend: 'Restore speed', items: M.RESTORE_GB_PER_MIN.map((v) => [v, fSpeed(v)]), cur: s.restore },
@@ -1683,6 +1685,7 @@
             const grow = (a, t, d) => ({ x0: Math.min(a.x0, t.x0 - d), y0: Math.min(a.y0, t.y0 - d), x1: Math.max(a.x1, t.x1 + d), y1: Math.max(a.y1, t.y1 + d) });
             let box = { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h };
             for (const t of inside) box = grow(box, t, GUTTER);
+            box.y1 += 4;
             const x = Math.max(3, box.x0);
             const yy = Math.max(3, box.y0);
             const w = Math.min(D.W - 3, box.x1) - x;
@@ -2066,7 +2069,7 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story
             if (!p.recovers && ring) out.push(`${k} cannot recover but draws a recovery point`);
             if (!rpoHidden(hid, k)) {
               const v = tx(`a-${k}-value`) ?? '';
-              if (!v.startsWith(lossWords(p))) out.push(`${k}'s loss reads "${v}", not "${lossWords(p)}"`);
+              if (!v.startsWith(lossWords(p)) && !v.startsWith(`${lossWords(p).replace('loses ', '')} · was`)) out.push(`${k}'s loss reads "${v}", not "${lossWords(p)}"`);
             }
           }
           // A bar ends at its time on the after axis, and its words print that time.
@@ -2199,7 +2202,7 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story
         'replica-drop': { both: ['cannot', 'the drop too', 'applied the drop', 'waits in its log', 'never', `back in ${rtoSpan(setupOf(0).plans.delayed.rtoMin)}`, 'promote it'], asking: [] },
         'pitr-time': { both: [`back in ${rtoSpan(setupOf(1).plans.pitr.rtoMin)}`, fMin(setupOf(1).plans.pitr.rtoMin), fMin(setupOf(1).replayMin), 'in all', 'serves last'] },
         archive: { playing: [`back in ${rtoSpan(afterOf(2).plans.pitr.rtoMin)}`, `loses ${span(afterOf(2).plans.pitr.rpoS)}`, 'was ', 'in all', 'serves last'] },
-        growth: { playing: [`back in ${rtoSpan(afterOf(3).plans.full.rtoMin)}`, `back in ${rtoSpan(afterOf(3).plans.pitr.rtoMin)}`, `back in ${rtoSpan(afterOf(3).plans.standby.rtoMin)}`, fMin(afterOf(3).restoreMin), 'was ', 'serves last', 'after the disaster.'] },
+        growth: { playing: [`back in ${rtoSpan(afterOf(3).plans.full.rtoMin)}`, `back in ${rtoSpan(afterOf(3).plans.pitr.rtoMin)}`, `back in ${rtoSpan(afterOf(3).plans.standby.rtoMin)}`, fMin(afterOf(3).restoreMin), 'was ', 'serves last', 'h after the disaster', 'min after the disaster'] },
         delayed: { both: [`back in ${rtoSpan(setupOf(4).plans.delayed.rtoMin)}`, fMin(setupOf(4).delayedReplayMin), 'waits in its log', 'promote it'] },
       };
       function structural(well, spec, phase, view) {
@@ -2348,7 +2351,7 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story
       };
       window.widgetHeight = () => document.getElementById('widget').getBoundingClientRect().height;
       // Every sentence any setting prints off the stage, for the false-claim rules and the prose rules.
-      const PROSE = [/(^|[.?!] )\d/, /\d{4,}/, /  /, / ,| \./, /\b(\w+) \1\b/];
+      const PROSE = [/(^|[.?!] )\d/, /\d{4,}/, /  /, / ,| \./, /\b(\w+) \1\b/, /\bbackups (loses|serves|is|has)\b/i];
       window.pageWords = function () {
         const out = [];
         for (const s of ALL) {

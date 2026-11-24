@@ -1,0 +1,18 @@
+# Changes: critique item, and what changed
+
+## Round 0: the designer's own review (screenshots at 1280, 390 and 320 px in both themes, and `shoot.cjs`)
+
+| Critique item | What changed |
+| ------------- | ------------ |
+| At a 320 px phone the title "One disaster, four recovery plans" ran under the Play disc (a control on a label). | The title takes the longest of two forms that leaves Play's 52 px free ("One disaster, four plans"); the checker now fails any control on any text. |
+| After a drop the standby's row lost its name at 320 px: "Async standby" and "cannot bring it back" did not fit one line, and the value was silently dropped. | Every plan has a last name form ("Standby"); a name and value that cannot share a line is a finding ("no room for"), and the layout assertion reads every value back from the stage. |
+| "Async, 5 s" overflowed its segment at 1280 px, "A dropped table" its segment at 320 px. | The standby's segments read "Async" and "Sync" (the 5 s is on the row's note), the disaster's "Table dropped"; the shooter measures every on-stage and off-stage segment's words. |
+| The recovery playhead was one line down block B, through every plan name and ledger while it ran (a line through text at every width). | The playhead is drawn across each track only, like the grid ticks: it never crosses a label line. |
+| E4's reveal outline around block B touched the tick labels above the first row. | Both blocks keep 16 px under their tick row (was 10), so an outline's 8 px gutter and its 4 px clearance fit. |
+| Reveals at 390 and 320 px had no place for their "Look here" tag: a row's note line runs the full width, and the next row's name sat within the tag's height. | Rows keep 22 px between them (was 18) and a focus outline runs 12 px under the texts it holds (8 elsewhere), so the tag at the foot clears both the row's own note and the next row's name; `sweepExperiments` asserts a tag for every outline at 14 widths. |
+| The ghost's short form ("1 h · was 24 h", used where "loses 1 h · was 24 h" does not fit) failed the layout assertion, which wanted "loses". | The assertion accepts the documented short form; it still requires the new value and its "was". |
+| The planted leak "E2 asked, PITR's time shown" was not caught: the hidden bar's flag also blanked the value, so turning off the time flag alone changed nothing. | A value and a ledger hide on the time flag alone; the marks flag hides only marks. Each flag now governs one surface, and all eighteen leaks are caught. |
+| E4's play step "Recovering, on the clock after the disaster." matched the giveaway "after the disaster." though it carries no number. | The giveaways are the counted forms ("h after the disaster", "min after the disaster"); the clean step passes, the planted leak (the step counting the clock) is caught. |
+| The setting's sentence read "full backups loses up to 24 h and serves again in 3.3 h". | Verbs agree with the plural subject ("full backups lose … and serve …"); the prose rules gain a plural-subject check over every sentence of every setting. |
+| The house focus outline is dashed, and dashed must mean only "hidden until you answer" (prevention 17). | This widget's focus outline is solid (2 px accent, the tag carries "Look here"); the brief says so for the builder. |
+| A drawn loss on a log scale is not proportional to its seconds; a learner could read the hatch's length as time. | The block's subtitle says "log scale"; every row says its loss in words; the ring sits exactly at the loss's tick position (asserted). The after scale, where lengths are compared (restore against replay), is linear in two pieces with its seam marked and its zoom said in the subtitle. |
