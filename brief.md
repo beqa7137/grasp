@@ -11,7 +11,7 @@ on the orphan branch `design/r42-ids`:
 | `enum.cjs`    | Prints every number, checks 1.5 million ids against a second implementation that builds each id as a 64-character bit string, the generator against a second one stepped microsecond by microsecond, the burst against its formula, repeats and order by brute force, the birthday bound against the exact product and against collisions counted in 20,000 seeded trials at 16 and 20 bits, the lesson's 15 quoted numbers, 180,000 sentences of every setting by rule, the answer positions, and the challenge by enumeration over all 578 layouts (exactly one passes). About 5.7 million checks |
 | `mockup.html` | The mockup with the app's tokens and fonts: `?state=default\|tick10\|gen11\|gen16\|gen0\|seq0\|epoch1970\|overflow\|burst\|skew\|stepback\|naive\|shared\|random64\|trillion\|playing\|reduced\|describe\|ask&exp=1..5\|play&exp=1..5\|reveal&exp=1..5\|challenge&theme=light\|dark`; any setting by name (`gen=`, `seq=`, `tick=`, `epoch=`, `load=`, `fault=`, `guard=`, `bits=`, `count=`), `playing` and `play` take `&frac=` (the moment of the 8 ms), `reveal` takes `&pick=` (the learner's guess), `challenge` takes `&solved=1`, any state takes `&leak=<flag>` (a planted leak for the sweep) |
 | `shoot.cjs`   | Screenshots every state at 1280, 390 and 320 px in both themes with the page's collision report, then sweeps 1,100 settings at four widths, every reveal's "Look here" tags at 14 widths, the no-answer sweep (each question asking and at four moments of its answer's play, motion off and on, text and structure) proven by eight planted leaks, and prints the stage heights per width |
-| `changes.md`  | Each critique item and what changed for it (round 0, the designer's own) |
+| `changes.md`  | Each critique item and what changed for it (round 0, the designer's own; round 1, the two critics and the showcase) |
 
 ## 1. The verdict, and the mechanism
 
@@ -65,11 +65,12 @@ the owner's bar; it is redrawn.
 | The clock's reading becomes the timestamp | core | The drawn conversion under the bits: "G2's clock: 12:00:00 + 2.9 ms − epoch 1 January 2026 = 28,296,000,002.9 ms ÷ 1 ms a tick, rounded down = 28,296,000,002" |
 | Generators mint alone, never colliding | core | Band C: three lanes over 8 ms of a stated clock, every id a dot at its moment, the sequence numbers over a tick's dots |
 | Sequence runs out; the generator waits | core | The burst: a gauge a tick filling to 2^s, a bracket "4 full ticks of 1,024", "904" in the last, the wait line; E2 |
-| Ids sort by time only to the tick, then by generator | core | Band D: every id in id order, each with a dot at the moment it was made, joined by a line that steps back inside a tick; E3 |
+| Ids sort by time only to the tick, then by generator | core | Band D: every id in id order, each with a dot at the moment it was made, joined by a line that steps back inside a tick |
 | Clock stepping back: repeats, or a wait with the guard | core | The fault "G1's clock steps back", the guard toggle; repeats ringed red in the lane and "same id as the row above" in the sorted list; E4 |
 | Birthday bound, the square law | core | Band E: chance of any repeat against ids made, log on both axes, 64 and 122 bits, the marker at the chosen count, a drawn triangle "× 1,000 ids" along, "× 10⁶" up; E5 |
 | Two generators with one number | high | The fault "G2 given number 1": five repeats ringed; free play and the lesson's pitfall |
-| Clock skew orders ids roughly | high | The fault "G2's clock ahead": five ids out of time order, amber in the sorted list with a one-line legend |
+| Clock skew orders ids roughly | core | The fault "G2's clock ahead": G2's lane on its own clock's ticks, ids out of time order hollow amber in the sorted list with a legend; E3 |
+| An id leaks when and where it was made | high | Band A's last line reads the time and generator back from the bits |
 | Epoch runs out | high | Epoch 1970 ends on 7 September 2039; with 16 generator bits it ended in 1971 and every lane refuses |
 | Random keys scatter inserts in the index | high | "Where 24 new ids land in the index": the last page against 11 of 12 pages (an illustration from a seeded draw, said so in the brief and Describe) |
 | One counter; ranges and strides; hi/lo | medium | Lesson text (concept 2). Drawing a counter would be a second widget; the interview point (a bottleneck and a single point of failure) is one sentence |
@@ -99,243 +100,219 @@ lane notes say which clock is wrong and by how much), generator numbers assigned
 
 ## 2. The picture
 
-One `g-stage`, five bands top to bottom, each with a small-caps label. Height is a function of the stage width and the
-settings' line counts only (no play changes it); see the heights at the end of this section.
+One `g-stage`, five bands top to bottom, each with a small-caps label. **The stage's height is a function of its
+width alone**: every block whose line count can change (the made-by line, the conversion, the repeat note, the leak
+line, the ledger's chains, end date and ghost, the ruler's three name rows, the lanes' caption, the 21 row slots of the
+sorted list and its foot, the pairs chain) reserves the most lines it takes at that width over every setting it can
+show. No setting, question, play moment or reveal moves a band; `shoot.cjs` asserts one height per width over every
+render (1,754 px at 1280, 2,932 at 390, 3,106 at 320, with the control groups on the stage), and the builder's layout
+spec asserts it at rest, asking, at four play moments and at the reveal of every experiment at every swept width.
 
-- **Band A, "One id, 64 bits".** The inspected id (at rest G2's id at 2.9 ms, or the first repeat when there is one;
-  while playing the newest id; a tap on any dot or row inspects it) as 64 cells in one row (two rows of 32 under 560
-  px), separated by a gap between fields, coloured by field (sign grey, timestamp `--g-viz-current`, generator
-  `--g-viz-considering`, sequence `--g-viz-final`): a 1 is a filled cell with its digit in the stage colour, a 0 a tinted
-  cell with its digit in the field colour. Field names over each field, the longest form that fits its span
-  ("timestamp · 41 bits", "generator 10", "10"). Under the bits: the field values in mono, wrapped only at their joins
-  ("timestamp 28,296,000,002 · generator 2 · sequence 1"), the drawn conversion from the clock to the timestamp
-  (segments, each kept whole), and the id in decimal ("id 118,682,025,992,396,801", with "made twice" in danger ink for
-  a repeat). Overflow: "No id: the clock is past the timestamp's end, 2 February 1971. A generator must refuse to mint."
-- **Band B, what each field buys.** Three rows, a colour chip and name in a 150 px column (above the chain when narrow),
-  then the chain: "2⁴¹ ticks × 1 ms = 69.7 years", "1 January 2026 to 7 September 2095"; "2¹⁰ = 1,024 generators at
-  once"; "2¹² = 4,096 ids a tick × 1,000 ticks a second = 4,096,000 ids a second each", "4,194,304,000 ids a second
-  from all 1,024". Under the timestamp row, the **lifetime ruler**: a log axis from 2^30 to 2^67 ms with a step mark at
-  every bit (one bit, one step, twice as long), labels 1 month to 1 billion years (the widest form at which all keep 6
-  px apart: "1 year" then "1 yr", then every other label), the lifetime as an accent dot named "lasts 69.7 years", and
-  today as a small triangle named "today, 328 days in" (from the epoch to the stated clock). A change of the steppers
-  leaves its ghost in words under the end date: "was 69.7 years with 41 bits: one bit fewer halves it".
-- **Band C, "Three generators, no coordination".** Lanes G0, G1, G2 (name, then "number 0"; "#0" when narrow; a
-  fault's note under the name: "clock runs 2 ms ahead", "clock steps back 2 ms at 5.5", "handed G1's number" in danger
-  ink) over a fixed axis of 0 to 8 ms, alternate ticks shaded so a tick's ids share a band (with a 10 ms tick, "One 10
-  ms tick spans all 8 ms drawn"). Each id is a 4.5 px dot (3.5 px narrow) at the moment it is made; the inspected id is
-  accent with a ring; a repeat is critical with a critical ring (stroke only, around the whole dot). Sequence numbers
-  sit over a tick's dots only when some are above 0 ("0 1 2"), so the 20 zeros do not crowd the lanes. A request that
-  waited: a thin amber line from its arrival (a small ring) to its dot, "waits 0.7 ms: clock behind" under it when it
-  fits and on wide stages only. A tick with more than three ids (the burst) is one gauge, filled to the ids made over
-  the `2^s` a tick holds; full gauges share one bracket "4 full ticks of 1,024" (short form "4 × 1,024"), the last
-  partial gauge its count "904", and "last waits 3.95 ms" beside them when it fits (the sentence always says it). Ids
-  made after 8 ms are counted in the lane's gutter in warn ink ("+3 after 8 ms"), never drawn. A lane that cannot run
-  says why in its own row. The step back is a short critical tick at 5.5 ms with "−2 ms".
-- **Band D, "Sorted by id".** Every id in id order on the same time axis as the lanes: the gutter holds its decimal
-  value (wide) and "tick · G · seq" (always; "5·1·0" when narrow); in the plot, a dot at the moment it was made, and a
-  hairline through the dots in row order, drawn under them. Where the line steps back, an id made later sorts first: a
-  rising staircase with a step back in every tick. A burst's tick is one row ("1,024 ids", "0 · 0 · 0–1,023") with a
-  bar from its first to its last id's moment. Repeats: the row in danger ink and "same id as the row above" beside
-  the dot; out-of-time-order ids (skew or a step back) amber, with one legend line under the list. "3 more ids made
-  after 8 ms are not drawn" under the list when there are.
-- **Band E, "Random ids beside them".** Left (60% wide, full width narrow): "Chance of any repeat, by the birthday
-  bound", log axes 10³ to 10¹⁵ ids and 10⁻²⁴ to 1, both curves (the chosen one accent and thicker, the other the stroke
-  tone), named at their ends ("64 bits", "122 bits, UUIDv4"), a vertical line and a marker at the chosen count with its
-  value ("about 9.4 × 10⁻²⁰", "near certain", "..., below the chart" when under 10⁻²⁴), and, while the chance is small
-  and the curve on the chart, the square law as a drawn triangle ending at the marker: "× 1,000 ids" along, "× 10⁶" up.
-  Right (or under): "Where 24 new ids land in the index": 12 leaf pages twice; time-ordered ids fill the last page ("all
-  24 in 1 page, which stays in memory"), random ids touch 11 of 12 ("each read from disk once the index outgrows
-  memory").
-- **Placement.** Every label is measured by `stage-text.ts`'s roles (Inter 500/600/700 at 11 and 13 px, JetBrains Mono
-  600 at 10, 11 and 13 px), wrapped by measure with 6 px held back and a keep rule (a number with its unit, an operator
-  with its operand, a field name with its value: segments are never split), placed from candidate positions that cross
-  no curve, dot or text (the marker's figure and the curve names), and checked by the collision report.
-- **Controls** (HTML, beside the stage at 1000 px and up, under the dock narrow): The layout: Generator bits and
-  Sequence bits steppers (− value +, 44 px, one bit a press: the unit of the trade; there are no boundary handles on
-  the bits because at 0 generator bits both boundaries share one place and two 44 px targets would overlap). Tick (1 ms,
-  10 ms) and Epoch (2026, 1970) segments. Requests to G0 (A trickle, 5,000 at once). What goes wrong: four segments
-  two by two (Nothing, G2's clock ahead, G1's clock steps back, G2 given number 1) and the toggle "Keep the last
-  timestamp (wait if the clock is behind it)". Random ids: 64 random bits, 122 (UUIDv4), and Ids made (a range of 13
-  decades with its output "A billion ids (1,000,000,000)"). A checked segment changes colour, never weight. The notice
-  (polite, atomic) sits at the foot of the controls at wide and is read out only below it.
-- **Layout.** Wide (page ≥ 1000 px): stage column `minmax(0, 1fr)`, a 320 px side column holding the dock (when an
-  experiment or the challenge is open), the controls and the experiment cards, sticky. Narrow: stage, dock, controls,
-  Describe, cards. The builder measures its own heights into `widget-heights.ts` at 320, 360, 375, 390, 412 and 430 px and
-  sweeps 300 to 1,300. The mockup's default heights: 1,676 px at 300, 1,628 at 320, 1,598 at 360 to 390, 1,582 at 412,
-  1,567 at 430, 1,463 at 600, 1,245 at 800, 1,293 at 1000 (the stage column narrows when the side column appears) and
-  1,260 at 1280. A setting changes the height only through its line counts (two bit rows under 560 px, a third gutter
-  line when a fault meets ids after 8 ms, a repeat's note), so the placeholder holds the default's.
+- **Band A, "One id, 64 bits".** A 44 px header row: the name, and **Older id / Newer id** buttons (44 px, "‹" and
+  "›" on a phone, named "Older id" and "Newer id") that step through the ids made so far in made order; a tap on a dot
+  or a row is a convenience. Then who made it, in reserved lines: "made by G2 at 2.9 ms", and when the lane's clock is
+  wrong both readings in the fault's words: "made by G1 at 6.3 ms; G1's clock, stepped back 2 ms, read 4.3 ms". The 64
+  cells always in **two rows of 32** (four rows of 16 when a row of 32 would give cells under 15 px, so on every
+  phone), a gap between fields, coloured by field. A 1 is filled with the field's fill token and an on-fill digit; a 0
+  is the field's tint with its digit in the field's **ink token**, at 4.5:1 or more in both themes (light: time
+  #065a87, generator #7f4a00, sequence #02583f; dark: #6cc6ee, #f0b860, #3ddc97; the light fills use the inks too, so a
+  white 1 is 5.6:1 or more). Under each field's spans a **bracket** in the field's colour, and under its longest span
+  its name and decimal value, centred, in its ink: "timestamp 28,296,000,002", "generator 2", "sequence 1", "sign 0"
+  (shorter forms "time ...", then the value alone, when a span is narrow). Under the bits, in the timestamp's ink, the
+  conversion as a chain wrapped only at its joins: "G2's clock: 12:00:00 + 2.9 ms  − epoch 1 January 2026  =
+  28,296,000,002.9 ms  ÷ 1 ms a tick, rounded down  = 28,296,000,002, the timestamp": the same number sits under the
+  timestamp bracket (an arrow from the chain into the bracket would cross the bit rows, so the link is the number and
+  the colour). Then "id 118,682,025,992,396,801" (mono, grouped), "made twice: an earlier id has the same 64 bits" in
+  danger ink for a repeat (beside it, or on its own reserved line), and **what the id leaks**: "Anyone holding this id can
+  read when it was made (12:00:00.002 UTC on 24 November 2026, to the tick) and which generator made it (number 2)."
+  The time is read back from the bits (epoch + timestamp × tick), so it is honest to the tick. Overflow: "No id: the
+  clock is past the timestamp's end, 2 February 1971. A generator must refuse to mint." While playing, the newest id
+  composes in order over 300 ms: the timestamp cells fill from the chain, the generator field lights, the sequence
+  steps up from the previous id of the same tick (Reduced motion: the final bits at once, said in the caption).
+- **Band B, what each field buys.** Three rows, chip and name in a 150 px column (above the chain on a phone).
+  Timestamp: "2⁴¹ ticks × 1 ms = 69.7 years", "1 January 2026 to 7 September 2095", and after a stepper press the
+  ghost in words, "was 69.7 years with 41 bits: one bit fewer halves it" (or "2 bits fewer divide it by 4"). The
+  **lifetime ruler**: a log axis from 2^30 to 2^67 ms with a step mark at every bit (±4 px, stroke-tone ink: one bit,
+  one step, twice as long), labels 1 month to 1 billion years; the lifetime as an accent dot named "lasts 69.7 years";
+  today as a triangle named "today, 328 days in"; after a layout change the **ghost**, a hollow tick at the old
+  lifetime named "was 69.7 years", with an arrow arc to the new dot where the step is 12 px or more; in the challenge a
+  goal tick "need 200 years from today" ("need 200 yr"). Names sit in three reserved rows over the line, by priority
+  (lasts, today, was, need), each at the nearest clear place within 40 px of its mark. Generator: "2¹⁰ = 1,024
+  generators at once" and, in the challenge, "(need 1,000)". Sequence: "2¹² = 4,096 ids a tick × 1,000 ticks a second
+  = 4,096,000 ids a second each" ("(need 1,000,000)" in the challenge), "4,194,304,000 ids a second from all 1,024".
+- **Narrow stages: controls under their band.** Under 1000 px the controls move onto the stage, each group a
+  `fieldset` with its legend in a surface panel placed in a slot the stage reserves (its measured height): the layout
+  steppers, Tick and Epoch under band B; Requests to G0, What goes wrong and the guard between band C and band D (the
+  lanes they change are just above, the sorted list just below); Random ids and Ids made under band E. So every control
+  is within a scroll of what it changes. Wide, the controls stay in the sticky side column.
+- **Band C, "Three generators, no coordination".** Play (44 px; a Pause toggle with the name "Pause the mint" while it
+  runs) at the right of the header. The caption says the axis is true time and that a faulty lane shows its own ticks.
+  Three lanes of 74 px each (content kept 7 px inside the lane, so a lane's outline can run on its boundary). Each lane
+  is **shaded by its own clock's ticks**, so a dot always lies in the band of the tick it carries (`enum.cjs` checks it
+  for every id of every setting). A faulty lane has a strip with its own tick numbers ("G2's clock" 2, 3, ... 9; G1's
+  0 to 5, then 3, 4, 5 again after the step, a critical tick at 5.5 ms and "−2 ms" where it clears). Gutter: name,
+  "number 0" ("#0"), the fault's note, and "+3 after 8 ms". Each id a dot at its moment (4.5 px, 3.5 narrow); the
+  inspected id accent and ringed; sequence numbers over each dot when they keep 6 px apart, else over the group. A
+  tick's ids stay dots while they were made at least 0.4 ms apart (seven ids in one 10 ms tick are seven dots); only ids
+  made at one moment (a burst) become a **column gauge**: 7 px wide (5 narrow), its left edge at the moment the tick's
+  ids were made, rising from the lane line, full at 2^s, so x stays time. Full columns share a bracket "4 full ticks of
+  1,024" ("4 × 1,024"), the last its count "904", then "last waits 3.95 ms"; the amber wait line runs from the
+  requests' arrival to the last column's left edge (4.0 ms). A repeat: the second copy filled critical with a ring, its
+  first copy hollow critical, joined by a thin critical hairline (under the lane in one lane, straight across lanes for
+  the shared number), each drawn at the repeat's moment and only where it crosses no word. A lane that cannot run says
+  why and draws no lane line. A thin accent now line crosses the lanes while playing, broken around every word.
+- **Band D, "Sorted by id".** Every id in id order; the gutter holds the grouped decimal id (wide) and "…002 · 2 · 1"
+  under the header "timestamp · G · seq": the timestamp's last digits, so the same word names the same number in band A,
+  here and in Describe. In the plot a dot at the moment each id was made, a hairline through them in row order, the
+  true ticks shaded through the plot and an axis under it, so a step back inside a shaded band reads as "within the
+  tick". **21 row slots always** (the most any setting makes); rows sit at their final rank, and while playing a row not
+  yet made is an empty slot with no words and no dot. Equal ids sort by when they were made, so a repeat always sits
+  directly below its twin and reads "same id as the row above" (placed where it crosses no line; the collision report
+  asserts the row above holds the same id). Out-of-time-order ids are **hollow amber** (shape and colour), named in a
+  legend inside the band's region. E3's reveal rings the two ids it asked about here and in the lanes, with "made 0.7
+  ms later, sorts first" (or "sorts first") beside G1's row.
+- **Band E, "Random ids beside them".** The chart as before (log axes, both curves, the marker, "about ...", "below
+  the chart"). The marker's line is registered for placement; the square-law triangle ends 4 px left of it (up leg
+  offset), and when the leftward base would leave the chart it is drawn to the right ("× 1,000 ids" along, "× 10⁶" up,
+  ending at 10¹² ids and about 9.4 × 10⁻¹⁴ at the default). Curve names, the marker's figure and the triangle's labels
+  are placed off every curve, **grid line**, dot and word. Under the chart, the **pairs chain** at the chosen count:
+  "10⁹ ids → about 5.0 × 10¹⁷ pairs × 1 in 1.8 × 10¹⁹ each ≈ 0.027 repeats expected → chance about 2.7%" (each segment
+  kept whole; "≈ 2.7 × 10⁴ repeats expected → chance near certain" at a trillion: the expected count and the chance are
+  told apart). Right (or under): the index strip.
+- **Placement and the collision report.** Every label is measured by `stage-text.ts`'s roles and placed from
+  candidates clear of every word, dot, line (lane, grid, order, now, arcs, triangle, a fault's step), curve, mark and
+  hidden box. The report checks text on text, labels under 6 px apart, every registered line and curve through text,
+  dots on dots and under text, marks under text, the Play and nav buttons and the control groups over text, focus
+  outlines within 6 px of any word or dot, tags on any word, dot, line or mark of any band, text under a hidden box that
+  is not its own, marks off the stage and a repeat's note whose row above is not its twin; the now line is tested at the
+  sampled play moments.
+- **Hidden boxes** are opaque (stage fill, dashed stroke), painted after every mark but the focus outlines, each the
+  exact size of what it hides (band A's lower block, the end date and ghost lines, G0's lane after its first tick, the
+  sorted list's slots, axis and foot, the plot and the pairs chain), with their words centred, so no grid, lane or now
+  line crosses them and the stage keeps its height.
 
-**Motion.** Play runs the 8 ms of the stated clock in 8 s on one monotone play clock (`t` from 0 to 8,000 µs), paused
-by the widget host's visibility, never by one band's. Marks appear as their events arrive and never before: a dot at
-its `issued` moment, its bits in band A (the inspected id is always the newest made), its row inserted at its rank in
-band D (rows tracked by the id's stable key `g1-4`, never `$index`, since rows insert mid-list), a gauge filling as its
-tick's ids are made, a wait line when its id is made, a repeat ring when the second copy is made. A thin accent line
-marks the clock's now across the lanes. The climax is the end of a fault's play: the repeats ring red in the lanes and
-in the list, or, for the burst, the last gauge closes and "last waits 3.95 ms" appears. Changing the layout plays
-nothing; its ghost is said in words. Reduced motion: Play draws the end state at once and a caption under the stage
-(no live role) says "Reduced motion: the mint is drawn at its end." with the mint sentence; no meaning is in motion
-alone. The frame cost is bounded by the stage: 64 cells, at most 20 dots and 20 rows in steady load, and in a burst at
-most one gauge a tick (8) and one row a tick, whatever the count of ids (5,000); the chart is two paths of 241 points.
-A play redraws only the marks whose event the clock passed (at most 20 events in 8 s; the now line moves on the
-compositor).
+**Motion.** Play runs the 8 ms of the stated clock in 8 s on one monotone play clock (`t` from 0 to 8,000 µs), paused by
+the widget host's visibility. Marks appear as their events arrive and never before: a dot at its `issued` moment, its
+bits composing in band A, its row in its slot, a column filling, a wait line, a repeat's ring, its first copy's hollow
+ring and the hairline. While playing the notice says "Playing the mint: 8 ms of the clock, slowed down." and the
+setting's sentence only when the play ends. Changing the layout plays nothing: the ruler's dot steps (200 ms) and leaves
+its ghost. E5 has no play: its reveal slides the marker up from the 122-bit chance to the 64-bit one (600 ms). Reduced
+motion: end states at once, a caption under the stage "Reduced motion: the mint is drawn at its end." with the mint
+sentence; nothing is said by motion alone. Element counts: 64 cells, at most 20 dots and 21 rows, one column a tick for
+a burst of any size, two chart paths.
 
 ## 3. The experiments
 
-Five predictions and a challenge. Answers sit at positions 3, 1, 2, 1, 3 (`enum.cjs` asserts them), and choice
-lengths are within 2.6 times of each other. Each card sets its setup, asks with its hidden regions hidden on every
-surface, plays its act on answering with the same regions still hidden, then reveals: the regions return, the choices
-are marked, the reveal is read out, and the focus regions get a solid accent outline with a "Look here" tag.
+Five predictions and a challenge. Answers sit at positions 3, 1, 2, 1, 3 (`enum.cjs` asserts them); choice lengths are
+within 2.6 times of each other; **no experiment's setup or act passes the challenge** (`enum.cjs`). Each card sets its
+setup and asks with its hidden regions hidden on every surface; it plays its act on answering with them still hidden;
+then reveals (outlines 8 px outside their region, a lane's on its boundary, each with a "Look here" tag). A hide flag
+covers only what can answer: `lifetime` hides a lifetime other than the setup's, `burstAfter` only a burst's later ticks,
+so E1 and E2 ask over a stage with nothing hidden.
 
-1. **One bit for the generators.** Setup: the default (Snowflake). Ask: "Snowflake's timestamp has 41 bits of 1 ms
-   ticks and lasts 69.7 years. Move one bit from it to the generators, for 2,048 generators. How long does the
-   timestamp last now?" Choices: "About 139.4 years" / "About 68.7 years: one year less" / **"About 34.8 years"**.
-   Act: set `gen: 11` (the ruler's marker moves one bit step). Reveal: "The timestamp now holds 2⁴⁰ ticks, and 2⁴⁰ × 1
-   ms is 34.8 years, ending on 3 November 2060 instead of 7 September 2095. A bit is a doubling, so every bit moved out
-   of the timestamp halves its lifetime, and every bit moved in doubles it: the marker on the ruler steps one bit
-   left." Focus: the timestamp row and the ruler. Hides (`lifetime`): band B's result ("= ?" in the chain, a dashed
-   "Hidden until you answer" box for the end date), the ruler's lifetime marker and its name, the summary's timestamp
-   sentence, Describe. The chain "2⁴⁰ ticks × 1 ms =" stays: computing it is the lesson, and nothing on the stage
-   prints the product.
-2. **A burst in one tick.** Setup: default with 10 sequence bits (steady load, so nothing waits on the stage). Ask:
-   "With 10 sequence bits a generator has 1,024 sequence numbers a tick. G0 gets 5,000 requests at 0.05 ms. How long
-   does the last of them wait for its id?" Choices: **"About 4 ms, four ticks later"** / "None: they all fit in that
-   tick" / "About 1 ms, until the next tick". Act: set `load: 1`, play. Reveal: "Each tick gives G0 only 1,024 ids,
-   so the 5,000 requests take 5 ticks: four full gauges, then 904 ids in the last, and the last request waits 3.95 ms.
-   The generator never repeats a sequence number; it waits for the clock. The other generators are not slowed at
-   all." Focus: G0's lane. Hides (`burstAfter`): G0's ticks after the first (a dashed box over them in the lane, "Later
-   ticks hidden until you answer"), the bracket and counts, the wait line, G0's later rows in the sorted list, the
-   burst sentence.
-3. **Which id sorts first.** Setup: the default. Ask: "In the tick at 7 ms, G2 makes an id at 7.1 ms and G0 makes one
-   at 7.8 ms. Which id is smaller, so it sorts first?" Choices: "G2's: it was made first" / **"G0's: its generator
-   number is lower"** / "Whichever has the lower sequence number". Act: play. Reveal: "Both ids carry the same
-   timestamp, the tick at 7 ms. The next bits are the generator's number, and 0 is below 2, so G0's id sorts first
-   although it was made 0.7 ms later; the sequence bits come last and only break ties within one generator. Ids sort
-   by time only to the tick." Focus: the sorted list. Hides (`order`): the whole sorted list (one dashed box: every tick
-   shows the same rule, so hiding only tick 7 would leave the answer in tick 0), the inspected id's bits and decimal
-   value (comparing decimals would answer it), the summary's order sentence, Describe. The field order in band A's
-   names stays: reasoning from the layout is the point.
-4. **The clock steps back.** Setup: default with the guard off and no fault (nothing repeats at rest). Ask: "G1 trusts
-   its clock: it does not keep its last timestamp. At 5.5 ms its clock steps back 2 ms. What happens to the ids it
-   makes after that?" Choices: **"Some repeat ids it already made"** / "They sort before its earlier ids, but none
-   repeats" / "Nothing goes wrong: the sequence keeps them apart". Act: set `fault: 2`, play. Reveal: "Two ids are made
-   twice: after the step G1's clock reads ticks it has used, and its sequence starts again at 0, so it makes the same
-   timestamp, number and sequence as before. Turn on "Keep the last timestamp" and G1 waits 0.7 ms for its clock to
-   pass the last timestamp it used, and none repeats." Focus: G1's lane and the sorted list. Hides (`repeats`, which
-   also sets `order`): repeat colours and rings in the lanes (dots drawn plain), the sorted list, the inspected id, the
-   repeat and order sentences ("Whether any id repeats is hidden until you answer."), Describe.
-5. **A billion random ids.** Setup: 122 random bits, a billion ids (the stage shows "about 9.4 × 10⁻²⁰", not the
-   answer). Ask: "A billion ids, each 64 random bits: 2⁶⁴ values, about 18 billion billion. What is the chance that any
-   two are equal?" Choices: "About 1 in 18.4 billion" / "About 50%" / **"About 2.7%"**. Act: set `bits: 64`. Reveal: "By
-   the birthday bound the chance is about 2.7%: every pair of ids is a chance to collide, and a billion ids make about
-   5.0 × 10¹⁷ pairs. One new id against the rest is the 1 in 18.4 billion. At 122 bits, a UUIDv4's, the same billion
-   gives about 9.4 × 10⁻²⁰." Focus: the chart. Hides (`chance`): both curves, the marker and its figure, the triangle
-   (one dashed box over the plot, "The curves are hidden until you answer"; the axes stay), the random sentence,
-   Describe; the "64 random bits" segment is locked while asking, as every control is.
+1. **One bit for the generators.** Setup: Snowflake (the default). While asking the ruler shows "lasts 69.7 years" and
+   the chain "2⁴¹ ticks × 1 ms = 69.7 years". Ask: "Snowflake's timestamp has 41 bits of 1 ms ticks and lasts 69.7
+   years. Move one bit from it to the generators, for 2,048 generators. How long does the timestamp last now?"
+   Choices: "About 139.4 years" / "About 68.7 years: one year less" / **"About 34.8 years"**. Act: `gen: 11`. During the
+   play: "2⁴⁰ ticks × 1 ms = ?", the end date and ghost words in a hidden box, the ghost tick "was 69.7 years" and a
+   dashed box on the ruler where the new dot will land, named "lasts ?" (the guess is held; the box gives no figure).
+   Reveal: "The timestamp now holds 2⁴⁰ ticks, and 2⁴⁰ × 1 ms is 34.8 years, ending on 3 November 2060 instead of 7
+   September 2095. A bit is a doubling, so every bit moved out of the timestamp halves its lifetime, and every bit moved
+   in doubles it: on the ruler the marker steps one bit left of its ghost." The dot animates the one step. Focus: the
+   timestamp row and ruler. Structure checks: one lifetime marker and no ghost while asking; no lifetime marker during the
+   play.
+2. **A burst in one tick.** Setup: gen 12, seq 10 (41 timestamp bits, 69.7 years, 4,096 generators: the lesson's own
+   worked-example layout, not the challenge's answer). Asked over the plain trickle, nothing hidden. Ask: "With 10
+   sequence bits a generator has 1,024 sequence numbers a tick. G0 gets 5,000 requests at 0.05 ms. How long does the
+   last of them wait for its id?" Choices: **"About 4 ms, four ticks later"** / "None: they all fit in that tick" /
+   "About 1 ms, until the next tick". Act: `load: 1`, play; G0's later ticks are a hidden box "G0's later ticks are
+   hidden until the reveal" in the lane and "G0's later ids ..." in the list's empty slots; no bracket, count or wait
+   line. Reveal: "Each tick gives G0 only 1,024 ids, so the 5,000 requests take 5 ticks: four full gauges, then 904 ids
+   in the last, and the last request waits 3.95 ms. ..." Focus: G0's lane.
+3. **Which id sorts first.** Re-aimed at clock skew, which the rest view does not settle (at rest the earlier-made id
+   sorts first; `enum.cjs` checks both). Setup: fault 1 (G2's clock 2 ms ahead). Ask: "G2's clock runs 2 ms ahead. G2
+   makes an id at 3.7 ms and G1 makes one at 4.4 ms, by true time. Which id is smaller, so it sorts first?" Choices:
+   "G2's: it was made first" / **"G1's: its timestamp is lower"** / "Whichever has the lower sequence number". Act:
+   play. Hides (`order`, `inspect`): the sorted list (its slots, axis and foot as one box), the id's digits and the
+   lower block of band A (the field names and brackets stay), the order sentence, Describe. Reveal: "G2's clock read 5.7
+   ms when it made its id, so its timestamp is the tick at 5 ms; G1's id carries the tick at 4 ms. The timestamp is the
+   high bits, so G1's id sorts first although it was made 0.7 ms later. Each generator stamps ids with its own clock, so
+   across machines ids are only as time-ordered as their clocks agree." Focus: the sorted list, with the pair ringed.
+4. **The clock steps back.** As before (setup guard off, no fault; act fault 2; hides `repeats`, which sets `order`).
+   The reveal now shows the pairs: G1's second copies ringed, the first copies hollow, the hairlines, and both rows
+   "same id as the row above" directly under their twins.
+5. **A billion random ids.** As before (setup 122 bits, a billion; hides `chance`: the plot and the pairs chain, two
+   opaque boxes, the box's words set between grid rows). No play: answering reveals at once and the marker slides up.
+   The reveal's pair count and the "1 in 18.4 billion" distractor are now drawn in the chain ("× 1 in 1.8 × 10¹⁹ each" is
+   one pair's chance; the distractor is one id against the rest).
 6. **Challenge: size the layout.** "Design the layout for up to 1,000 generators, each able to make 1,000,000 ids a
-   second on its own, lasting at least 200 years." Goal `all`: `generators atLeast 1000`, `perSecond atLeast 1e6`,
-   `years atLeast 200`. Exactly one of the 578 layouts passes: 10 generator bits, 10 sequence bits, a 1 ms tick
-   (43 timestamp bits, 278.7 years). The dock's checklist says each bound with the current value ("1,024 generators
-   (need 1,000)", "4,096,000 ids a second each (need 1,000,000)", "lasts 69.7 years (need 200)"), "2 of 3 met" or
-   "Goal met" only while all three hold; the notice says the setting's sentence when the challenge opens, and "Goal
-   met." plus it when met by hand or keyboard. The answer is the interview's reasoning: the sequence needs only 10 bits
-   (1,024 a ms), so give the two spare bits to the timestamp, which quadruples its lifetime.
+   second on its own, lasting at least 200 years from today." Bounds: `generators ≥ 1000`, `perSecond ≥ 1e6`,
+   `yearsLeft ≥ 200` (from the stated clock to the timestamp's end, so the epoch counts). Exactly one layout passes,
+   on either epoch: 10 and 10 bits, 1 ms (278.7 years from 2026, 222 left on the 1970 epoch). The checklist: "1,024
+   generators (need 1,000)", "4,096,000 ids a second each (need 1,000,000)", "lasts 68.8 years from today (need 200
+   years)", each "(need ...)" kept whole by g-code-text's keep rule; the goals are also drawn on the stage (the ruler's
+   goal tick, the chains' "need").
 
-Slots: every number in an ask, choice or reveal comes from `experiments()` (years, dates, counts, ms, chance). Word
-slots carry no digits (the "four" of E2 is a number word from the model).
+Slots: every number in an ask, choice or reveal comes from `experiments()`. The dock's choice tags ("Your guess",
+"Right") sit on the choice's top border, out of the text flow, so no choice changes size when tagged (layout check: each
+choice's height is equal before and after). On a phone the dock moves above the stage while an experiment or the
+challenge is open, and answering scrolls the band its act plays on into view.
 
 ## 4. Accessibility
 
-- The stage is `role="img"` named by the summary (`summaryText()`, the same string Describe shows), which hides what
-  the open question hides. Band labels are text in the SVG; the stage reads as one image.
-- Live notice: one polite, `aria-atomic="true"` region; never blank: the setting's sentence at rest; the question's
-  title and "the part it is about is hidden until you answer" while asking; "Playing your guess." while the answer
-  plays; the reveal after; the setting's sentence (or "Goal met." and it) for the challenge.
-- Keyboard: steppers are buttons (− and + with names "One generator bit fewer/more"; the value is an `output`), the
-  segments are native radios in fieldsets with legends (arrow keys move within), the guard a native checkbox, Ids made a
-  native range with `aria-describedby` its output. Play is a 44 px button named "Play the mint: 8 ms of the clock,
-  slowed down". Tapping a dot or a row to inspect is a convenience; the same ids are a table in Describe.
-- Every target is at least 44 px; the two-by-two fault segments keep 44 px when their labels wrap to two lines.
-- Describe: "Describe the ids" opens the summary and a table of the ids in id order (#, id, made by, made at, tick,
-  sequence, waited, note), the first 40 rows with "The first 40 of 5,012 ids in id order." for a burst. It is a
-  `minmax(0, 1fr)` grid with the table scrolling inside its own box (max 360 px), and it goes compact (#, tick · G ·
-  seq, made, note) when the stage is under 520 px. Disabled, with "Describe opens after you answer.", while a question
-  asks and plays.
+- The stage is `role="img"` named by the summary, which hides what the open question hides.
+- Live notice: one polite, `aria-atomic="true"` region that says **only what changed**: a stepper "The layout now has
+  11 generator bits and 12 sequence bits: 2,048 generators, 4,096,000 ids a second each; the timestamp keeps 40 bits and
+  lasts 34.8 years."; Tick or Epoch the timestamp's sentence; a mint control the mint sentence; Random ids the chance.
+  "Playing the mint: 8 ms of the clock, slowed down." while playing. The question's title while asking (with "the part
+  it is about is hidden until you answer" only when something is hidden), "Playing your guess." during the play, the
+  reveal after, "Goal met." plus the layout when the challenge is met. The full summary lives in the stage's name and
+  Describe.
+- Keyboard: steppers are buttons; segments native radios in fieldsets with legends; the guard a checkbox; Ids made a
+  range with its output (two reserved lines on a phone); Play/Pause a 44 px button; **Older id / Newer id** 44 px
+  buttons step the inspected id (disabled while it is hidden); a tap on a dot or row is a convenience only.
+- Every target is at least 44 px; the fault segment keeps "number 1" whole ("G2 given / number 1" at 320 px).
+- Describe: a table in id order with the fields of each id (#, id, made by, made at, timestamp, generator, sequence,
+  waited, note; compact: #, timestamp · G · seq, made, note), so screen-reader users get band A's content for every id.
+- The audit adds the cell-digit contrast (each field's ink on its tint, on-fill digits on fills) and a colour-blind
+  simulation (deuteranopia, protanopia) of band D, where out-of-order ids are hollow as well as amber.
 
 ## 5. The prevention list
 
-1. **Giveaways on every surface.** One `hiding()` map (the mockup's, ported as `ids-words.ts`) from the five hidden
-   regions to flags (`lifetime`, `burstAfter`, `order`, `inspect`, `repeats`, `chance`, `summary`, `describe`), read by
-   the stage, the summary, the notice, Describe, the story and the stage's accessible name; the hide holds through the
-   answer's play (the `play` state) and releases at the reveal. No control text names an answer (the fault segments
-   name the premise, which the question states anyway). The no-answer sweep (`shoot.cjs`) checks each question asking
-   and at four moments of its play, with motion off and on: forbidden text (the truth's figure, the reveal's figures,
-   "same id", "made twice", "904") over the SVG text, the stage's title, the notice, Describe, every aria-label and the
-   story; and structure (no lifetime marker, no gauge after the first, no sorted dots or order line, no bit digits, no
-   repeat rings, no curves). It is proven by a leak planted on each flag a question uses (eight in all) that it must
-   catch.
-2. **False claims.** Every sentence is built from the model for the setting it is printed at, and `enum.cjs` checks all
-   18,496 mint settings and 10 random ones by rule: no sentence opens on a numeral, no NaN, Infinity or "undefined", no
-   number of five or more digits without separators (dates excepted), plural and singular agree with their numbers, the
-   skew sentence names G2 only when every out-of-order id is G2's, a wait is called "a tick holds only N ids" only when
-   the wait came from a full tick (the clock guard's waits say "clock behind"), a 10 ms tick says "every id here shares
-   one timestamp", lanes that cannot run say why. Hidden values are replaced by a hidden box or "= ?", never by a
-   default; a sample (the 20 ids) is never called a rate.
-3. **Track by stable id.** Rows and dots are keyed by the id's key (`g2-1`), groups by their first id's key; rows insert
-   mid-list while a play runs.
-4. **Labels.** Lane and row labels sit in a gutter the plot never enters; sequence numbers over dots, outside the lane
-   line; wait labels under the line and only where they collide with nothing; the ruler's names over the line, nudged
-   apart, its tick labels under it; curve names placed off every curve; text has a stage-coloured halo (paint-order
-   stroke). Rings stroke only, 3.5 px outside their dot. The collision report checks text on text, labels under 6 px
-   apart on a row, lines and curves through text, dots under text, marks under text, dots on dots (the stated arrivals
-   keep 0.4 ms apart so dots clear at 320 px), marks off the stage and the Play button over text.
-5. **Look-here tags.** A tag goes at the first corner of its outline that covers no text; `shoot.cjs` asserts every
-   reveal has a visible tag per focus region, inside the stage, with no collision, at 14 widths from 300 to 1,280.
-6. **Marks before their event.** One play clock; every mark tests `issued <= t` (dots, rows, gauges by the ids made so
-   far, wait lines, repeat rings, the inspected id).
-7. **Visibility and reduced motion.** The play pauses on the widget host's visibility (`document.hidden` in the
-   mockup); Reduced motion draws the end state and writes the story; nothing is said only by motion.
-8. **CSS traps.** Every `fieldset.group` carries zero padding and its class only adds; controls are checked at 320 px.
-9. **Words.** Full sentences built from the model; numbers that open a sentence are words ("Two ids repeat", "In all,
-   5,012 ids"); thousands separators throughout; the challenge's status is a checklist with "Goal met" only while all
-   bounds hold; the notice says the setting's sentence after a reveal and when the challenge opens, never blank.
-10. **Describe** fits or goes compact by stage width (under 520 px) and scrolls inside its own box; checked at 320,
-    412, 1,280 and 1,440 px by the builder's layout spec.
-11. **Touch hints.** The only on-stage hint is the inspect tap; its "Tap a dot to see its bits" hint clears on Play, a
-    settings change, an outside tap and after 4 s.
-12. **Placeholder heights.** Every band's height is a function of width and of the setting's line counts (wrapped by
-    measure), so the builder's measured heights at 320, 360, 375, 390, 412 and 430 px are exact and swept 300 to 1,300.
-    The lazy placeholder uses the default's.
-13. **Text measurement.** One module (`stage-text.ts`) with the roles above; digits in mono are tabular by nature, and
-    Inter labels are measured as drawn (proportional), never with `tabular-nums`.
-14. **g-code-text.** Learner text in HTML (the dock, reveal, notice, Describe's summary, the checklist) goes through
-    `g-code-text` with a widget keep rule for "2⁴¹ ticks", "1 ms", "4,096,000 ids", "9.4 × 10⁻²⁰", "0 · 0 · 0" and dates
-    ("7 September 2095" on one line); the notice is `aria-atomic`.
-15. **Element counts.** Bounded by the stage: 64 cells, 20 dots and rows (one gauge and one row a tick for a burst of
-    any size), 37 ruler steps, 12 pages twice, 6 insert marks a page; the chart is two paths. Keydown to the second
-    frame and the play's frame rate are measured by the builder on a Pixel 7 profile at 4x CPU in the burst at 0
-    sequence bits (5,000 ids in the model, 8 gauges drawn).
-16. **Zoneless reads.** Specs wait for the summary or a web-first assertion before reading; the e2e runs on the WebKit
-    iPhone project too.
-17. **Marks mean one thing.** Dashed is used only for "hidden until you answer" (the hidden boxes); focus outlines are
-    solid; an empty page is a solid hairline box; rings stroke only, around the whole dot.
-18. **On-scale values.** E1's 34.8 years and 69.7 sit on the ruler (2^30 to 2^67 ms covers every layout: 2^31 to
-    2^63 × 10 ms); E5's 2.7% and 9.4 × 10⁻²⁰ on the chart (10⁻²⁴ to 1); a chance under 10⁻²⁴ is said "below the chart";
-    ids after 8 ms are counted in words in their lane and under the list. Ghosts are words ("was 69.7 years with 41
-    bits"), never a bare tick.
-19. **Units and drawn conversions.** Shortest forms keep the unit ("1 yr", "4 × 1,024", "+3 after 8 ms"); the clock to
-    timestamp conversion, the lifetime product, the ids-a-second product and the square law are each drawn on the stage.
-20. **Layout.** Reserved lines collect at each band's foot; a checked segment keeps its weight; on the phone layout,
-    answering scrolls the band its act plays on into view (E1 band B, E2 band C, E3 and E4 band D, E5 band E) before
-    the play starts.
-21. **Wrap by measure.** All stage text and the HTML texts a height depends on wrap with `stage-text.ts`'s measure,
-    6 px slack and keep rules; segments (field values, the conversion) wrap only at their joins.
-22. **One state.** The band, the dock's checklist, the stage and Describe read one computed state (`view.s` and its
-    mint), so a goal reached by stepper, keyboard or play shows the same everywhere; no surface shows NaN, Infinity or an
-    empty cell mid-play (rows exist only for made ids, and the inspected id is null until the first id, which the band
-    says: "No id made yet: press Play.").
-23. **WebKit and CI.** The builder's tests use deterministic waits (no focus or input races), read the latest
-    IntersectionObserver entry, pass on the WebKit iPhone project, and run in a ci.yml dispatch on the wip branch.
+1. **Giveaways on every surface.** One `hiding()` map, read by the stage, the summary, the notice, Describe, the story
+   and every accessible name; flags cover only what can answer. The no-answer sweep checks each question asking and at
+   five moments of its play (E5 has none), motion off and on, for forbidden text (E1 "34.8", "3 November 2060",
+   "halves"; E2 "3.95 ms", "904", "4 × 1,024", "full ticks"; E3 "sorts after", "sorts first", "made 0.7 ms later";
+   E4 "same id", "made twice", "Two ids"; E5 "2.7%", "0.027") and structure, and fails on any collision in those
+   renders; proven by a planted leak on each flag.
+2. **False claims.** Sentences built from the model, checked by rule at every setting; equal ids sort by when they were
+   made, so "same id as the row above" is always true (`enum.cjs` and the collision report); every dot is in its own
+   tick's band (`enum.cjs`); a lane's band A header names both readings of a wrong clock.
+3. **Track by stable id**; rows have fixed slots at their final rank.
+4. **Labels.** Candidates clear of lines, grid lines and dots; hidden boxes opaque; the now line broken around words.
+5. **Look-here tags** inside or outside their outline, clear of every word, dot, line and mark of any band; outlines 6 px
+   or more from any word; swept at 14 widths.
+6. **Marks before their event.** One play clock.
+7. **Visibility and reduced motion.**
+8. **CSS traps.** `.segment > span` styles only the segment's face (a nested keep span is not a second button).
+9. **Words.** Grouped thousands everywhere, ids included; one term, "timestamp", for the field in all three places.
+10. **Describe** compact under 520 px, its box scrolls.
+11. **Touch hints.** None needed: Older and Newer are visible buttons.
+12. **Placeholder heights.** One height per width, measured into `widget-heights.ts` at 320, 360, 375, 390, 412 and 430
+    px (with the control groups on the stage) and asserted over every setting and experiment phase.
+13. **Text measurement.** One module.
+14. **g-code-text** keep rule: numbers with units, "(need 1,000,000)", "number 1", dates, "9.4 × 10⁻²⁰".
+15. **Element counts** bounded by the stage.
+16. **Zoneless reads.**
+17. **Marks mean one thing.** Dashed only for hidden; hollow amber for out of time order; hollow critical for a
+    repeat's first copy; a hollow tick for a ghost.
+18. **On-scale values**, and ghosts drawn (a hollow tick with words) as well as said.
+19. **Drawn conversions**: the clock-to-timestamp chain, field values under brackets, the lifetime chain, the pairs
+    chain, the square law.
+20. **Layout.** Nothing moves a band; a tagged choice keeps its size; controls within a scroll of their band.
+21. **Wrap by measure** with keep rules and reserved line counts.
+22. **One state.**
+23. **WebKit and CI.**
 
 ## 6. What a learner can say in an interview afterwards
 
@@ -356,14 +333,20 @@ across the index."
 
 ## 7. Lesson text fixes (`libs/engine/src/sysdesign/lessons/ids.ts`)
 
+The lesson page renders Try it first and the concepts, worked examples and follow-ups below it, so any of them can
+answer a prediction before the learner scrolls back. Each fix removes an answer, never the idea:
+
 - Remove `widget.tryThis` (all three lines); the experiments replace it.
-- Concept "Random ids and the birthday bound": keep, but it quotes E5's answer ("a billion already gives about a
-  2.7% chance"). Change to "a few billion already make a repeat likely" so the page above the widget does not answer
-  E5; the reveal carries 2.7%.
-- Concept "The Snowflake layout": it says "2^41 ms is about 69.7 years", which E1's ask states anyway; keep. Add one
-  clause the widget shows: "ids from the same millisecond sort by generator, not by when they were made".
-- Concept "Clocks and generator ids": keep; it matches the guard toggle ("waits out a small backwards jump").
-- Worked example "Size a Snowflake layout for a peak": its numbers (12 and 10 bits, 41 timestamp bits) differ from the
-  challenge's solution (10 and 10, 43 bits), so it does not answer the challenge; keep.
-- The engine's content spec gains a check that no lesson text prints "34.8 years", "3.95 ms", "2.7%" or "278.7 years"
-  (E1, E2, E5 and the challenge's answers), as the Storage note's engine check does.
+- Concept "Random ids and the birthday bound": "a billion already gives about a 2.7% chance" becomes "a few billion
+  already make a repeat likely" (E5).
+- Concept "The Snowflake layout": keep "2^41 ms is about 69.7 years" (E1's ask states it). No clause is added.
+- Worked example "Size a Snowflake layout for a peak": its step that prints the 40-bit lifetime ("about 34.8 years")
+  becomes "each extra bit halves the lifetime", with no figure (E1). Its step "Ids sort by millisecond, then by
+  generator" becomes "across generators they are only roughly time-ordered" (E3), naming no tie-break.
+- Concept "Clocks and generator ids": "a generator could reissue a timestamp and sequence it already used" becomes "if
+  an NTP step moves it back, the generator's ids are no longer safe", without saying they repeat (E4).
+- Follow-up "ids from the same millisecond sort by generator id" becomes "across generators they are only roughly
+  time-ordered" (E3).
+- The engine's content spec gains a check over every string of the lesson (concepts, examples, follow-ups, pitfalls)
+  that bans "34.8", "3.95 ms", "2.7%", "278.7", "sort by generator", "then by generator", "reissue" and "same timestamp
+  and sequence" (E1, E2, E5, the challenge, E3 and E4), as the Storage note's engine check does.
