@@ -201,6 +201,43 @@ for (const [name, s] of quick ? DES_SETTINGS.slice(0, 3) : DES_SETTINGS) {
 }
 console.log(`   worst edge gap ${(worstEdge * 100).toFixed(2)} points; worst origin gap with a shield ${(worstShield * 100).toFixed(2)} points`);
 
+// 3b. The model's stated assumption: a copy fetched from the shield lives a full TTL at the edge (Age ignored), so the
+// oldest image a user can get behind a shield is two TTLs old, and one TTL without a shield. Simulated for one object.
+{
+  const T = 60;
+  const rand = M.mulberry32(11);
+  for (const shield of [0, 1]) {
+    let edgeEnd = -1;
+    let edgeBorn = 0;
+    let shieldEnd = -1;
+    let shieldBorn = 0;
+    let worst = 0;
+    let t = 0;
+    for (let i = 0; i < 200000; i++) {
+      t += -Math.log(1 - rand()) / 0.05;
+      if (t < edgeEnd) {
+        worst = Math.max(worst, t - edgeBorn);
+        continue;
+      }
+      edgeEnd = t + T;
+      if (shield && t < shieldEnd) edgeBorn = shieldBorn;
+      else {
+        edgeBorn = t;
+        shieldBorn = t;
+        shieldEnd = t + T;
+      }
+      // Other locations keep the shield's copy renewing while this one waits.
+      if (shield && rand() < 0.5) {
+        shieldBorn = t - rand() * T * 0.99;
+        shieldEnd = shieldBorn + T;
+        edgeBorn = shieldBorn;
+      }
+    }
+    check(shield ? worst > 1.5 * T && worst <= 2 * T + 1e-6 : worst <= T + 1e-6, `staleness ${shield ? 'with' : 'without'} a shield: ${worst / T} TTLs`);
+    console.log(`   staleness ${shield ? 'with' : 'without'} a shield (Age ignored): at most ${(worst / T).toFixed(2)} TTLs`);
+  }
+}
+
 // 4. The square's areas are the shares, exactly.
 console.log('4. The square\'s areas');
 for (const s of M.SETTINGS) {
@@ -292,7 +329,7 @@ for (const e of M.EXPERIMENTS) {
   filled.forEach((t, i) => console.log(`      ${e.choices[i].right ? '*' : ' '} ${t}`));
   console.log(`      reveal: ${M.fill(e.reveal, v)}`);
 }
-check(positions.join() === '3,1,3,2,1', `answer positions ${positions}`);
+check(positions.join() === '2,1,3,2,1', `answer positions ${positions}`);
 console.log(`   answer positions ${positions.join(', ')}`);
 // Word claims.
 {
@@ -302,7 +339,9 @@ console.log(`   answer positions ${positions.join(', ')}`);
   const rank = (x) => Math.round(x);
   // E1: the right choice's rank is where a copy is asked for once per TTL; the wrong ones are the per-second and per-minute ranks.
   check(near(M.key(e1.setup, rank(k)).edge, 0.5, 0.001), 'E1 knee hits half');
-  check(M.key(e1.setup, 41).perPop >= 0.99 && M.key(e1.setup, 41).perPop < 1.03, 'E1 41st once a second');
+  // The forgot-the-split choice: across the whole CDN the last object is asked for about 2.5 times per TTL.
+  check(near((M.key(e1.setup, M.OBJECTS).rate * e1.setup.ttl), 2.48, 0.01), 'E1 the 100,000th 2.5 times per TTL across the CDN');
+  check(M.slots(e1, e1.setup).tailPerTtl === '2.5', 'E1 tail slot');
   check(Math.abs(M.key(e1.setup, 2500).perPop * 60 - 1) < 0.01, 'E1 2,500th once a minute');
   check(M.scenario(e1.setup).lanes[2].edge < 0.5, 'E1 25,000th misses mostly');
   // E1's answer is not on the load-time stage: the default's half-hit rank differs.
@@ -325,6 +364,10 @@ console.log(`   answer positions ${positions.join(', ')}`);
   const off5 = M.scenario({ ...M.afterAct(e5), shield: 0 });
   check(b5.originRps > a5.originRps && b5.originRps < off5.originRps && b5.shieldShare > 0.2, 'E5 the shield still helps');
   check(near(b5.edgeShare, M.scenario({ ...e5.setup, pops: 200 }).edgeShare, 1e-9), 'E5 same as ten times the locations at the edge');
+  // ...but not at the shield: ten URLs raise the shield-backed origin load, ten times the locations do not.
+  const p200 = M.scenario({ ...e5.setup, pops: 200 });
+  check(b5.originRps > p200.originRps + 1000 && near(p200.originRps, a5.originRps, 1e-6), 'E5 ten URLs are not ten times the locations behind a shield');
+  check(b5.shieldShare - a5.shieldShare < a5.edgeShare - b5.edgeShare, 'E5 the shield wins back far less than the edge lost');
   // Every asked number differs from the load-time stage's same number.
   for (const e of [e2, e3, e4, e5]) check(fmt.sig3(M.scenario(M.afterAct(e)).originRps) !== fmt.sig3(base.originRps), `E${e.id} answer not at rest`);
 }
@@ -336,12 +379,21 @@ console.log(`      ask: ${M.fill(M.CHALLENGE.ask, M.challengeSlots(M.BASE))}`);
 console.log(`      reveal: ${M.fill(M.CHALLENGE.reveal, M.challengeSlots(pass[0]))}`);
 noDigits(M.CHALLENGE.ask, 'challenge ask');
 noDigits(M.CHALLENGE.reveal, 'challenge reveal');
+M.CHALLENGE.checks.forEach((c, i) => noDigits(c, `challenge check ${i}`));
+for (const s of M.SETTINGS) {
+  const v = M.challengeSlots(s);
+  for (const t of [M.fill(M.CHALLENGE.ask, v), M.fill(M.CHALLENGE.reveal, v), ...M.CHALLENGE.checks.map((c) => `${M.fill(c, v)}: met.`)]) {
+    check(!/(^|[.!?] )\d/.test(t), `challenge sentence opens on a numeral: ${t.slice(0, 50)}`);
+    check(!/\u2014|\u00a0/.test(t), 'challenge dash or nbsp');
+  }
+}
+console.log(`      checks at the solution: ${M.CHALLENGE.checks.map((c) => M.fill(c, M.challengeSlots(pass[0]))).join(' / ')}`);
 console.log('      settings with rps 10,000, a normalized key and a TTL of at most 5 minutes:');
 for (const s of M.SETTINGS.filter((x) => x.rps === 10000 && x.variants === 1 && x.ttl <= 300)) {
   const a = M.scenario(s);
   const g = M.goalParts(s);
   console.log(
-    `      ${String(s.pops).padStart(3)} locations, ${fmt.ttlShort(s.ttl).padEnd(5)}, shield ${s.shield ? 'on ' : 'off'}: origin ${fmt.rate(a.originRps).padStart(8)}, mean ${fmt.ms(a.meanMs).padStart(8)} ${g.met ? 'PASS' : ''}`,
+    `      ${String(s.pops).padStart(3)} locations, ${fmt.ttlShort(s.ttl).padEnd(5)}, shield ${s.shield ? 'on ' : 'off'}: origin ${fmt.rate(a.originRps).padStart(8)}, mean ${fmt.mean(a.meanMs).padStart(8)} ${g.met ? 'PASS' : ''}`,
   );
 }
 const sol = M.scenario(pass[0] ?? M.BASE);

@@ -10,7 +10,9 @@
 // combined; a location's own earlier misses can never have left it a copy (they are at least a TTL old), so its miss
 // hits the shield by the same rule at the other locations' combined miss rate (enum.cjs simulates it). Objects never
 // change during their TTL, caches are unlimited, a miss is fetched at once (request collapsing makes requests that
-// arrive during a fetch wait for it, not fetch again).
+// arrive during a fetch wait for it, not fetch again). A copy fetched from the shield lives a full TTL at the edge (the
+// Age header is ignored), so with a shield an image can be up to two TTLs old; the challenge's freshness cap is
+// therefore on how long each cache keeps a copy, not on staleness.
 //
 // Every number the learner reads comes from the functions here. The old `cdnOutcome`'s edge hit rate, origin share
 // and rate are unchanged at every setting without a shield, and its mean response time too at 20 locations. What
@@ -224,7 +226,8 @@
     arrivals.sort((a, b) => a.at - b.at);
     const copies = [];
     let copyEnd = -Infinity;
-    if (rand() < lane.shieldHit) {
+    // The shield holds a copy a fraction hit(toShield, T) of the time (every location's misses renew it).
+    if (rand() < hit(lane.toShield, T)) {
       copyEnd = rand() * T;
       copies.push({ from: copyEnd - T, to: copyEnd, earlier: true });
     }
@@ -294,11 +297,13 @@
   }
   const pct = (x) => {
     const v = x * 100;
-    if (v >= 99.95 && v < 100) return '99.9%+';
+    if (v >= 99.95 && v < 100) return 'over 99.9%';
     if (v > 0 && v < 0.05) return 'under 0.1%';
     return `${v.toFixed(1)}%`;
   };
   const ms = (v) => `${v.toFixed(1).replace(/\.0$/, '')} ms`;
+  /** A mean response, three significant figures: 26.0 ms, 46.9 ms, 4.62 ms, 130 ms. */
+  const mean = (v) => `${v.toPrecision(3)} ms`;
   const rate = (v) => `${sig3(v)}/s`;
   const ord = (n) => {
     const r = Math.round(n);
@@ -341,9 +346,9 @@
       hide: ['curve'],
       ask: 'At {pops} locations with a {ttlAdj} TTL, the object at popularity rank k is asked for about {perRankTotal} ÷ k times a second, spread evenly over the locations. Each location keeps a copy for the TTL after a miss. From about which rank down do most of an object\'s requests miss at the edge?',
       choices: [
-        { text: 'From about the {wrongSecond}: below it, an object is asked for less than once a second at a location', right: false },
         { text: 'From about the {wrongMinute}: below it, an object is asked for less than once a minute at a location', right: false },
         { text: 'From about the {knee}: below it, an object is asked for less than once per TTL at a location', right: true },
+        { text: 'Almost none: across the CDN, even the {lastRank} is asked for about {tailPerTtl} times per TTL', right: false },
       ],
       reveal:
         'From about the {knee}. A copy lives for the TTL after the miss that fetched it, so what decides a hit is how often its object is asked for at one location within one TTL. Split over {pops} locations, the {knee} most popular object is asked for about once every {ttlWords} at each: one miss, then on average one hit, half its requests. More popular objects hit more often; the {rank25k} hits {lane3Hit} of the time, and the {tailCount} least popular objects, {tailShare} of all requests between them, hit least of all. The green area is the edge\'s share: {edgeShare}.',
@@ -378,7 +383,7 @@
         { text: 'About {less}: fewer than with {pops20} locations and no shield', right: true },
       ],
       reveal:
-        'About {less}: {originRps2} a second. The edge hit rate does not move ({edgeShare}), but the shield\'s one cache sees the misses of all {pops} locations combined, {missRps} a second, so it keeps warm objects that no single location is asked for often enough: it answers {shieldShare2} of all requests, and its half-hit rank is the {shieldKnee2}, against the edge\'s {knee}. That is what a single cache seeing all the traffic would send: with a shield the origin\'s load no longer depends on the number of locations ({at20Shield} a second at {pops20} too), since an object leaves the shield once per TTL however many locations ask. A shield hit costs {shieldMsExtra} more than an edge hit, but the mean response falls from {meanMs} to {meanMs2}, because far fewer requests cross to the origin.',
+        'About {less}: {originRps2} a second. The edge still hits {edgeShare}, but the shield sees the misses of all {pops} locations combined, {missRps} a second, so it keeps warm what no one location can: it answers {shieldShare2} of all requests, and its half-hit rank is the {shieldKnee2}, against the edge\'s {knee}. The mean response falls from {meanMs} to {meanMs2}.',
       focus: ['tiers', 'square'],
     },
     {
@@ -410,7 +415,7 @@
         { text: 'About {tenfold}: ten URLs an image, ten times the misses', right: false },
       ],
       reveal:
-        'About {split}: {originRps2} a second, up from {originRps}. Each image is now {variants2} keys, each asked for a tenth as often, at the edge and at the shield alike: to a cache that is the same as ten times the locations. The edge hit rate falls from {edgeShare} to {edgeShare2}; the shield still answers {shieldShare2}, but of far colder keys. The fix is the cache key, not the CDN: drop tracking parameters from it (and sort the rest), and the hit rate comes back.',
+        'About {split}: {originRps2} a second, up from {originRps}. Each image is now {variants2} keys, each asked for a tenth as often. At the edge that is the same as ten times the locations (the edge hit rate falls from {edgeShare} to {edgeShare2}), but unlike more locations the shield cannot undo it: the shield too sees ten keys an image, each a tenth as often, so it answers {shieldShare2} of all requests, against {shieldShare} before, far less than the edge lost. The fix is the cache key, not the CDN: drop tracking parameters from it (and sort the rest), and the hit rate comes back.',
       focus: ['tiers', 'square'],
     },
   ];
@@ -425,9 +430,11 @@
       { metric: 'meanMs', below: 18, unit: 'ms' },
       { metric: 'ttl', atMost: 300, unit: 'ttl' },
     ],
-    ask: 'Your origin serves {rps} requests a second of images and can take at most {originCap} a second. Product wants a mean response under {msCap}, and images may be at most {ttlCapWords} stale. Choose the locations, the TTL and the shield.',
+    ask: 'Your origin serves {rps} requests a second of images and can take at most {originCap} a second. Product wants a mean response under {msCap}, and each cache may keep an image at most {ttlCapWords}. Choose the locations, the TTL and the shield.',
     reveal:
-      '{pops} locations, a {ttlAdj} TTL and the shield: {originRps} a second reach the origin and the mean response is {meanMs}. The TTL is as long as freshness allows; the {pops} locations bring the edge to {edgeMs} from users but split the traffic, so the edge hits only {edgeShare}; the shield, seeing every location\'s misses, gives the origin its load back. With {pops20} locations the origin takes {origin20}, but users wait {mean20} on average.',
+      'The one setting that fits is {pops} locations, a {ttlAdj} TTL and the shield. It sends {originRps} a second to the origin, and the mean response is {meanMs}. The TTL is as long as the cap allows; the {pops} locations bring the edge to {edgeMs} from users but split the traffic, so the edge hits only {edgeShare}; the shield, seeing every location\'s misses, gives the origin its load back. With {pops20} locations the origin takes {origin20} too, but users wait {mean20} on average.',
+    /** The checklist's lines, one per goal part, each followed by ": met" or ": not yet". */
+    checks: ['the origin takes {originRate}, under {originCapRate}', 'the mean response is {meanMs}, under {msCap}', 'each cache keeps a copy for {ttlWords}, at most {ttlCapWords}'],
   };
 
   /** Slot values for an experiment at its setup (s1) and after its act (s2). */
@@ -451,10 +458,11 @@
       originRps2: b && sig3(b.originRps),
       edgeShare: pct(a.edgeShare),
       edgeShare2: b && pct(b.edgeShare),
+      shieldShare: pct(a.shieldShare),
       shieldShare2: b && pct(b.shieldShare),
       missRps: sig3(a.missRps),
-      meanMs: ms(a.meanMs),
-      meanMs2: b && ms(b.meanMs),
+      meanMs: mean(a.meanMs),
+      meanMs2: b && mean(b.meanMs),
       edgeMs: ms(a.paths.edge),
       edgeMs2: b && ms(b.paths.edge),
       knee: ord(knee),
@@ -471,7 +479,8 @@
       msCap: '18 ms',
     };
     if (exp.id === 1) {
-      v.wrongSecond = ord(sig2n(perRankTotal / s1.pops));
+      v.lastRank = ord(OBJECTS);
+      v.tailPerTtl = ((perRankTotal / OBJECTS) * s1.ttl).toFixed(1);
       v.wrongMinute = ord(sig2n((perRankTotal * 60) / s1.pops));
       v.knee = ord(sig3n(knee));
     }
@@ -510,11 +519,13 @@
       ttlWords: ttlWords(s.ttl),
       ttlAdj: ttlAdj(s.ttl),
       originRps: sig3(a.originRps),
-      meanMs: ms(a.meanMs),
+      originRate: rate(a.originRps),
+      originCapRate: '500/s',
+      meanMs: mean(a.meanMs),
       edgeMs: ms(a.paths.edge),
       edgeShare: pct(a.edgeShare),
       origin20: `${sig3(at20.originRps)} a second`,
-      mean20: ms(at20.meanMs),
+      mean20: mean(at20.meanMs),
     };
   }
   const fill = (template, values) =>
@@ -575,7 +586,7 @@
     fill,
     afterAct,
     goalParts,
-    fmt: { group, sig3, sig2, pct, ms, rate, ord, ttlWords, ttlAdj, ttlShort, clock, often },
+    fmt: { group, sig3, sig2, pct, ms, mean, rate, ord, ttlWords, ttlAdj, ttlShort, clock, often },
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.CdnModel = api;
