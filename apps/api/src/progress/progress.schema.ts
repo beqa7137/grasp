@@ -15,12 +15,12 @@ import {
   SCENARIOS,
   STUDY_OPTIONS,
   SD_TOPICS,
-  TARGET_COMPANIES,
   TARGET_LEVELS,
   VERDICTS,
   getReviewItem,
   isCalendarDate,
   isDiagnosticItem,
+  type TargetCompany,
 } from '@grasp/engine';
 import { z } from 'zod';
 
@@ -166,7 +166,9 @@ export const learningEventSchema = z.discriminatedUnion('type', [
       rounds: z
         .strictObject({ coding: roundCount, design: roundCount, behavioral: roundCount })
         .refine((rounds) => Object.values(rounds).some((count) => count > 0), 'At least one round'),
-      company: z.enum(TARGET_COMPANIES).optional(),
+      // Any slug, not only the companies this release knows: a rollback must still take a newer client's Target. It is
+      // stored as sent, and `normalizeTarget` drops a company its reader does not know.
+      company: z.custom<TargetCompany>((c) => typeof c === 'string' && /^[a-z][a-z0-9-]{0,31}$/.test(c), 'Not a company').optional(),
     }),
   }),
   z.object({
