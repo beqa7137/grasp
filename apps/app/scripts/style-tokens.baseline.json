@@ -109,10 +109,6 @@
     "font-size": 2,
     "spacing": 1
   },
-  "app/pages/design-lesson/id-layout-widget.component.ts": {
-    "font-size": 3,
-    "spacing": 3
-  },
   "app/pages/design-lesson/index-widget.component.ts": {
     "border-radius": 1,
     "font-size": 7,

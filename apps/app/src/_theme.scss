@@ -81,6 +81,10 @@
   --g-viz-final-ink: var(--g-found-ink);
   --g-viz-discarded-ink: #687082;
   --g-viz-critical: #d42a49;
+  // A Unique IDs field's ink (time, generator, sequence): its 0 digits on the field's 12% tint and white 1 digits on it keep 4.5:1.
+  --g-viz-field-time: #065a87;
+  --g-viz-field-gen: #7f4a00;
+  --g-viz-field-seq: #02583f;
   // The learner's guess is neutral and dashed (3.6): no fourth hue passed the color-vision checks.
   --g-viz-guess: var(--g-text);
   // Quiet enough that every checkpoint tick reaches 3:1 on it; the thumb marks the position.
@@ -193,6 +197,9 @@
   --g-viz-final-ink: var(--g-found);
   --g-viz-discarded-ink: var(--g-muted);
   --g-viz-critical: #e5485f;
+  --g-viz-field-time: #6cc6ee;
+  --g-viz-field-gen: #f0b860;
+  --g-viz-field-seq: #3ddc97;
   --g-viz-guess: var(--g-text);
   --g-viz-track: #2a3040;
   --g-viz-heat-1: #9a6418;

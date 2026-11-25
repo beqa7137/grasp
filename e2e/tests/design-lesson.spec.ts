@@ -115,16 +115,15 @@ test('the consensus lesson lets only a majority commit, and an even split stops 
 
 test('the unique ids lesson trades timestamp years for generator bits, and weighs random ids by the birthday bound', async ({ page }) => {
   await page.goto('/design/topics/sd-ids');
-  const readout = (name: string) => page.locator('.readouts div').filter({ hasText: name }).locator('dd');
-  await expect(readout('Lasts')).toHaveText('69.7 years');
-  await expect(readout('Generators')).toHaveText('1,024');
-  const generators = page.getByRole('slider', { name: /Generator bits/ });
-  await generators.focus();
-  await page.keyboard.press('ArrowRight');
-  await expect(readout('Lasts')).toHaveText('34.8 years');
-  await expect(readout('Chance of any repeat')).toHaveText('about 9.4 × 10^-20');
-  await page.getByRole('radio', { name: '64 random bits' }).click();
-  await expect(readout('Chance of any repeat')).toHaveText('2.7%');
+  const widget = page.locator('app-design-lesson:not(.ion-page-hidden) app-ids-widget');
+  const summary = widget.locator('svg.draw');
+  await expect(summary).toHaveAttribute('aria-label', /and lasts 69\.7 years, to 7 September 2095\. There is room for 1,024 generators/);
+  await widget.getByRole('button', { name: 'One generator bit more' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(summary).toHaveAttribute('aria-label', /and lasts 34\.8 years/);
+  await expect(summary).toHaveAttribute('aria-label', /the chance of any repeat is about 9\.4 × 10⁻²⁰/);
+  await widget.getByRole('radio', { name: '64 random bits' }).check();
+  await expect(summary).toHaveAttribute('aria-label', /the chance of any repeat is about 2\.7%/);
 });
 
 test('the search lesson intersects posting lists for AND and ranks every match for OR', async ({ page }) => {

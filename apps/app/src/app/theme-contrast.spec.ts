@@ -107,6 +107,9 @@ const VIZ: Record<string, 'backdrop' | 'mark and label' | 'ink' | 'soft fill' | 
   'viz-heat-2': 'mark',
   'viz-heat-3': 'mark',
   'viz-dim': 'exempt',
+  'viz-field-time': 'text and mark',
+  'viz-field-gen': 'text and mark',
+  'viz-field-seq': 'text and mark',
 };
 const vizOf = (kinds: string[]) => Object.keys(VIZ).filter((token) => kinds.includes(VIZ[token]));
 

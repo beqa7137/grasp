@@ -99,6 +99,25 @@ const storageCard = async (p, title) => {
   await storageAt(p);
   await p.locator('app-storage-widget .cards button', { hasText: title }).click();
 };
+const idsStageToTop = (p) => p.locator('app-ids-widget g-stage').evaluate((stage) => stage.scrollIntoView({ block: 'start' }));
+/** Sets the ids widget as a learner would: the steppers pressed from Snowflake's layout, then the radios, once drawn. */
+const idsAt = async (p, { gen = 0, seq = 0, radios = [], guard } = {}) => {
+  const widget = p.locator('app-ids-widget');
+  await widget.locator('svg.draw[aria-label^="The 64 bits are"]').waitFor();
+  for (const [by, one] of [
+    [gen, 'generator'],
+    [seq, 'sequence'],
+  ])
+    for (let i = 0; i < Math.abs(by); i++)
+      await widget.getByRole('button', { name: `One ${one} bit ${by > 0 ? 'more' : 'fewer'}` }).click();
+  for (const name of radios) await widget.getByRole('radio', { name, exact: true }).check();
+  if (guard !== undefined) await widget.getByRole('checkbox', { name: /^Keep the last timestamp/ }).setChecked(guard);
+  await idsStageToTop(p);
+};
+const idsCard = async (p, title) => {
+  await idsAt(p);
+  await p.locator('app-ids-widget .cards button', { hasText: title }).click();
+};
 const capacityStageToTop = (p) => p.locator('app-capacity-widget g-stage').evaluate((stage) => stage.scrollIntoView({ block: 'start' }));
 /**
  * Sets the capacity widget as a learner would: each tier's steppers pressed from the default (2 load balancers, 4 app
@@ -945,7 +964,89 @@ export function designStates() {
       },
     },
     { id: 'lesson-consensus', path: '/design/topics/sd-consensus', setup: (p) => p.locator('#try').scrollIntoViewIfNeeded() },
-    { id: 'lesson-ids', path: '/design/topics/sd-ids', setup: (p) => p.locator('#try').scrollIntoViewIfNeeded() },
+    { id: 'lesson-ids', path: '/design/topics/sd-ids', setup: (p) => idsAt(p) },
+    { id: 'lesson-ids-gen11', path: '/design/topics/sd-ids', setup: (p) => idsAt(p, { gen: 1 }) },
+    { id: 'lesson-ids-gen16', path: '/design/topics/sd-ids', setup: (p) => idsAt(p, { gen: 6 }) },
+    { id: 'lesson-ids-gen0', path: '/design/topics/sd-ids', setup: (p) => idsAt(p, { gen: -10, seq: -12 }) },
+    { id: 'lesson-ids-tick10', path: '/design/topics/sd-ids', setup: (p) => idsAt(p, { radios: ['10 ms'] }) },
+    { id: 'lesson-ids-epoch1970', path: '/design/topics/sd-ids', setup: (p) => idsAt(p, { radios: ['1970'] }) },
+    { id: 'lesson-ids-overflow', path: '/design/topics/sd-ids', setup: (p) => idsAt(p, { gen: 6, radios: ['1970'] }) },
+    { id: 'lesson-ids-burst', path: '/design/topics/sd-ids', setup: (p) => idsAt(p, { gen: 2, seq: -2, radios: ['5,000 at once'] }) },
+    { id: 'lesson-ids-skew', path: '/design/topics/sd-ids', setup: (p) => idsAt(p, { radios: ["G2's clock ahead"] }) },
+    { id: 'lesson-ids-stepback', path: '/design/topics/sd-ids', setup: (p) => idsAt(p, { radios: ["G1's clock steps back"] }) },
+    {
+      id: 'lesson-ids-naive',
+      path: '/design/topics/sd-ids',
+      setup: (p) => idsAt(p, { radios: ["G1's clock steps back"], guard: false }),
+    },
+    { id: 'lesson-ids-shared', path: '/design/topics/sd-ids', setup: (p) => idsAt(p, { radios: ['G2 given number 1'] }) },
+    { id: 'lesson-ids-random64', path: '/design/topics/sd-ids', setup: (p) => idsAt(p, { radios: ['64 random bits'] }) },
+    {
+      id: 'lesson-ids-trillion',
+      path: '/design/topics/sd-ids',
+      setup: async (p) => {
+        await idsAt(p, { radios: ['64 random bits'] });
+        await p.locator('app-ids-widget').getByRole('slider', { name: 'Ids made' }).fill('12');
+        await idsStageToTop(p);
+      },
+    },
+    {
+      id: 'lesson-ids-reduced',
+      path: '/design/topics/sd-ids',
+      setup: async (p) => {
+        await idsAt(p);
+        await p.locator('app-ids-widget').getByRole('button', { name: 'Play the mint: 8 ms of three generators' }).click();
+        await p.locator('app-ids-widget .caption').waitFor();
+      },
+    },
+    {
+      id: 'lesson-ids-describe',
+      path: '/design/topics/sd-ids',
+      setup: async (p) => {
+        await idsAt(p);
+        await p.locator('app-ids-widget').getByRole('button', { name: 'Describe' }).click();
+        await p.locator('app-ids-widget .describe g-data-table').scrollIntoViewIfNeeded();
+      },
+    },
+    {
+      id: 'lesson-ids-table',
+      path: '/design/topics/sd-ids',
+      setup: async (p) => {
+        await idsAt(p, { radios: ["G1's clock steps back"], guard: false });
+        await p.locator('app-ids-widget').getByRole('button', { name: 'Describe' }).click();
+        await p.locator('app-ids-widget .describe g-data-table').scrollIntoViewIfNeeded();
+      },
+    },
+    {
+      id: 'lesson-ids-asking',
+      path: '/design/topics/sd-ids',
+      setup: async (p) => {
+        await idsCard(p, 'Which id sorts first');
+        await p.locator('app-widget-check legend').waitFor();
+        await idsStageToTop(p);
+      },
+    },
+    {
+      id: 'lesson-ids-revealed',
+      path: '/design/topics/sd-ids',
+      setup: async (p) => {
+        await idsCard(p, 'The clock steps back');
+        await p.locator('app-widget-check').getByRole('button', { name: 'Some repeat ids it already made' }).click();
+        await p
+          .locator('app-widget-check .explain')
+          .filter({ hasText: /^Two ids are made twice/ })
+          .waitFor();
+        await idsStageToTop(p);
+      },
+    },
+    {
+      id: 'lesson-ids-challenge',
+      path: '/design/topics/sd-ids',
+      setup: async (p) => {
+        await idsCard(p, 'Challenge: size the layout');
+        await p.locator('app-ids-widget .checks li').first().waitFor();
+      },
+    },
     { id: 'lesson-search', path: '/design/topics/sd-search', setup: (p) => p.locator('#try').scrollIntoViewIfNeeded() },
     {
       id: 'lesson-streams-sliding',

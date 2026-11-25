@@ -30,7 +30,6 @@ import { TenancyWidgetComponent } from './tenancy-widget.component';
 import { GatewayWidgetComponent } from './gateway-widget.component';
 import { EstimateDrillComponent } from './estimate-drill.component';
 import { GeoWidgetComponent } from './geo-widget.component';
-import { IdLayoutWidgetComponent } from './id-layout-widget.component';
 import { IndexWidgetComponent } from './index-widget.component';
 import { LimiterWidgetComponent } from './limiter-widget.component';
 import { PaginationWidgetComponent } from './pagination-widget.component';
@@ -45,7 +44,17 @@ import { LazyWidgetComponent } from './lazy-widget.component';
 
 /** A system design topic taught hands-on: a widget to experiment with, the ideas to name, worked examples and a quick check. */
 /** Widgets that leave the reading column at container wide, to sit beside their controls and experiments. */
-const BREAKOUT = new Set(['balancer', 'feed-model', 'quorum', 'queue-latency', 'availability', 'storage-engine', 'pipeline', 'hash-ring']);
+const BREAKOUT = new Set([
+  'balancer',
+  'feed-model',
+  'quorum',
+  'queue-latency',
+  'availability',
+  'storage-engine',
+  'pipeline',
+  'hash-ring',
+  'id-layout',
+]);
 
 @Component({
   selector: 'app-design-lesson',
@@ -66,7 +75,6 @@ const BREAKOUT = new Set(['balancer', 'feed-model', 'quorum', 'queue-latency', '
     LazyWidgetComponent,
     LimiterWidgetComponent,
     PartitionWidgetComponent,
-    IdLayoutWidgetComponent,
     IndexWidgetComponent,
     StreamWidgetComponent,
     CdnWidgetComponent,
@@ -174,7 +182,11 @@ const BREAKOUT = new Set(['balancer', 'feed-model', 'quorum', 'queue-latency', '
                     <app-partition-widget />
                   }
                   @case ('id-layout') {
-                    <app-id-layout-widget />
+                    <app-lazy-widget
+                      [load]="loadIdsWidget"
+                      [inputs]="{ experiments: l.widget.experiments ?? [] }"
+                      [placeholder]="heights.ids"
+                    />
                   }
                   @case ('inverted-index') {
                     <app-index-widget />
@@ -470,6 +482,7 @@ export class DesignLessonPage {
   readonly loadCacheWidget = () => import('./cache-widget.component').then((m) => m.CacheWidgetComponent);
   readonly heights = WIDGET_HEIGHTS;
   readonly loadLatencyWidget = () => import('./latency-widget.component').then((m) => m.LatencyWidgetComponent);
+  readonly loadIdsWidget = () => import('./ids-widget.component').then((m) => m.IdsWidgetComponent);
   readonly loadStorageWidget = () => import('./storage-widget.component').then((m) => m.StorageWidgetComponent);
   readonly loadCapacityWidget = () => import('./capacity-widget.component').then((m) => m.CapacityWidgetComponent);
   readonly loadRingWidget = () => import('./ring-widget.component').then((m) => m.RingWidgetComponent);

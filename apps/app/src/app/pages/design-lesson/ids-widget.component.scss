@@ -1,0 +1,185 @@
+@use '../../../type' as *;
+@use '../../../breakpoints' as *;
+@use 'feed-controls';
+@use 'widget-controls';
+@use 'widget-layout' as *;
+
+@include stage-layout('.ids-stage');
+// A checked segment keeps its weight, so its label never re-wraps and nothing moves when one is chosen.
+.segment input:checked + span {
+  font-weight: 500;
+}
+.caption {
+  order: 2;
+  margin: 0;
+  font-size: var(--g-text-body-s);
+  color: var(--g-text);
+  text-wrap: pretty;
+}
+svg.draw {
+  display: block;
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+}
+.now-line {
+  stroke: var(--g-viz-current);
+  stroke-width: 1.5;
+  pointer-events: none;
+}
+.play {
+  top: auto;
+}
+.nav {
+  position: absolute;
+  min-height: 44px;
+  padding: 0 var(--g-space-2);
+  font-size: var(--g-text-body-s);
+  white-space: nowrap;
+}
+// Each control group's panel sits in the slot the layout reserves under the band it changes. Every row has a fixed
+// height, so the panel is exactly the slot's height at every width (ids-layout.ts `slotHeight`).
+.panel {
+  position: absolute;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-content: start;
+  gap: var(--g-space-2);
+  padding: var(--g-space-3);
+  border: 1px solid var(--g-line);
+  border-radius: var(--g-radius-md);
+  background: var(--g-raised);
+  overflow: hidden;
+  .control-label {
+    display: block;
+    height: 18px;
+    margin: 0;
+    line-height: 18px;
+  }
+  legend.control-label {
+    float: left;
+    width: 100%;
+  }
+  .segments {
+    clear: both;
+    height: 44px;
+  }
+  .segment span {
+    font-size: var(--g-text-body-s);
+    line-height: 1.15;
+    height: 44px;
+  }
+}
+.steppers {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--g-space-2);
+}
+.panel.stack .steppers {
+  grid-template-columns: 1fr;
+}
+.stepper .row {
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
+  align-items: center;
+  height: 44px;
+  .g-btn {
+    min-height: 44px;
+    padding: 0;
+    font-size: var(--g-text-title-l);
+  }
+  output {
+    text-align: center;
+    font: 600 var(--g-text-body) var(--g-font-mono);
+  }
+}
+.panel.wide:not(.mint, .random) {
+  grid-template-columns: 2fr 1fr 1fr;
+  .steppers {
+    grid-column: 1;
+  }
+}
+.mint {
+  fieldset:first-child,
+  fieldset:nth-child(2) {
+    grid-column: 1 / -1;
+  }
+  .faults {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    height: 92px;
+    gap: var(--g-space-1);
+  }
+  &.wide .faults {
+    grid-template-columns: repeat(4, 1fr);
+    height: 44px;
+  }
+}
+.guard {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: var(--g-space-2);
+  height: 44px;
+  font-size: var(--g-text-body-s);
+  line-height: 1.2;
+  cursor: pointer;
+  input {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    accent-color: var(--g-accent);
+  }
+}
+.random {
+  fieldset,
+  .count {
+    grid-column: 1 / -1;
+  }
+  &.wide {
+    fieldset,
+    .count {
+      grid-column: auto;
+    }
+  }
+}
+.count {
+  input {
+    display: block;
+    width: 100%;
+    height: 44px;
+    margin: 0;
+    accent-color: var(--g-accent);
+  }
+  output {
+    display: block;
+    height: 36px;
+    font-size: var(--g-text-body-s);
+    line-height: 18px;
+    color: var(--g-muted);
+  }
+}
+.random.wide .count output {
+  height: 20px;
+}
+@include container-narrow(lesson) {
+  .controls {
+    padding: 0;
+    border: 0;
+  }
+}
+.describe {
+  .said {
+    flex: 1 0 100%;
+    margin: 0;
+    font-size: var(--g-text-body-s);
+  }
+  .note {
+    flex: 1 0 100%;
+    margin: 0;
+  }
+}

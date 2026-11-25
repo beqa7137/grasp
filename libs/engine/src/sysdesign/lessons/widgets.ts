@@ -10,6 +10,8 @@ export * from './widgets/data-modeling.js';
 export * from './widgets/discovery.js';
 export * from './widgets/durability.js';
 export * from './widgets/gateway.js';
+export * from './widgets/ids.js';
+export * from './widgets/ids-format.js';
 export * from './widgets/latency-sample.js';
 export * from './widgets/leases.js';
 export * from './widgets/overload.js';
@@ -82,32 +84,6 @@ export function partition(n: number, left: number, leaderSide: 'left' | 'right')
   const majority = Math.floor(n / 2) + 1;
   const quorumSide = left >= majority ? 'left' : n - left >= majority ? 'right' : null;
   return { majority, tolerates: n - majority, quorumSide, leaderKept: quorumSide === leaderSide };
-}
-
-export interface IdLayout {
-  timeBits: number;
-  /** Years the timestamp lasts from its epoch before it wraps. */
-  years: number;
-  generators: number;
-  perGeneratorPerSecond: number;
-}
-
-const YEAR_MS = 365.25 * 24 * 3600 * 1000;
-
-/** A Snowflake-style 64-bit id: a sign bit, then a timestamp in `tickMs` ticks, a generator id and a per-tick sequence. */
-export function idLayout(generatorBits: number, sequenceBits: number, tickMs: number): IdLayout {
-  const timeBits = 63 - generatorBits - sequenceBits;
-  return {
-    timeBits,
-    years: (2 ** timeBits * tickMs) / YEAR_MS,
-    generators: 2 ** generatorBits,
-    perGeneratorPerSecond: 2 ** sequenceBits * (1000 / tickMs),
-  };
-}
-
-/** The birthday bound: the chance that `count` ids drawn uniformly from `2 ** bits` values hold at least one repeat. */
-export function collisionChance(bits: number, count: number): number {
-  return -Math.expm1(-(count * count) / 2 ** (bits + 1));
 }
 
 export interface SearchHit {

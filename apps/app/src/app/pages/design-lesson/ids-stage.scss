@@ -1,0 +1,304 @@
+@use '../../../type' as *;
+
+// The Unique IDs stage's drawing roles; `ids-draw.ts` measures text by these sizes, so a size changed here
+// changes its checks. Stage text keeps proportional digits, as measured.
+text {
+  paint-order: stroke;
+  stroke: var(--g-viz-stage);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  &.on-box {
+    stroke: var(--g-raised);
+  }
+  &.on-chip {
+    stroke: none;
+  }
+}
+.t-label {
+  @include label;
+  fill: var(--g-muted);
+}
+.t-unit {
+  text-transform: none;
+}
+.t-cap {
+  font: 500 var(--g-text-body-s) var(--ion-font-family);
+  fill: var(--g-muted);
+}
+.t-capB {
+  font: 600 var(--g-text-body-s) var(--ion-font-family);
+  fill: var(--g-text);
+}
+.t-small {
+  font: 500 var(--g-text-label) var(--ion-font-family);
+  fill: var(--g-muted);
+}
+.t-smallB {
+  font: 700 var(--g-text-label) var(--ion-font-family);
+  fill: var(--g-text);
+}
+.t-mono {
+  font: 600 var(--g-text-label) var(--g-font-mono);
+  fill: var(--g-text);
+}
+.t-nameS {
+  font: 600 var(--g-text-body-s) var(--g-font-mono);
+  fill: var(--g-text);
+}
+.t-head {
+  font: 600 var(--g-text-title-m) var(--g-font-mono);
+  fill: var(--g-text);
+}
+.ink {
+  fill: var(--g-text);
+}
+.muted {
+  fill: var(--g-muted);
+}
+.bad {
+  fill: var(--g-danger-ink);
+}
+.wait-ink {
+  fill: var(--g-warn-ink);
+}
+.cur-ink {
+  fill: var(--g-viz-current);
+}
+.crit-ink {
+  fill: var(--g-viz-critical);
+}
+.final-ink {
+  fill: var(--g-viz-final-ink);
+}
+.amber-ink,
+.t-nameS.amber-ink,
+.t-mono.amber-ink,
+.t-head.amber-ink {
+  fill: var(--g-warn-ink);
+}
+.t-nameS.cur-ink,
+.t-head.cur-ink {
+  fill: var(--g-viz-current);
+}
+.t-nameS.muted,
+.t-head.muted {
+  fill: var(--g-muted);
+}
+.warn {
+  fill: var(--g-warn-ink);
+}
+.acc-ink {
+  fill: var(--g-viz-current);
+}
+.rule {
+  stroke: var(--g-line);
+}
+.tickmark,
+.axis,
+.ruler-axis {
+  stroke: var(--g-line-strong);
+}
+.ruler-step {
+  stroke: var(--g-stroke);
+  stroke-width: 1;
+}
+.grid-line {
+  stroke: var(--g-line);
+}
+// The fields: a 1 filled with the field's ink and an on-fill digit, a 0 the field's tint with its digit in the ink.
+.f-sign {
+  --fi: var(--g-muted);
+}
+.f-time {
+  --fi: var(--g-viz-field-time);
+}
+.f-gen {
+  --fi: var(--g-viz-field-gen);
+}
+.f-seq {
+  --fi: var(--g-viz-field-seq);
+}
+.cell {
+  stroke: var(--fi);
+  stroke-width: 1;
+  &.zero {
+    fill: color-mix(in srgb, var(--fi) 12%, var(--g-viz-stage));
+  }
+  &.one {
+    fill: var(--fi);
+  }
+  &.empty {
+    fill: var(--g-viz-stage);
+    stroke: var(--g-line);
+  }
+}
+text .cd,
+.cd {
+  stroke: none;
+  font: 600 var(--g-text-label) var(--g-font-mono);
+  fill: var(--fi);
+  &.one {
+    fill: var(--g-viz-stage);
+  }
+}
+.fi {
+  fill: var(--fi);
+}
+.bracket {
+  fill: none;
+  stroke: var(--fi);
+  stroke-width: 1.5;
+}
+.chip {
+  fill: var(--fi);
+}
+// While the mint plays, the newest id composes: the timestamp's cells first, then the generator's, then the sequence's.
+:host-context(.composing) {
+  .cell,
+  .cd {
+    animation: compose 300ms var(--g-ease-enter, ease-out) both;
+  }
+  .f-gen {
+    animation-delay: 100ms;
+  }
+  .f-seq {
+    animation-delay: 200ms;
+  }
+}
+@keyframes compose {
+  from {
+    opacity: 0;
+  }
+}
+.overflow-ground {
+  fill: var(--g-viz-stage);
+}
+.life-marker,
+.chance-marker {
+  fill: var(--g-viz-current);
+  stroke: var(--g-viz-stage);
+  stroke-width: 2;
+}
+.slide {
+  transition: transform var(--slide, 0ms) var(--g-ease-standard, ease);
+}
+.today {
+  fill: var(--g-text);
+}
+.ghost-tick {
+  fill: var(--g-viz-stage);
+  stroke: var(--g-muted);
+  stroke-width: 1.5;
+}
+.ghost-arc {
+  fill: none;
+  stroke: var(--g-muted);
+  stroke-width: 1;
+}
+.need-tick {
+  stroke: var(--g-success-ink);
+  stroke-width: 2;
+}
+.tick-band {
+  fill: var(--g-line);
+  opacity: 0.35;
+}
+.lane-line {
+  stroke: var(--g-line-strong);
+}
+.step-tick {
+  stroke: var(--g-viz-critical);
+  stroke-width: 2;
+}
+.dot,
+.rdot {
+  fill: var(--g-text);
+  &.repeat {
+    fill: var(--g-viz-critical);
+  }
+  &.inspected {
+    fill: var(--g-viz-current);
+  }
+}
+.rdot.late {
+  fill: var(--g-viz-stage);
+  stroke: var(--g-warn-ink);
+  stroke-width: 2;
+}
+.inspect-ring,
+.pair-ring {
+  fill: none;
+  stroke: var(--g-viz-current);
+  stroke-width: 1.5;
+}
+.repeat-ring {
+  fill: none;
+  stroke: var(--g-viz-critical);
+  stroke-width: 1.5;
+}
+.twin-ring {
+  fill: none;
+  stroke: var(--g-viz-critical);
+  stroke-width: 2;
+}
+.repeat-link {
+  fill: none;
+  stroke: var(--g-viz-critical);
+  stroke-width: 1;
+}
+.gauge-track {
+  fill: var(--g-viz-stage);
+  stroke: var(--g-stroke);
+}
+.gauge-fill {
+  fill: var(--g-text);
+}
+.burst-bracket {
+  fill: none;
+  stroke: var(--g-muted);
+}
+.wait-line {
+  stroke: var(--g-warn-ink);
+  stroke-width: 2;
+}
+.order-line {
+  stroke: var(--g-muted);
+  stroke-width: 1;
+}
+.curve {
+  fill: none;
+  stroke: var(--g-muted);
+  stroke-width: 1.5;
+  &.on {
+    stroke: var(--g-viz-current);
+    stroke-width: 2;
+  }
+}
+.marker-line {
+  stroke: var(--g-viz-current);
+  stroke-width: 1;
+}
+.chance-chevron {
+  fill: none;
+  stroke: var(--g-viz-current);
+  stroke-width: 2;
+}
+.square-law {
+  fill: none;
+  stroke: var(--g-text);
+  stroke-width: 1;
+}
+.page {
+  fill: var(--g-viz-stage);
+  stroke: var(--g-stroke);
+  &.touched {
+    fill: color-mix(in srgb, var(--g-viz-current) 45%, var(--g-viz-stage));
+    stroke: var(--g-viz-current);
+  }
+}
+// Dashed means one thing on this stage: hidden until you answer. The box is opaque, so nothing under it shows.
+.hidden-box {
+  fill: var(--g-viz-stage);
+  stroke: var(--g-stroke);
+  stroke-dasharray: 4 3;
+}

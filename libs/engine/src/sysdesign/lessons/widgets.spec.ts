@@ -4,8 +4,6 @@ import {
   cacheOutcome,
   cdnOutcome,
   errorBudget,
-  collisionChance,
-  idLayout,
   invertedIndex,
   crackTime,
   delivery,
@@ -91,21 +89,6 @@ describe('partition', () => {
     expect(partition(5, 3, 'left')).toMatchObject({ quorumSide: 'left', leaderKept: true });
     expect(partition(4, 2, 'left')).toMatchObject({ majority: 3, tolerates: 1, quorumSide: null, leaderKept: false });
     expect(partition(3, 0, 'right')).toMatchObject({ quorumSide: 'right', leaderKept: true });
-  });
-});
-
-describe('id layout', () => {
-  it('matches the classic Snowflake split of 41, 10 and 12 bits', () => {
-    const l = idLayout(10, 12, 1);
-    expect(l.timeBits).toBe(41);
-    expect(l.years).toBeCloseTo(69.7, 1);
-    expect(l.generators).toBe(1024);
-    expect(l.perGeneratorPerSecond).toBe(4_096_000);
-  });
-
-  it('puts the birthday bound near 50% at about 1.18 times the square root of the space', () => {
-    expect(collisionChance(64, 1.177 * 2 ** 32)).toBeCloseTo(0.5, 2);
-    expect(collisionChance(122, 1e9)).toBeCloseTo(9.4e-20, 21);
   });
 });
 

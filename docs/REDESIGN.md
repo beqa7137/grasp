@@ -3493,6 +3493,50 @@ sample.ts`: the seeded year (seed 3282478, common random numbers, no two outages
     the write at every width, a Describe width check at every width for the default, the widest and a lookup setting,
     and a check that a level chip saying "model" has its gloss in the step line at every width.
 
+- **Unique IDs note** (R42, the batch's first remaining widget, `id-layout`; as built from the brief, mockup and
+  critique rounds of `design/r42-ids`, and where it differs):
+  - **Verdict.** The old widget (two sliders, two button rows, a four-segment bar and four number tiles) printed every
+    number right and drew no id, no clock and no generator, so it could not show the three facts the interview turns
+    on: the timestamp is the high bits (ids sort by time only to the tick), the sequence runs out and the generator
+    waits, and the scheme is safe only while clocks move forward and generator numbers are unique. It is redrawn as an
+    id made bit by bit by three generators that never talk to each other, with random ids beside them.
+  - **Engine.** `widgets/ids.ts`: `idLayout` (fields, lifetime, end date, generators, ids a tick and a second, years
+    left from the stated clock), `encodeId`, `decodeId`, `idBits`, `idMint` (a real Snowflake generator run on a stated
+    clock and 20 stated requests over 8 ms, with a 5,000-request burst, a 2 ms skew, a 2 ms step back with or without
+    the keep-the-last-timestamp guard, and a shared generator number; ids as BigInt; equal ids sort by made order),
+    `idGroups`, `idRows`, `ownTicks`, `birthdayChance`, `birthdayExact`, `evenOdds` and `expectedPairs`;
+    `widgets/ids-format.ts` says its numbers. The old `idLayout` and `collisionChance` are retired (the old widget was
+    their only caller). Framework: `ExperimentRun` gains `'mint'`, slot units gain `years`, `date`, `pow2`, `chance`,
+    `sci` and `idCountWords`, and `TEMPLATE_DIGITS_ALLOWED` gains "G0" to "G2", "UUIDv4" and "1 in ".
+    `ids-experiments.ts`: five predictions and the challenge in the brief's wording, every number a slot, answers at 3,
+    1, 2, 1, 3, the challenge enumerated over all 578 layouts (only 10 and 10 bits at 1 ms passes, on either epoch).
+    The lesson's text no longer prints E1's, E2's, E3's, E4's or E5's answer or the challenge's solution, an engine
+    check bans those figures in every lesson string, and its `tryThis` is gone.
+  - **Picture.** One stage from `buildStage` (`ids-layout.ts`) in five bands: one id's 64 bits as field-colored
+    cells in two rows of 32 (four of 16 on phones) with brackets, values and the clock-to-timestamp conversion drawn as
+    a chain (`ids-bits.ts`); what each field buys, with the lifetime on a log ruler a step a bit, today, a ghost of the
+    last layout in words and a goal tick in the challenge (`ids-ledger.ts`); three generator lanes shaded by their own
+    clock's ticks, a burst as column gauges, repeats ringed with a hairline to their first copy (`ids-lanes.ts`); every
+    id in id order in 21 fixed slots against the moment it was made, out-of-order ids hollow amber
+    (`ids-sorted.ts`); and the birthday-bound chart with the pairs chain, the square-law triangle and the index strip
+    (`ids-random.ts`). The field inks are theme tokens (`--g-viz-field-time`, `-gen`, `-seq`), checked for contrast in
+    both themes. The stage's height is a function of its width alone; placeholder heights are measured from 300 to
+    1,300 px.
+  - **Where it differs.** The control groups sit on the stage, in fixed slots under the band each changes, at every
+    width rather than in the side column on wide screens (one layout, every control within a scroll of what it
+    changes); the dock stays in the side column there. Curve names sit in a legend above the chart rather than on the
+    curves.
+  - **Motion.** Play runs the stated 8 ms in 8 s on one monotone play clock (`ids-motion.ts`); the stage redraws only
+    when an id is made and the now line alone moves every frame; plays pause by the widget host's visibility. An
+    answer that changes only the layout holds a 1.6 s play; E5 reveals at once. Reduced motion draws the end state and
+    writes the mint's sentence under the stage.
+  - **Hiding.** One `hiding()` map (`ids-words.ts`) from the regions a question names (`lifetime`, `burstAfter`,
+    `order`, `inspect`, `repeats`, `chance`) to the stage, the summary, the notice, Older and Newer, Describe and every
+    accessible name. The component spec's sweep checks text and structure with motion off and on, from four starting
+    settings, and catches a leak planted on each flag of the map against a clean run of the same question.
+    `IDS_KEEP` keeps a number with its unit, a "(need ...)", "number 1", a date, a power of ten and a percentage whole
+    in every `g-code-text` of the widget.
+
 **R46 Case widgets II.**
 
 - **Scope:**

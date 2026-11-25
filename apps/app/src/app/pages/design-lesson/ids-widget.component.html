@@ -1,0 +1,224 @@
+<div class="controls">
+  <p class="notice" aria-live="polite" aria-atomic="true"><g-code-text [text]="notice()" /></p>
+</div>
+
+<div class="main">
+  <g-stage
+    class="ids-stage"
+    [height]="stage().H"
+    label="Unique ids: one id made bit by bit, three generators minting, and random ids beside them"
+  >
+    @if (ready()) {
+      @let st = stage();
+      <svg
+        class="draw"
+        [class.composing]="composing()"
+        [attr.viewBox]="'0 0 ' + st.D.W + ' ' + st.H"
+        [attr.width]="st.D.W"
+        [attr.height]="st.H"
+        role="img"
+        [attr.aria-label]="st.summary"
+      >
+        <g app-ids-prims [prims]="under()" />
+        @if (now(); as n) {
+          <line class="now-line" [attr.x1]="n.x" [attr.x2]="n.x" [attr.y1]="n.y1" [attr.y2]="n.y2" />
+        }
+        <g app-ids-prims [prims]="over()" />
+        @for (f of st.focus; track f.id) {
+          <g app-focus [box]="f" [on]="exp.focusOn().includes(f.region)" />
+        }
+      </svg>
+
+      @for (h of hitsOf('nav'); track h.owner) {
+        <button
+          type="button"
+          class="g-btn nav"
+          [attr.data-dir]="h.dir"
+          [attr.aria-label]="h.dir === 'older' ? 'Older id' : 'Newer id'"
+          [style]="hitStyle(h)"
+          [disabled]="navDisabled(h.dir)"
+          (click)="nav(h.dir)"
+        >
+          {{ h.short ? (h.dir === 'older' ? '‹' : '›') : h.dir === 'older' ? '‹ Older id' : 'Newer id ›' }}
+        </button>
+      }
+      @for (h of hitsOf('play'); track h.owner) {
+        <button
+          type="button"
+          class="play"
+          [attr.aria-label]="playName()"
+          [style]="hitStyle(h)"
+          [disabled]="locked()"
+          (click)="togglePlay()"
+        >
+          <svg viewBox="0 0 36 36" aria-hidden="true">
+            <circle cx="18" cy="18" r="16" />
+            @if (playing() && !locked()) {
+              <path d="M12.5 11h4v14h-4zM19.5 11h4v14h-4z" />
+            } @else {
+              <path d="M14 11v14l11-7z" />
+            }
+          </svg>
+        </button>
+      }
+
+      <div class="panel" [class.wide]="wideSlots()" [class.stack]="stackSlots()" [style]="hitStyle(slot('layout'))">
+        <fieldset class="group steppers" [disabled]="locked()">
+          <legend class="visually-hidden">The layout, 63 bits to share</legend>
+          @for (f of steppers; track f.name) {
+            <div class="stepper">
+              <span class="control-label" [id]="'ids-' + f.name">{{ f.label }}</span>
+              <div class="row" role="group" [attr.aria-labelledby]="'ids-' + f.name">
+                <button
+                  type="button"
+                  class="g-btn"
+                  [attr.aria-label]="'One ' + f.one + ' fewer'"
+                  [disabled]="locked() || settings()[f.name] === 0"
+                  (click)="step(f.name, -1)"
+                >
+                  −
+                </button>
+                <output aria-live="off">{{ settings()[f.name] }}</output>
+                <button
+                  type="button"
+                  class="g-btn"
+                  [attr.aria-label]="'One ' + f.one + ' more'"
+                  [disabled]="locked() || settings()[f.name] === fieldMax"
+                  (click)="step(f.name, 1)"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          }
+        </fieldset>
+        <fieldset class="group" [disabled]="locked()">
+          <legend class="control-label">Tick</legend>
+          <div class="segments">
+            @for (o of ticks; track o.value) {
+              <label class="segment">
+                <input type="radio" name="ids-tick" [checked]="o.value === settings().tick" (change)="set('tick', o.value)" />
+                <span>{{ o.label }}</span>
+              </label>
+            }
+          </div>
+        </fieldset>
+        <fieldset class="group" [disabled]="locked()">
+          <legend class="control-label">Epoch</legend>
+          <div class="segments">
+            @for (o of epochs; track o.value) {
+              <label class="segment">
+                <input type="radio" name="ids-epoch" [checked]="o.value === settings().epoch" (change)="set('epoch', o.value)" />
+                <span>{{ o.label }}</span>
+              </label>
+            }
+          </div>
+        </fieldset>
+      </div>
+
+      <div class="panel mint" [class.wide]="wideSlots()" [style]="hitStyle(slot('mint'))">
+        <fieldset class="group" [disabled]="locked()">
+          <legend class="control-label">Requests to G0</legend>
+          <div class="segments">
+            @for (o of loads; track o.value) {
+              <label class="segment">
+                <input type="radio" name="ids-load" [checked]="o.value === settings().load" (change)="set('load', o.value)" />
+                <span>{{ o.label }}</span>
+              </label>
+            }
+          </div>
+        </fieldset>
+        <fieldset class="group" [disabled]="locked()">
+          <legend class="control-label">What goes wrong</legend>
+          <div class="segments faults">
+            @for (o of faults; track o.value) {
+              <label class="segment">
+                <input type="radio" name="ids-fault" [checked]="o.value === settings().fault" (change)="set('fault', o.value)" />
+                <span><g-code-text [text]="o.label" /></span>
+              </label>
+            }
+          </div>
+        </fieldset>
+        <label class="guard">
+          <input
+            type="checkbox"
+            [checked]="settings().guard === 1"
+            [disabled]="locked()"
+            (change)="set('guard', $any($event.target).checked ? 1 : 0)"
+          />
+          <span>Keep the last timestamp (wait if the clock is behind it)</span>
+        </label>
+      </div>
+
+      <div class="panel random" [class.wide]="wideSlots()" [style]="hitStyle(slot('random'))">
+        <fieldset class="group" [disabled]="locked()">
+          <legend class="control-label">Random ids</legend>
+          <div class="segments">
+            @for (o of randomBits; track o.value) {
+              <label class="segment">
+                <input type="radio" name="ids-bits" [checked]="o.value === settings().bits" (change)="set('bits', o.value)" />
+                <span>{{ o.label }}</span>
+              </label>
+            }
+          </div>
+        </fieldset>
+        <div class="count">
+          <label class="control-label" for="ids-count">Ids made</label>
+          <input
+            id="ids-count"
+            type="range"
+            [min]="countMin"
+            [max]="countMax"
+            step="1"
+            [value]="settings().count"
+            [disabled]="locked()"
+            [attr.aria-valuetext]="countLabel()"
+            (input)="set('count', +$any($event.target).value)"
+          />
+          <output for="ids-count"><g-code-text [text]="countLabel()" /></output>
+        </div>
+      </div>
+    }
+  </g-stage>
+  @if (caption()) {
+    <p class="caption"><g-code-text [text]="caption()" /></p>
+  }
+
+  <div class="describe">
+    <button type="button" class="g-btn" [attr.aria-expanded]="describe()" [disabled]="describeWaits()" (click)="toggleDescribe()">
+      {{ describe() && !describeWaits() ? 'Hide the description' : 'Describe' }}
+    </button>
+    @if (describeWaits()) {
+      <span class="muted">{{ describeWaitsWhy() }}</span>
+    }
+    @if (describe() && !describeWaits()) {
+      @let d = describeTable();
+      <p class="said"><g-code-text [text]="describeSaid()" /></p>
+      <g-data-table
+        label="Every id the generators made in 8 ms, in id order"
+        [head]="d.head"
+        [rows]="d.rows"
+        [active]="-1"
+        [compact]="d.compact"
+        [rowHeads]="true"
+        [height]="null"
+      />
+      <p class="muted note"><g-code-text [text]="d.note" /></p>
+    }
+  </div>
+</div>
+
+@if (experiments().length) {
+  <app-experiment-dock
+    class="experiments"
+    [experiments]="experiments()"
+    [active]="exp.active()"
+    [phase]="exp.phase()"
+    [done]="exp.done()"
+    [goalStatus]="goalStatus()"
+    [goalChecks]="goalChecks()"
+    [chosen]="exp.chosen()"
+    (chosenChange)="exp.answer($event)"
+    (start)="start($event)"
+  />
+}

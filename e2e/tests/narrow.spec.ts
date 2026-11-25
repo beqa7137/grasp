@@ -36,11 +36,4 @@ test.describe('on a 320 px screen, content fits its box', () => {
     await expect(heads.filter({ hasText: '1 << j' }).first()).toBeAttached();
     expect(await tooWide(heads)).toEqual([]);
   });
-
-  test('every part of the unique id bar shows its whole label', async ({ page }) => {
-    await page.goto('/design/topics/sd-ids');
-    const segments = page.locator('app-id-layout-widget .bar .seg');
-    await expect(segments.first()).toHaveText('0');
-    expect(await tooWide(segments)).toEqual([]);
-  });
 });

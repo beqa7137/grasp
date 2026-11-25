@@ -1,14 +1,11 @@
+import { ID_EXPERIMENTS } from './ids-experiments.js';
 import type { SdLesson } from './types.js';
 
 export const IDS_LESSON: SdLesson = {
   why: 'Every row, message and order needs an id, and the easy answer, one auto-increment counter in one database, becomes a bottleneck and a single point of failure the moment you shard. The choice of id then shapes much more than uniqueness: whether rows sort by time, how well the primary key index behaves, how big every foreign key is, and what an outsider learns from a URL. Interviewers ask you to generate ids without a central counter and to defend the bit layout with arithmetic.',
   widget: {
     kind: 'id-layout',
-    tryThis: [
-      'Keep the defaults, 10 generator bits, 12 sequence bits and a 1 ms tick: this is the Snowflake layout, with 41 timestamp bits lasting about 69.7 years, 1,024 generators and 4,096,000 ids a second per generator. Switch the tick to 10 ms: the timestamp lasts about 696.8 years, but each generator now makes only 409,600 ids a second.',
-      'Switch the tick back to 1 ms and raise the generator bits to 16: you get 65,536 generators, but the timestamp shrinks to 35 bits and lasts only about 1.1 years. Every bit given to generators or the sequence halves the lifetime. Set 12 generator bits and 10 sequence bits instead: the timestamp is back to 41 bits and 69.7 years, with 4,096 generators at 1,024,000 ids a second each.',
-      'In the random panel, keep 122 bits and a billion ids: the chance of any collision is about 9.4 × 10^-20, which is nothing. Switch to 64 bits: it jumps to about 2.7%. Now pick a trillion ids: at 64 bits a collision is near certain, while 122 bits still sit at about 9.4 × 10^-14. The risk grows with the square of the count and halves with every added bit.',
-    ],
+    experiments: ID_EXPERIMENTS,
   },
   concepts: [
     {
@@ -25,11 +22,11 @@ export const IDS_LESSON: SdLesson = {
     },
     {
       title: 'Clocks and generator ids',
-      body: 'The layout assumes two things. First, the clock never goes backwards: if an NTP step moves it back, a generator could reissue a timestamp and sequence it already used. A generator stores the last timestamp it used, waits out a small backwards jump and refuses to issue, and alerts, on a large one. Second, no two live generators share an id. Assign ids from static config for a fixed fleet, or lease them from a coordinator such as ZooKeeper or etcd at startup, and stop issuing if the lease is lost. A cloned config or a duplicated pod silently produces duplicate ids.',
+      body: "The layout assumes two things. First, the clock never goes backwards: if an NTP step moves it back, the generator's ids are no longer safe. A generator stores the last timestamp it used, waits out a small backwards jump and refuses to issue, and alerts, on a large one. Second, no two live generators share an id. Assign ids from static config for a fixed fleet, or lease them from a coordinator such as ZooKeeper or etcd at startup, and stop issuing if the lease is lost. A cloned config or a duplicated pod silently produces duplicate ids.",
     },
     {
       title: 'Random ids and the birthday bound',
-      body: 'A UUIDv4 has 122 random bits (6 of its 128 are fixed for the version and variant), so any machine can mint one with no coordination at all. The chance of any repeat among n ids is about 1 - e^(-n^2 / 2^(b+1)) for b random bits: it grows with the square of the count, and reaches even odds near 2^(b/2) ids. For 122 bits that is beyond 10^18 ids, safe for anything real. For 64 random bits it is about 5 billion ids, and a billion already gives about a 2.7% chance, so random 64-bit ids need a uniqueness check.',
+      body: 'A UUIDv4 has 122 random bits (6 of its 128 are fixed for the version and variant), so any machine can mint one with no coordination at all. The chance of any repeat among n ids is about 1 - e^(-n^2 / 2^(b+1)) for b random bits: it grows with the square of the count, and reaches even odds near 2^(b/2) ids. For 122 bits that is beyond 10^18 ids, safe for anything real. For 64 random bits it is about 5 billion ids, and a few billion already make a repeat likely, so random 64-bit ids need a uniqueness check.',
     },
     {
       title: 'Index locality: random versus time-ordered keys',
@@ -53,7 +50,7 @@ export const IDS_LESSON: SdLesson = {
         'Use a Snowflake layout: 10 generator bits give 1,024 generator ids, enough for 1,000 servers with 24 spare. 12 sequence bits give 4,096 ids per millisecond, while a server needs 10,000 / 1,000 = 10 per millisecond: over 400 times headroom.',
         'Count 41 bits of milliseconds from a custom epoch at launch, say the start of 2026: they last about 69.7 years, to about 2095.',
         'Each server leases its generator id from etcd at startup and stops issuing if the lease lapses, so a restarted or cloned server can never share an id with a live one.',
-        'Ids sort by millisecond, then by generator, so two messages from different servers a few milliseconds apart can swap order under clock skew. That is fine for chat; if a channel needs strict order, route all its writes through one server.',
+        'Across generators they are only roughly time-ordered, so two messages from different servers a few milliseconds apart can swap order under clock skew. That is fine for chat; if a channel needs strict order, route all its writes through one server.',
       ],
     },
     {
@@ -67,7 +64,7 @@ export const IDS_LESSON: SdLesson = {
         'Sequence: 50,000 a second at a 1 ms tick is 50 per millisecond. 6 bits (64) would just cover it, but a burst stalls the generator, so take 10 bits: 1,024 per millisecond, 1,024,000 a second, about 20 times the peak.',
         'Timestamp: 63 - 12 - 10 = 41 bits. 2^41 = 2,199,023,255,552 ms, about 69.7 years: more than 50.',
         'Total capacity is 4,096 × 1,024,000, about 4.2 billion ids a second, against a platform peak of 3,000 × 50,000 = 150 million.',
-        'If processes churn and each start takes a fresh generator id, 4,096 may run out; reuse ids through expiring leases rather than taking more bits, since each extra bit halves the lifetime to about 34.8 years.',
+        'If processes churn and each start takes a fresh generator id, 4,096 may run out; reuse ids through expiring leases rather than taking more bits, since each extra bit halves the lifetime.',
       ],
     },
     {
@@ -95,7 +92,7 @@ export const IDS_LESSON: SdLesson = {
     {
       question: 'Are Snowflake ids strictly increasing across the whole system?',
       answer:
-        'No. They increase per generator, and across generators they are only roughly time-ordered: ids from the same millisecond sort by generator id, and clock skew between machines can put a later event behind an earlier one by a few milliseconds. A strict global order needs one sequencer, such as a single counter or a log partition, which is exactly the bottleneck the layout avoids.',
+        'No. They increase per generator, and across generators they are only roughly time-ordered: clock skew between machines can put a later event behind an earlier one by a few milliseconds. A strict global order needs one sequencer, such as a single counter or a log partition, which is exactly the bottleneck the layout avoids.',
     },
     {
       question: 'The clock on a generator jumps back two seconds. What happens?',

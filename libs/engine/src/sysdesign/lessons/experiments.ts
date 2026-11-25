@@ -1,4 +1,5 @@
 import { formatAvailability, formatDown, formatHours, formatOneIn } from './format-time.js';
+import { idCountWords, formatChance, formatDate, formatPow2, formatSci, formatYears } from './widgets/ids-format.js';
 import { formatAmp, formatBytes, formatGb, formatKb, formatLevels, formatRate, formatReads, formatSize } from './widgets/storage-format.js';
 
 /**
@@ -30,6 +31,12 @@ export type SlotUnit =
   | 'avail'
   | 'hours'
   | 'oneIn'
+  | 'years'
+  | 'date'
+  | 'pow2'
+  | 'chance'
+  | 'sci'
+  | 'idCountWords'
   | 'word';
 
 /** A model value with its unit, or a `word` the model chose ("The old value"), which may carry no digits. */
@@ -51,7 +58,8 @@ export type ExperimentSettings = Readonly<Record<string, number>>;
  * requests, a simulated year, a ramp of the traffic, the stream flowing through the tiers or keys moving between
  * nodes.
  */
-export type ExperimentRun = 'load' | 'rename' | 'write-read' | 'read' | 'sample' | 'btree' | 'lsm' | 'year' | 'ramp' | 'flow' | 'move';
+export type ExperimentRun =
+  'load' | 'rename' | 'write-read' | 'read' | 'sample' | 'btree' | 'lsm' | 'year' | 'ramp' | 'flow' | 'move' | 'mint';
 
 /** What answering plays: new settings (then, if named, a run), a run on its own, or the widget's flush. */
 export type ExperimentAct = { set: ExperimentSettings; run?: ExperimentRun } | { run: ExperimentRun } | { flush: true };
@@ -112,6 +120,11 @@ export const TEMPLATE_DIGITS_ALLOWED = [
   'hash mod N',
   'N / (N + 1)',
   'N + 1',
+  'G0',
+  'G1',
+  'G2',
+  'UUIDv4',
+  '1 in ',
 ] as const;
 
 const trim = (v: number, decimals: number) => String(Number(v.toFixed(decimals)));
@@ -172,6 +185,12 @@ const FORMAT: Record<Exclude<SlotUnit, 'word'>, (v: number) => string> = {
   avail: formatAvailability,
   hours: formatHours,
   oneIn: formatOneIn,
+  years: formatYears,
+  date: (v) => formatDate(v) ?? '',
+  pow2: formatPow2,
+  chance: formatChance,
+  sci: formatSci,
+  idCountWords,
 };
 
 export const formatSlot = (slot: Slot) => (slot.unit === 'word' ? slot.value : FORMAT[slot.unit](slot.value));
