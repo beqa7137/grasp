@@ -15,6 +15,7 @@ export type Hit =
 export type SlotGroup = 'layout' | 'mint' | 'random';
 
 export interface StageView {
+  /** What the open question hides in words; the stage hides `onStage` of it. */
   hid: Hid;
   /** The play's clock in µs while the mint plays, else null: every id is drawn. */
   t: number | null;
@@ -35,6 +36,7 @@ export interface Ctx {
   m: IdMint;
   s: IdSettings;
   view: StageView;
+  /** What the stage hides. */
   hid: Hid;
   W: number;
   PAD: number;
@@ -73,7 +75,7 @@ export function hit(c: Ctx, h: Hit) {
 
 /**
  * A dashed box the exact size of what it hides, opaque and drawn over every mark below it, with its words centred: the
- * one dashed mark on the stage, so dashed always means "hidden until you answer".
+ * one dashed mark on the stage, so dashed always means "hidden for now".
  */
 export function hiddenBox(c: Ctx, id: string, x: number, y: number, w: number, h: number, forms: readonly string[]) {
   rect(c, 'top', id, 'hidden-box', x, y, w, h, 4);

@@ -16,6 +16,7 @@ import {
   ID_COUNT_EXP,
   ID_FIELD_MAX,
   ID_ORDER_PAIR,
+  ID_WINDOW_US,
   countName,
   formatInt,
   idGoalParts,
@@ -47,6 +48,7 @@ import {
   NOTHING_HIDDEN,
   PLAYING_NOTICE,
   REST_NOTICE,
+  STOPPED_NOTICE,
   anyHidden,
   askNotice,
   changeSentence,
@@ -64,6 +66,8 @@ const KEYS = ['gen', 'seq', 'tick', 'epoch', 'load', 'fault', 'guard', 'bits', '
 const actOf = (e: SdExperiment): IdSettings =>
   ({ ...ID_BASELINE, ...e.setup, ...(e.act && 'set' in e.act ? e.act.set : {}) }) as IdSettings;
 const same = (a: IdSettings, b: IdSettings) => KEYS.every((k) => a[k] === b[k]);
+/** The settings the mint reads: a change to the random ids alone reuses it. */
+const MINT_KEYS = ['gen', 'seq', 'tick', 'epoch', 'load', 'fault', 'guard'] as const;
 const isMint = (e: SdExperiment) => !!e.act && 'run' in e.act && e.act.run === 'mint';
 
 /**
@@ -115,7 +119,9 @@ export class IdsWidgetComponent {
   ];
 
   readonly settings = signal<IdSettings>({ ...ID_BASELINE });
-  readonly model = computed(() => idMint(this.settings()));
+  private readonly mintSettings = computed(() => this.settings(), { equal: (a, b) => MINT_KEYS.every((k) => a[k] === b[k]) });
+  private readonly mint = computed(() => idMint(this.mintSettings()));
+  readonly model = computed(() => ({ ...this.mint(), settings: this.settings() }));
   readonly layout = computed(() => idLayout(this.settings()));
 
   readonly motion = signal(false);
@@ -163,7 +169,7 @@ export class IdsWidgetComponent {
   });
   private readonly pair = computed(() => {
     const e = this.question();
-    if (!e || this.exp.phase() !== 'revealed' || !e.focus.includes('sorted') || !e.hide.includes('inspect')) return null;
+    if (!e || e.id !== 'order' || this.exp.phase() !== 'revealed') return null;
     const m = this.model();
     const g1 = m.lanes[1].ids.find((x) => x.issued === ID_ORDER_PAIR.g1At);
     const g2 = m.lanes[2].ids.find((x) => x.issued === ID_ORDER_PAIR.g2At);
@@ -259,7 +265,7 @@ export class IdsWidgetComponent {
   }
   playName(): string {
     if (this.locked()) return 'Play the mint, after your answer';
-    return this.playing() && this.playKind() === 'mint' ? 'Pause the mint' : 'Play the mint: 8 ms of three generators';
+    return this.playing() && this.playKind() === 'mint' ? 'Stop the mint' : 'Play the mint: 8 ms of three generators';
   }
 
   set(name: keyof IdSettings, value: number) {
@@ -293,7 +299,11 @@ export class IdsWidgetComponent {
 
   togglePlay() {
     if (this.locked()) return;
-    if (this.playing() && this.playKind() === 'mint') return this.player.stop();
+    if (this.playing() && this.playKind() === 'mint') {
+      this.player.stop();
+      this.notice.set(`${STOPPED_NOTICE} ${mintWords(this.model(), this.hid())}`);
+      return;
+    }
     this.exp.clearFocus();
     this.inspect.set(null);
     if (!this.motion() || !this.ready()) {
@@ -386,7 +396,7 @@ export class IdsWidgetComponent {
     this.clock.set(0);
     this.player.play(
       (kind === 'mint' ? MINT_SECONDS : LAYOUT_PLAY_SECONDS) * 1000,
-      (p) => this.clock.set(p * 8000),
+      (p) => this.clock.set(p * ID_WINDOW_US),
       () => {
         this.clock.set(null);
         this.playKind.set(null);

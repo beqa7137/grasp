@@ -1,4 +1,5 @@
 import { YEAR_MS, formatInt, formatYears, idLayout, idLedger, type IdSettings } from '@grasp/engine';
+import { sampleLine } from './latency-draw';
 import { IDS_TEXT, chainLines, hiddenBox, line, r1, rect, small, text, type Ctx, type Part } from './ids-draw';
 
 const LINE = 18;
@@ -99,7 +100,15 @@ export function ledgerBand(c: Ctx, y0: number): number {
   const ghostRes = proseRes(LONGEST.ghost, cw);
   const wordsH = (endRes + ghostRes) * 15 + 4;
   if (hid.lifeNew)
-    hiddenBox(c, 'life-hidden', cx, ty + 2, cw, wordsH - 2, ['Its dates are hidden until you answer', 'Hidden until you answer']);
+    hiddenBox(
+      c,
+      'life-hidden',
+      cx,
+      ty + 2,
+      cw,
+      wordsH - 2,
+      hid.answered ? ['Its dates show at the reveal', 'Shown at the reveal'] : ['Its dates are hidden until you answer', 'Hidden until you answer'],
+    );
   else {
     IDS_TEXT.wrap(led.time.end, 'small', cw).forEach((t, i) =>
       text(c, `time-end-${i}`, cx, ty + 12 + i * 15, small(t), { owner: 'row-time' }),
@@ -151,17 +160,34 @@ function ruler(c: Ctx, top: number, x0: number, w: number, ghostSet: IdSettings 
   }
   const marks: { id: string; x: number; parts: Part[]; short?: Part[]; optional?: boolean }[] = [];
   const nowMs = L.elapsedMs;
-  const today = nowMs < YEAR_MS ? `${Math.round(nowMs / 86_400_000)} days in` : `${formatYears(nowMs / YEAR_MS)} in`;
+  const today = !L.fits
+    ? 'past the end'
+    : nowMs < YEAR_MS
+      ? `${Math.round(nowMs / 86_400_000)} days in`
+      : `${formatYears(nowMs / YEAR_MS)} in`;
+  if (view.challenge) {
+    const nx = X(L.elapsedMs + NEED_YEARS * YEAR_MS);
+    rect(c, 'back', 'need-band', 'need-band', nx, ay - 6, x0 + w - nx, 12);
+    line(c, 'marks', 'need-tick', 'need-tick', nx, ay - 8, nx, ay + 8);
+    D.mark({ x0: nx - 2, x1: nx + 2, y0: ay - 8, y1: ay + 8 }, 'need');
+  }
   if (!hid.lifeNew) {
     const lx = X(L.lifetimeMs);
-    D.add('dots', 'life-marker', { k: 'circle', cls: 'life-marker slide', cx: r1(lx), cy: ay, r: 5.5, slide: true });
+    D.add('dots', 'life-marker', { k: 'circle', cls: `life-marker slide${L.fits ? '' : ' out'}`, cx: r1(lx), cy: ay, r: 5.5, slide: true });
     D.mark({ x0: lx - 6, x1: lx + 6, y0: ay - 6, y1: ay + 6 }, 'life');
     marks.push({ id: 'life', x: lx, parts: [[`lasts ${formatYears(L.years)}`, 'smallB', 'acc-ink']] });
   } else marks.push({ id: 'life', x: x0 + 20, parts: [['lasts ?', 'smallB', 'muted']] });
+  if (view.challenge)
+    marks.push({
+      id: 'need',
+      x: X(L.elapsedMs + NEED_YEARS * YEAR_MS),
+      parts: small(`need ${NEED_YEARS} years from today`, 'ink'),
+      short: small(`need ${NEED_YEARS} yr`, 'ink'),
+    });
   const tx = X(nowMs);
-  D.add('marks', 'today', { k: 'path', cls: 'today', d: `M${r1(tx - 4)} ${ay - 12}h8l-4 6z` });
+  D.add('marks', 'today', { k: 'path', cls: `today${L.fits ? '' : ' out'}`, d: `M${r1(tx - 4)} ${ay - 12}h8l-4 6z` });
   D.mark({ x0: tx - 4, x1: tx + 4, y0: ay - 12, y1: ay - 6 }, 'today');
-  marks.push({ id: 'today', x: tx, parts: small(`today, ${today}`, 'ink') });
+  marks.push({ id: 'today', x: tx, parts: small(`today, ${today}`, L.fits ? 'ink' : 'bad') });
   if (ghostSet) {
     const was = idLayout(ghostSet);
     if (Math.abs(was.lifetimeMs - L.lifetimeMs) > 1e-6) {
@@ -178,25 +204,48 @@ function ruler(c: Ctx, top: number, x0: number, w: number, ghostSet: IdSettings 
         });
     }
   }
-  if (view.challenge) {
-    const nx = X(L.elapsedMs + NEED_YEARS * YEAR_MS);
-    line(c, 'marks', 'need-tick', 'need-tick', nx, ay - 8, nx, ay + 8);
-    D.mark({ x0: nx - 2, x1: nx + 2, y0: ay - 8, y1: ay + 8 }, 'need');
-    marks.push({
-      id: 'need',
-      x: nx,
-      parts: small(`need ${NEED_YEARS} years from today`, 'ink'),
-      short: small(`need ${NEED_YEARS} yr`, 'ink'),
-    });
-  }
+  // Each name stands over its own mark where it can, else beside it, in the lowest row with room; a name off its mark
+  // hangs on a leader down to it, so close marks are told apart by height and never by a guess.
+  const markTop = ay - 14;
   for (const mk of marks) {
-    const cands: [number, number, 'start' | 'middle' | 'end'][] = [];
-    for (const dy of [0, 18, 36])
-      for (const dx of [0, 10, -10, 20, -20, 30, -30, 40, -40, 60, -60]) cands.push([mk.x + dx, ay - 20 - dy, 'middle']);
-    for (const dy of [0, 18, 36]) cands.push([x0, ay - 20 - dy, 'start'], [x0 + w, ay - 20 - dy, 'end']);
-    const o = { minX: x0 - 4, maxX: x0 + w + 4, minY: top, owner: `ruler-${mk.id}`, margin: 6, optional: mk.optional };
-    if (!mk.short || !D.place(`ruler-name-${mk.id}`, cands, mk.parts, { ...o, optional: true }))
-      D.place(`ruler-name-${mk.id}`, cands, mk.short ?? mk.parts, o);
+    const leader = (box: { x0: number; x1: number; y1: number }): [number, number][] => {
+      const ly = box.y1 + 2;
+      const lx = Math.max(box.x0 + 2, Math.min(box.x1 - 2, mk.x));
+      if (lx === mk.x && ly >= markTop - 1) return [];
+      return [
+        [mk.x, markTop],
+        [mk.x, Math.min(ly, markTop)],
+        [lx, Math.min(ly, markTop)],
+      ];
+    };
+    const leaderFree = (box: { x0: number; x1: number; y1: number }) => {
+      const pts = leader(box);
+      return (
+        !pts.length ||
+        (D.free({ x0: mk.x - 0.5, x1: mk.x + 0.5, y0: pts[1][1], y1: markTop }, `ruler-${mk.id}`, 1) &&
+          D.free({ x0: Math.min(mk.x, pts[2][0]) - 0.5, x1: Math.max(mk.x, pts[2][0]) + 0.5, y0: pts[1][1], y1: pts[1][1] }, `ruler-${mk.id}`, 1))
+      );
+    };
+    const place = (parts: Part[], optional: boolean) => {
+      const tw = IDS_TEXT.partsWidth(parts);
+      const cands: [number, number, 'start' | 'middle' | 'end'][] = [];
+      for (const dy of [0, 18, 36])
+        for (const dx of [0, tw / 4, -tw / 4, tw / 2 - 6, 6 - tw / 2, tw / 2 + 12, -tw / 2 - 12, tw / 2 + 40, -tw / 2 - 40])
+          cands.push([mk.x + dx, ay - 20 - dy, 'middle']);
+      const o = { minX: x0 - 4, maxX: x0 + w + 4, minY: top, owner: `ruler-${mk.id}`, margin: 6, optional, ok: leaderFree };
+      const box = D.place(`ruler-name-${mk.id}`, cands, parts, o);
+      const pts = box ? leader(box) : [];
+      if (pts.length) {
+        D.add('marks', `ruler-leader-${mk.id}`, {
+          k: 'path',
+          cls: 'ruler-leader',
+          d: `M${r1(pts[0][0])} ${r1(pts[0][1])}V${r1(pts[1][1])}H${r1(pts[2][0])}`,
+        });
+        D.link([...sampleLine(pts[0][0], pts[0][1], pts[1][0], pts[1][1], 2), ...sampleLine(pts[1][0], pts[1][1], pts[2][0], pts[2][1], 2)], `ruler-${mk.id}`);
+      }
+      return box;
+    };
+    if (!mk.short || !place(mk.parts, true)) place(mk.short ?? mk.parts, !!mk.optional);
   }
   return top + RULER.h;
 }

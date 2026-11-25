@@ -99,17 +99,20 @@ export function bitsBand(c: Ctx, y0: number): number {
       return w <= room && cx - w / 2 >= (lastX1.get(l.y) ?? -Infinity) + 6 && cx - w / 2 >= PAD - 2 && cx + w / 2 <= W - PAD + 2;
     });
     if (!t) return;
-    const box = text(c, `fname-${l.field}`, cx, by + 12, [[t, 'smallB', `fi ${FIELD_CLASS[l.field]}`]], {
+    const box = text(c, `fname-${l.field}-${key}`, cx, by + 12, [[t, 'smallB', `fi named ${FIELD_CLASS[l.field]}`]], {
       anchor: 'middle',
       owner: 'cells',
     });
     lastX1.set(l.y, box.x1);
   });
   if (!L.fits) {
+    // The message sits on a ground of its own size over the empty cells, which stay in view: the id it cannot make.
     const msg = `No id: the clock is past the timestamp's end, ${formatDate(L.endMs) ?? 'long ago'}. A generator must refuse to mint.`;
-    rect(c, 'top', 'overflow-ground', 'overflow-ground', PAD, cellsTop, full, rows * ROW_BLOCK - 8, 4);
-    IDS_TEXT.wrap(msg, 'cap', full - 24).forEach((t, i) =>
-      text(c, `overflow-${i}`, PAD + 12, cellsTop + 22 + i * 18, [[t, 'cap', 'bad']], { owner: 'cells overflow' }),
+    const lines = IDS_TEXT.wrap(msg, 'cap', full - 24);
+    const mw = Math.max(...lines.map((t) => IDS_TEXT.tw(t, 'cap')));
+    rect(c, 'top', 'overflow-ground', 'overflow-ground', PAD + 4, cellsTop + 6, mw + 16, lines.length * 18 + 10, 4);
+    lines.forEach((t, i) =>
+      D.text(`overflow-${i}`, PAD + 12, cellsTop + 22 + i * 18, [[t, 'cap', 'bad']], { owner: 'cells overflow', layer: 'top' }),
     );
   }
   y += rows * ROW_BLOCK + 2;
@@ -125,14 +128,14 @@ export function bitsBand(c: Ctx, y0: number): number {
     ]);
   else if (shown) {
     chainLines(conversion(s, shown), 'small', full).forEach((t, i) =>
-      text(c, `conv-${i}`, PAD, y + 11 + i * LINE, [[t, 'small', 'fi f-time']], { owner: 'conv' }),
+      text(c, `conv-${i}-${shown.key}`, PAD, y + 11 + i * LINE, [[t, 'small', 'fi landed f-time']], { owner: 'conv' }),
     );
     const iy = y + chainRes * LINE + 6 + 15;
     const id: Part[] = [
-      ['id ', 'nameS', 'muted'],
-      [formatInt(shown.id), 'nameS', 'ink'],
+      ['id ', 'nameS', 'muted landed'],
+      [formatInt(shown.id), 'nameS', 'ink landed'],
     ];
-    const box = text(c, 'id-value', PAD, iy, id, { owner: 'id' });
+    const box = text(c, `id-value-${shown.key}`, PAD, iy, id, { owner: 'id' });
     if (shown.repeatOf && !hid.repeats) {
       const note = 'made twice: an earlier id has the same 64 bits';
       const beside = fits('small', W - PAD - box.x1 - 12)(note);

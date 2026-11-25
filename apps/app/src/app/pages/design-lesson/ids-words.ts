@@ -1,6 +1,7 @@
 import {
   ID_EPOCH_MS,
   ID_FAULT,
+  ID_WINDOW_US,
   ID_NOW_MS,
   ID_SKEW_US,
   ID_STEP_AT_US,
@@ -26,11 +27,11 @@ import {
 import { tableWidth } from './storage-text';
 
 /**
- * What an open question hides, on every surface (stage, summary, notice, Describe, accessible names): one map from the
- * regions its `hide` list names. `lifetime` hides a lifetime other than the setup's (so only while E1's answer plays);
- * `burstAfter` a burst's later ticks while E2's plays; `order` the sorted list and the order sentence; `inspect` the
- * inspected id's digits and what they leak; `repeats` (which sets `order` and `inspect`) every mark and word of a repeat;
- * `chance` the random ids' chart and its arithmetic. While a question is open no ghost shows and every control waits.
+ * What an open question hides in words (summary, notice, Describe, accessible names): one map from the regions its
+ * `hide` list names. `lifetime` hides a lifetime other than the setup's (so only while E1's answer plays); `burstAfter`
+ * what a burst's later ticks do while E2's plays; `order` the order sentence; `inspect` the inspected id's digits and
+ * what they leak; `repeats` (which sets `order` and `inspect`) every word of a repeat; `chance` the random ids' chart and
+ * its arithmetic. While a question is open no ghost shows and every control waits. The stage hides by `onStage`.
  */
 export interface Hid {
   lifeNew: boolean;
@@ -41,6 +42,8 @@ export interface Hid {
   chance: boolean;
   ghost: boolean;
   locked: boolean;
+  /** The learner has answered and the answer plays: what is still hidden shows at the reveal. */
+  answered: boolean;
 }
 export type HidFlag = keyof Hid;
 export type QuestionPhase = 'rest' | 'asking' | 'playing' | 'revealed';
@@ -60,39 +63,41 @@ export function hiding(hide: readonly string[], phase: QuestionPhase, leak: read
     chance: h.has('chance') && open,
     ghost: open,
     locked: open,
+    answered: playing,
   };
   for (const flag of leak) map[flag] = false;
   return map;
 }
 export const NOTHING_HIDDEN = hiding([], 'rest');
+/** The regions whose marks the stage draws as the answer's play makes them, so only their words wait for the reveal. */
+export const PLAYS_OUT = ['burstAfter', 'order', 'inspect', 'repeats'] as const;
+/** What the stage hides: while the answer plays, nothing of `PLAYS_OUT`; each mark waits for its event instead. */
+export const onStage = (hid: Hid): Hid =>
+  hid.answered ? { ...hid, ...Object.fromEntries(PLAYS_OUT.map((f) => [f, false])) } : hid;
+/** How a hidden part says when it shows: before the answer, and while it plays. */
+export const untilWords = (hid: Hid) => (hid.answered ? 'shows at the reveal' : 'is hidden until you answer');
 /** Whether any part of the stage is hidden: Describe waits while one is. */
 export const anyHidden = (hid: Hid) => hid.lifeNew || hid.burstAfter || hid.order || hid.inspect || hid.repeats || hid.chance;
 
 /**
- * The runs no line of the widget's HTML text parts, for every `g-code-text` under it: a number with its unit, a
- * "(need ...)", "number 1", a date, a power of ten with its mantissa and a percentage.
+ * The runs no line of the widget's HTML text parts, for every `g-code-text` under it: a number with its unit or its
+ * scale word, a "1 in" ratio, a "(need ...)", "number 1", a date, a power of ten with its mantissa and a percentage.
  */
 export const IDS_KEEP =
-  /\d[\d,.]* (?:ns|µs|ms|s|min|KB|MB|GB|TB|years?|bits?|ids|generators?|ticks?|requests)\b|\(need [\d,]+(?: years)?\)|\bnumber \d\b|\d+ (?:January|February|March|April|May|June|July|August|September|October|November|December) \d{4}|\d[\d.]* × 10[⁰¹²³⁴⁵⁶⁷⁸⁹⁻]+|\d[\d.]*%/g;
+  /\b1 in [\d,.]+(?: (?:thousand|million|billion|trillion))?|\d[\d,.]* (?:ns|µs|ms|s|min|KB|MB|GB|TB|years?|bits?|ids|generators?|ticks?|requests|thousand|million|billion|trillion)\b|\(need [\d,]+(?: years)?\)|\bnumber \d\b|\d+ (?:January|February|March|April|May|June|July|August|September|October|November|December) \d{4}|\d[\d.]* × 10[⁰¹²³⁴⁵⁶⁷⁸⁹⁻]+|\d[\d.]*%/g;
 
 export const REST_NOTICE = 'Change the layout, the requests or what goes wrong; Play runs 8 ms of three generators, slowed down.';
 export const PLAYING_NOTICE = 'Playing the mint: 8 ms of the clock, slowed down.';
+export const STOPPED_NOTICE = 'Stopped: the mint is drawn at its end.';
 export const ANSWER_NOTICE = 'Playing your guess.';
 export const askNotice = (title: string, hid: Hid) =>
   anyHidden(hid) ? `${title}: the part it is about is hidden until you answer.` : `${title}.`;
-
-/** Whether an id is shown: a hidden burst tick's ids are not. */
-export function visible(m: IdMint, x: MintedId, hid: Hid): boolean {
-  if (!hid.burstAfter || x.lane !== 0) return true;
-  const first = m.lanes[0].ids[0];
-  return !!first && x.tick === first.tick;
-}
 
 /** The layout's sentences, the lifetime said only when it is not hidden. */
 export function layoutWords(s: IdSettings, hid: Hid): string {
   const L = idLayout(s);
   const time = hid.lifeNew
-    ? `The timestamp counts ${s.tick} ms ticks from ${formatDate(L.epochMs)}; how long it lasts now is hidden until you answer.`
+    ? `The timestamp counts ${s.tick} ms ticks from ${formatDate(L.epochMs)}; how long it lasts now ${untilWords(hid)}.`
     : timeSentence(s, L);
   return `${headSentence(L)} ${time} ${roomSentence(L)}`;
 }
@@ -102,17 +107,18 @@ export function mintWords(m: IdMint, hid: Hid): string {
   const p = mintParts(m);
   if (!p) return NO_MINT;
   const s = m.settings;
+  const until = untilWords(hid);
   const made = hid.burstAfter ? 'Three generators made ids without talking to each other.' : p.made;
-  const repeats = hid.repeats ? 'Whether G1 makes any id twice is hidden until you answer.' : p.repeats;
+  const repeats = hid.repeats ? `Whether G1 makes any id twice ${until}.` : p.repeats;
   const guard = hid.repeats ? null : p.guard;
-  const burst = hid.burstAfter ? "G0's burst is hidden until you answer." : p.burst;
-  const order = hid.order ? 'The order of the ids is hidden until you answer.' : p.order;
+  const burst = hid.burstAfter ? `How G0's burst is served ${until}.` : p.burst;
+  const order = hid.order ? `The order of the ids ${until}.` : p.order;
   const after = hid.burstAfter ? null : p.after;
   const fault =
     s.fault === ID_FAULT.skew
       ? `G2's clock runs ${formatIdMs(ID_SKEW_US)} ahead.`
       : s.fault === ID_FAULT.stepBack
-        ? `G1's clock steps back ${formatIdMs(ID_STEP_US)} at ${formatIdMs(ID_STEP_AT_US)}${s.guard ? ', and G1 keeps its last timestamp' : ', and G1 trusts it'}.`
+        ? `G1's clock steps back ${formatIdMs(ID_STEP_US)} at ${formatIdMs(ID_STEP_AT_US)}${s.guard ? ', and G1 checks its clock against its last timestamp' : ''}.`
         : s.fault === ID_FAULT.shared
           ? "G2 was handed G1's number, 1."
           : null;
@@ -120,7 +126,7 @@ export function mintWords(m: IdMint, hid: Hid): string {
 }
 
 export function randomWords(s: IdSettings, hid: Hid): string {
-  return hid.chance ? `Random ${s.bits}-bit ids: the chance of a repeat is hidden until you answer.` : randomSentence(s);
+  return hid.chance ? `Random ${s.bits}-bit ids: the chance of a repeat ${untilWords(hid)}.` : randomSentence(s);
 }
 
 /** The stage's summary, its accessible name, in full sentences, obeying `hiding()`. */
@@ -130,7 +136,7 @@ export const summary = (m: IdMint, hid: Hid) => `${layoutWords(m.settings, hid)}
 export function changeSentence(key: keyof IdSettings, s: IdSettings, hid: Hid = NOTHING_HIDDEN): string {
   const L = idLayout(s);
   if (key === 'gen' || key === 'seq')
-    return `The layout now has ${formatInt(L.genBits)} generator ${L.genBits === 1 ? 'bit' : 'bits'} and ${formatInt(L.seqBits)} sequence ${L.seqBits === 1 ? 'bit' : 'bits'}: ${formatInt(L.generators)} ${L.generators === 1 ? 'generator' : 'generators'}, ${formatInt(L.perSecond)} ids a second each; the timestamp keeps ${L.timeBits} bits ${hid.lifeNew ? 'and how long it lasts is hidden until you answer' : `and lasts ${formatYears(L.years)}`}.`;
+    return `The layout now has ${formatInt(L.genBits)} generator ${L.genBits === 1 ? 'bit' : 'bits'} and ${formatInt(L.seqBits)} sequence ${L.seqBits === 1 ? 'bit' : 'bits'}: ${formatInt(L.generators)} ${L.generators === 1 ? 'generator' : 'generators'}, ${formatInt(L.perSecond)} ids a second each; the timestamp keeps ${L.timeBits} bits ${hid.lifeNew ? `and how long it lasts ${untilWords(hid)}` : `and lasts ${formatYears(L.years)}`}.`;
   if (key === 'tick' || key === 'epoch') return `${timeSentence(s, L)} ${roomSentence(L)}`;
   if (key === 'bits' || key === 'count') return hid.chance ? randomWords(s, hid) : chanceSentence(s);
   return mintWords(idMint(s), hid);
@@ -182,9 +188,9 @@ export function describeTable(m: IdMint, boxW: number) {
 
 export function tableOf(m: IdMint, form: TableForm) {
   const compact = form === 'compact';
-  const ids = m.sorted.filter((x) => x.issued < 8000);
+  const ids = m.sorted.filter((x) => x.issued < ID_WINDOW_US);
   const note = (x: MintedId) =>
-    x.repeatOf ? 'made twice' : m.lateByTick.includes(x) ? 'sorts before an earlier id' : x.why === 'full' ? 'waited for a tick' : '';
+    x.repeatOf ? 'made twice' : m.lateByTick.includes(x) ? 'sorts after a later id' : x.why === 'full' ? 'waited for a tick' : '';
   const head = compact
     ? ['#', 'timestamp · G · seq', 'Made', 'Note']
     : ['#', 'Id', 'Made by', 'Made at', 'Timestamp', 'Gen', 'Seq', 'Waited', 'Note'];
@@ -210,6 +216,6 @@ export function tableOf(m: IdMint, form: TableForm) {
     compact,
     head,
     rows,
-    note: `Ids made in the first 8 ms of the stated clock, in id order.${more} The index strip under the chart is an illustration from one seeded draw.`,
+    note: `Ids made in the first ${formatIdMs(ID_WINDOW_US)} after 12:00:00.000, in id order.${more} The random ids' index strip is an illustration from one seeded draw.`,
   };
 }

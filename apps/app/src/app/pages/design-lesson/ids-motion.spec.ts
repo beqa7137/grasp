@@ -1,4 +1,4 @@
-import { ID_BASELINE as B, ID_WINDOW_US, idMint, type IdSettings } from '@grasp/engine';
+import { ID_BASELINE as B, ID_STEP_AT_US, ID_WINDOW_US, idMint, type IdSettings } from '@grasp/engine';
 import type { StageView } from './ids-draw';
 import { buildStage } from './ids-layout';
 import { momentOf } from './ids-motion';
@@ -37,6 +37,17 @@ describe('Unique IDs motion', { timeout: 120_000 }, () => {
             if (ids.has(id)) expect(x.issued, `${JSON.stringify(s)} ${id} at ${t}`).toBeLessThanOrEqual(at);
         for (const r of m.repeats) if (ids.has(`repeat-ring-${r.key}`)) expect(r.issued).toBeLessThanOrEqual(at);
         expect(st.made.every((x) => x.issued <= at)).toBe(true);
+        // A step back, and the ticks its clock reads after it, show only once it happens.
+        if (s.fault === 2 && at < ID_STEP_AT_US) {
+          expect(ids.has('step-tick'), `${JSON.stringify(s)} step at ${t}`).toBe(false);
+          expect([...ids].filter((id) => /^own-1-/.test(id) && +id.split('-')[3] >= ID_STEP_AT_US)).toEqual([]);
+        }
+        // An id is out of order only once a later-made id that sorts ahead of it exists.
+        for (const p of st.D.prims())
+          if (p.k === 'circle' && /\blate\b/.test(p.cls) && p.id.startsWith('rdot-')) {
+            const x = m.ids.find((y) => p.id === `rdot-${y.key}`)!;
+            expect(m.sorted.slice(0, x.rank).some((y) => y.issued <= at && y.issued > x.issued), `${JSON.stringify(s)} ${p.id} at ${t}`).toBe(true);
+          }
       }
     }
   });

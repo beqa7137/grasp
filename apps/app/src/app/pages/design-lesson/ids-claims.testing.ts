@@ -8,6 +8,7 @@ export const FALSE_CLAIMS = [
   /(^|[^\w,.])[02-9]\d* (id|generator|number|tick|bit|request|page)\b(?!s|-| bits?\b| numbers?\b| ticks? a\b)/,
   /\?\?/,
   /\u2014|\u00a0/,
+  /\d\. (ms|years?|days|ids|bits)\b/,
 ];
 
 /** A full sentence: none opens on a numeral, no doubled space or space before a stop. */

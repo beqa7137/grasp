@@ -111,7 +111,7 @@ const idsAt = async (p, { gen = 0, seq = 0, radios = [], guard } = {}) => {
     for (let i = 0; i < Math.abs(by); i++)
       await widget.getByRole('button', { name: `One ${one} bit ${by > 0 ? 'more' : 'fewer'}` }).click();
   for (const name of radios) await widget.getByRole('radio', { name, exact: true }).check();
-  if (guard !== undefined) await widget.getByRole('checkbox', { name: /^Keep the last timestamp/ }).setChecked(guard);
+  if (guard !== undefined) await widget.getByRole('checkbox', { name: /^Check the clock against the last timestamp/ }).setChecked(guard);
   await idsStageToTop(p);
 };
 const idsCard = async (p, title) => {

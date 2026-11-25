@@ -1,4 +1,13 @@
-import { ID_BASELINE as B, ID_EXPERIMENTS, idMint, renderExperiment, type IdSettings, type SdExperiment } from '@grasp/engine';
+import {
+  ID_BASELINE as B,
+  ID_EXPERIMENTS,
+  ID_WINDOW_US,
+  idGroups,
+  idMint,
+  renderExperiment,
+  type IdSettings,
+  type SdExperiment,
+} from '@grasp/engine';
 import { FALSE_CLAIMS } from './ids-claims.testing';
 import type { StageView } from './ids-draw';
 import { buildStage, type Stage } from './ids-layout';
@@ -86,6 +95,33 @@ export function collisions(st: Stage): string[] {
     if (tag.x0 < 0 || tag.x1 > W || tag.y0 < 0 || tag.y1 > H) out.push(`the ${f.region} tag is clipped`);
     for (const t of texts) if (overlap(tag, t)) out.push(`the ${f.region} tag on "${t.s}"`);
   }
+  // A tag covers no mark, line or ring of the picture it points at.
+  const rings = prims.filter((p): p is Circle => p.k === 'circle' && /\b(dot|rdot|repeat-ring|twin-ring|pair-ring)\b/.test(p.cls));
+  for (const f of st.focus) {
+    const tag = { x0: f.tag.x, x1: f.tag.x + 60, y0: f.tag.y, y1: f.tag.y + 16 };
+    for (const mk of D.marks) if (mk.owner !== 'look' && overlap(tag, mk, 0.5)) out.push(`the ${f.region} tag on mark ${mk.owner}`);
+    for (const l of D.links) if (l.points.some((p) => inside(p, tag))) out.push(`the ${f.region} tag on line ${l.owner}`);
+    for (const r of rings)
+      if (overlap(tag, { x0: r.cx - r.r, x1: r.cx + r.r, y0: r.cy - r.r, y1: r.cy + r.r }, 0.5)) out.push(`the ${f.region} tag on ${r.id}`);
+  }
+  // No text lies under a fill painted after it.
+  prims.forEach((p, i) => {
+    if (p.k !== 'text') return;
+    const px = p.anchor === 'middle' ? p.x : p.anchor === 'end' ? p.x - 2 : p.x + 2;
+    const py = p.y - 3;
+    for (const q of prims.slice(i + 1))
+      if (q.k === 'rect' && px > q.x && px < q.x + q.w && py > q.y && py < q.y + q.h) out.push(`${q.id} painted over ${p.id}`);
+  });
+  // Two repeat links in one lane never share a stretch of line.
+  const spans = prims
+    .filter((p) => p.k === 'path' && /\brepeat-link\b/.test(p.cls))
+    .map((p) => (p as Extract<Prim, { k: 'path' }>).d.match(/^M([\d.]+) [\d.]+V([\d.]+)H([\d.]+)/))
+    .filter((g): g is RegExpMatchArray => !!g)
+    .map((g) => ({ y: +g[2], a: Math.min(+g[1], +g[3]), b: Math.max(+g[1], +g[3]) }));
+  for (let i = 0; i < spans.length; i++)
+    for (let j = i + 1; j < spans.length; j++)
+      if (spans[i].y === spans[j].y && Math.min(spans[i].b, spans[j].b) - Math.max(spans[i].a, spans[j].a) > 1)
+        out.push(`two repeat links share a line at y ${spans[i].y}`);
   const hits = st.hits.map((h) => ({ o: h.owner, x0: h.x, x1: h.x + h.w, y0: h.y, y1: h.y + h.h }));
   for (let i = 0; i < hits.length; i++) {
     const a = hits[i];
@@ -163,6 +199,33 @@ describe('the Unique IDs stage', { timeout: 300_000 }, () => {
               if (!st.focus.some((f) => f.region === region)) bad.push(`${W}px ${e.id}: no outline for ${region}`);
         }
     expect(distinct(bad).slice(0, 40)).toEqual([]);
+  });
+
+  it('draws a challenge over every layout and every id chosen with Older or Newer, with nothing on anything else', () => {
+    const bad: string[] = [];
+    const faults = [1, 2, 3].flatMap((fault) => [0, 1].map((guard) => ({ ...B, fault, guard })));
+    for (const W of [260, 320, 420, 620, 866]) {
+      for (const s of LAYOUTS) for (const f of [...collisions(build(W, s, { ...REST, challenge: true }))]) bad.push(`${W}px challenge ${show(s)}: ${f}`);
+      for (const s of faults) {
+        const m = idMint(s);
+        for (const x of m.drawn)
+          for (const f of [...collisions(buildStage(W, m, { ...REST, inspect: x.key }))]) bad.push(`${W}px ${show(s)} ${x.key}: ${f}`);
+      }
+    }
+    expect(distinct(bad).slice(0, 40)).toEqual([]);
+  });
+
+  it('marks every waited request: where it arrived, how long it waited and why', () => {
+    for (const s of MINTS) {
+      const m = idMint(s);
+      const ids = new Set(build(620, s).D.prims().map((p) => p.id));
+      const waited = idGroups(m)
+        .filter((g) => g.single)
+        .flatMap((g) => g.ids)
+        .filter((x) => x.wait > 0 && x.issued < ID_WINDOW_US && !(s.load === 1 && x.lane === 0));
+      for (const x of waited) expect(ids.has(`wait-${x.key}`) && ids.has(`arrive-${x.key}`), `${show(s)} ${x.key}`).toBe(true);
+      expect([...ids].filter((id) => /^wait-g/.test(id)).length, show(s)).toBe(waited.length);
+    }
   });
 
   it('bounds its element count by the stage, never by the ids a burst makes', () => {

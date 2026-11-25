@@ -1,11 +1,11 @@
-import { ID_WINDOW_US, type IdMint, type MintedId } from '@grasp/engine';
+import { ID_REST_ID, ID_WINDOW_US, type IdMint, type MintedId } from '@grasp/engine';
 import { bitsBand } from './ids-bits';
 import { Draw, hit, type Ctx, type Hit, type SlotGroup, type StageView } from './ids-draw';
 import { lanesBand, padOf } from './ids-lanes';
 import { ledgerBand } from './ids-ledger';
 import { randomBand } from './ids-random';
 import { sortedBand } from './ids-sorted';
-import { summary, visible } from './ids-words';
+import { onStage, summary } from './ids-words';
 import { focusOutlines } from './latency-draw';
 import type { Focus } from './focus-layout';
 
@@ -32,17 +32,17 @@ export function slotHeight(group: SlotGroup, full: number): number {
   return wide ? 108 : 196;
 }
 
-/** The id band A shows: the chosen one while it is shown, else the newest while playing, else G2's at 2.9 ms. */
+/** The id band A shows: the chosen one while it is shown, else the newest while playing, else the rest id. */
 function inspected(made: readonly MintedId[], view: StageView): MintedId | null {
   const chosen = view.inspect ? made.find((x) => x.key === view.inspect) : undefined;
   if (chosen) return chosen;
   if (view.t !== null) return made.at(-1) ?? null;
-  return made.find((x) => x.lane === 2 && x.issued === 2900) ?? made.at(-1) ?? null;
+  return made.find((x) => x.lane === ID_REST_ID.lane && x.issued === ID_REST_ID.at) ?? made.at(-1) ?? null;
 }
 
 /** The ids the stage draws at the play's clock, in made order. */
 export const madeIds = (m: IdMint, view: StageView) =>
-  m.byMade.filter((x) => x.issued < ID_WINDOW_US && (view.t === null || x.issued <= view.t) && visible(m, x, view.hid));
+  m.byMade.filter((x) => x.issued < ID_WINDOW_US && (view.t === null || x.issued <= view.t));
 
 /**
  * The Unique IDs stage at width `W`: one id's 64 bits, what each field buys, the three generators' lanes, the ids in
@@ -53,7 +53,7 @@ export function buildStage(W: number, m: IdMint, view: StageView): Stage {
   const D = new Draw(W);
   const made = madeIds(m, view);
   const PAD = padOf(W);
-  const c: Ctx = { D, hits: [], m, s: m.settings, view, hid: view.hid, W, PAD, made, shown: inspected(made, view) };
+  const c: Ctx = { D, hits: [], m, s: m.settings, view, hid: onStage(view.hid), W, PAD, made, shown: inspected(made, view) };
   const full = W - 2 * PAD;
   const slot = (group: SlotGroup, y: number) => {
     const h = slotHeight(group, full);

@@ -155,7 +155,9 @@ text .cd,
 // While the mint plays, the newest id composes: the timestamp's cells first, then the generator's, then the sequence's.
 :host-context(.composing) {
   .cell,
-  .cd {
+  .cd,
+  .named,
+  .landed {
     animation: compose 300ms var(--g-ease-enter, ease-out) both;
   }
   .f-gen {
@@ -163,6 +165,19 @@ text .cd,
   }
   .f-seq {
     animation-delay: 200ms;
+  }
+  // Each field's name and value once its cells have filled, then the conversion and the id once the last bit lands.
+  .named.f-time {
+    animation-delay: 300ms;
+  }
+  .named.f-gen {
+    animation-delay: 400ms;
+  }
+  .named.f-seq {
+    animation-delay: 500ms;
+  }
+  .landed.landed {
+    animation-delay: 500ms;
   }
 }
 @keyframes compose {
@@ -172,6 +187,29 @@ text .cd,
 }
 .overflow-ground {
   fill: var(--g-viz-stage);
+  stroke: var(--g-viz-critical);
+  stroke-width: 1;
+}
+.life-marker.out,
+.today.out {
+  fill: var(--g-viz-critical);
+}
+.need-band {
+  fill: color-mix(in srgb, var(--g-success-ink) 14%, transparent);
+}
+.ruler-leader {
+  stroke: var(--g-muted);
+  stroke-width: 1;
+}
+.halo {
+  paint-order: stroke;
+  stroke: var(--g-viz-stage);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+.arrive-tick {
+  stroke: var(--g-warn-ink);
+  stroke-width: 1.5;
 }
 .life-marker,
 .chance-marker {

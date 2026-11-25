@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { ID_BASELINE as B, ID_EXPERIMENTS, idMint, renderExperiment, type IdSettings, type SdExperiment } from '@grasp/engine';
 import { FALSE_CLAIMS } from './ids-claims.testing';
 import { IdsWidgetComponent } from './ids-widget.component';
-import { NOTHING_HIDDEN, PLAYING_NOTICE, REST_NOTICE, mintWords, type Hid, type HidFlag } from './ids-words';
+import { NOTHING_HIDDEN, PLAYING_NOTICE, PLAYS_OUT, REST_NOTICE, STOPPED_NOTICE, mintWords, summary, type Hid, type HidFlag } from './ids-words';
 
 @Component({
   selector: 'app-ids-test-host',
@@ -19,11 +19,24 @@ const QUESTIONS = SHOWN.filter((e) => !e.goal);
 const LONG_MS = 900_000;
 const at = (id: string) => SHOWN.findIndex((e) => e.id === id);
 
-/** While a question asks and while its answer plays, no word of the widget outside the dock may hold these. */
+/**
+ * While a question asks, no word of the widget outside the dock may hold these; while its answer plays, the stage draws
+ * what the play makes (`PLAYS_OUT`), so then only the words off the picture are held: names, notice, controls, Describe.
+ */
 const GIVEAWAYS: Record<string, string[]> = {
   'one-bit': ['34.8', '3 November 2060', 'halves', 'one bit fewer'],
   burst: ['3.95 ms', '904', '4 × 1,024', 'full ticks', 'last waits', 'waited for a later tick'],
-  order: ['sorts after', 'sorts first', 'made 0.7 ms later', 'out of time order', 'hollow amber'],
+  order: [
+    'sorts after',
+    'sort after',
+    'sorts before',
+    'sort before',
+    'ids made later',
+    'sorts first',
+    'made 0.7 ms later',
+    'out of time order',
+    'hollow dot',
+  ],
   'clock-back': ['same id', 'made twice', 'Two ids', 'ids repeat', 'reissuing', 'waited 0.7 ms'],
   birthday: ['2.7%', '0.027', 'about 1 in'],
 };
@@ -101,10 +114,12 @@ async function setup({ width = 620, motion = 'off' } = {}) {
   const choose = async (label: string) =>
     press([...el.querySelectorAll<HTMLButtonElement>('app-widget-check button')].find((b) => clean(b) === label)!);
   const component = () => fixture.debugElement.children[0].componentInstance as IdsWidgetComponent;
-  /** Every word the widget shows or says outside the dock: the stage, its names, its controls, the notice, Describe. */
-  const said = () =>
+  /** Every word the widget shows or says outside the dock: the stage's text unless `picture` is false, its names, its controls, the notice, Describe. */
+  const said = (picture = true) =>
     [
-      ...[...widget.querySelectorAll('svg.draw text, g-stage .panel, g-stage button, .controls, .caption, .describe')].map(clean),
+      ...[...widget.querySelectorAll(`${picture ? 'svg.draw text, ' : ''}g-stage .panel, g-stage button, .controls, .caption, .describe`)].map(
+        clean,
+      ),
       ...[...widget.querySelectorAll('g-stage [aria-label]')].map((e) => e.getAttribute('aria-label') ?? ''),
     ].join(' | ');
   const describe = () => el.querySelector<HTMLButtonElement>('.describe button')!;
@@ -125,22 +140,24 @@ function structural(t: Setup, e: SdExperiment, phase: 'asking' | 'playing'): str
     if (phase === 'asking' && !t.has('[data-id="life-marker"]')) out.push('no lifetime marker while asking');
     if (phase === 'playing' && t.has('[data-id="life-marker"]')) out.push('a lifetime marker while the answer plays');
   }
-  if (h.has('burstAfter') && phase === 'playing') {
-    if (t.has('[data-id="burst-bracket"], [data-id="wait-line"], [data-id="burst-last"]')) out.push("the burst's bracket, count or wait");
-    const g0 = t.component().model().lanes[0].ids;
-    const drawn = new Set([...t.svg().querySelectorAll('[data-id]')].map((m) => m.getAttribute('data-id')));
-    if (g0.some((x) => x.tick !== g0[0].tick && ['gauge', 'dot', 'row-key'].some((k) => drawn.has(`${k}-${x.key}`))))
-      out.push("a later tick of G0's burst");
-  }
-  if (h.has('order') || h.has('repeats')) {
+  const name = t.svg().getAttribute('aria-label') ?? '';
+  if ((h.has('order') || h.has('repeats')) && phase === 'asking') {
     if (t.has('[data-id^="row-key-"], [data-id^="rdot-"], [data-id^="order-"]:not([data-id^="order-hidden"])')) out.push('the sorted list');
     if (!t.has('[data-id="order-hidden"]')) out.push("the sorted list's hidden box");
+    if (t.has('[data-id^="own-"]')) out.push("a faulty clock's own ticks");
+    if (!name.includes('The order of the ids is hidden until you answer.')) out.push('the order unsaid in the stage name');
   }
-  if (h.has('inspect') || h.has('repeats')) {
-    if (t.has('[data-id="id-value"], [data-id^="leak-"], [data-id^="conv-"]')) out.push("the inspected id's digits");
+  if ((h.has('order') || h.has('repeats')) && phase === 'playing' && !name.includes('The order of the ids shows at the reveal.'))
+    out.push('the order unsaid in the stage name');
+  if ((h.has('inspect') || h.has('repeats')) && phase === 'asking') {
+    if (t.has('[data-id^="id-value"], [data-id^="leak-"], [data-id^="conv-"]')) out.push("the inspected id's digits");
     for (const n of t.el.querySelectorAll<HTMLButtonElement>('button.nav')) if (!n.disabled) out.push('Older or Newer is live');
   }
-  if (h.has('repeats') && t.has('.repeat-ring, .twin-ring, .repeat-link, .dot.repeat, [data-id="id-twice"]')) out.push('a repeat marked');
+  if (h.has('repeats') && phase === 'asking' && t.has('.repeat-ring, .twin-ring, .repeat-link, .dot.repeat, [data-id="id-twice"]'))
+    out.push('a repeat marked');
+  if (phase === 'playing')
+    for (const box of t.svg().querySelectorAll('[data-id$="-said"]'))
+      if (/until you answer/.test(box.textContent ?? '')) out.push(`"${box.textContent}" after the answer`);
   if (
     h.has('chance') &&
     t.has(
@@ -152,16 +169,47 @@ function structural(t: Setup, e: SdExperiment, phase: 'asking' | 'playing'): str
   return out;
 }
 
+/** What the answer's play must have drawn on the stage by its last frame: the marks the question asked about. */
+function playedOut(t: Setup, e: SdExperiment): string[] {
+  const out: string[] = [];
+  const h = new Set(e.hide);
+  const want = (selector: string, what: string) => !t.has(selector) && out.push(`no ${what} by the end of the play`);
+  if (h.has('burstAfter')) {
+    want('[data-id="burst-bracket"]', "burst's bracket");
+    want('[data-id="burst-last"]', "burst's last count");
+    want('[data-id="wait-line"]', "last request's wait");
+  }
+  if (h.has('order') || h.has('repeats')) {
+    want('[data-id^="row-key-"]', 'sorted row');
+    if (t.has('[data-id="order-hidden"]')) out.push('the sorted list still hidden');
+  }
+  if (h.has('inspect')) want('[data-id^="id-value"]', 'id digits');
+  if (h.has('repeats')) {
+    want('.repeat-ring', 'repeat ring');
+    want('[data-id^="row-note-"]', 'repeat note');
+  }
+  return out;
+}
+
 function giveaways(t: Setup, e: SdExperiment, phase: 'asking' | 'playing'): string[] {
   // The question's own title ("Which id sorts first") is the question, not its answer.
-  const words = t.said().replaceAll(e.title, '');
+  const playsOut = phase === 'playing' && e.hide.some((h) => (PLAYS_OUT as readonly string[]).includes(h));
+  const words = t.said(!playsOut).replaceAll(e.title, '');
   const out = (GIVEAWAYS[e.id] ?? []).filter((w) => words.includes(w)).map((w) => `"${w}"`);
   for (const c of FALSE_CLAIMS) if (c.test(words)) out.push(`${c} in "${words.match(c)![0]}"`);
   return [...out, ...structural(t, e, phase)];
 }
 
+/** Makes the stage's name say the order while the picture keeps the list hidden: a leak in words alone. */
+function plantWordLeak(c: IdsWidgetComponent) {
+  const real = c.stage;
+  Object.defineProperty(c, 'stage', {
+    value: computed(() => ({ ...real(), summary: summary(c.model(), { ...c.hid(), order: false }) })),
+  });
+}
+
 /** Replaces the widget's hiding map with one that leaks `flags`, as a code change would. */
-function plantLeak(c: IdsWidgetComponent, flags: readonly HidFlag[]) {
+function plantLeak(c: IdsWidgetComponent, flags: readonly (HidFlag | 'words')[]) {
   const real = c.hid;
   Object.defineProperty(c, 'hid', { value: computed((): Hid => ({ ...real(), ...Object.fromEntries(flags.map((f) => [f, false])) })) });
 }
@@ -175,10 +223,13 @@ async function probe(t: Setup, e: SdExperiment, from: Partial<IdSettings> | null
   if (phases.includes('asking')) for (const g of giveaways(t, e, 'asking')) found.add(`asking: ${g}`);
   if (phases.includes('playing')) {
     await t.choose(e.choices[(e.answer + 1) % e.choices.length]);
+    let last: string[] = [];
     for (let i = 0; i < 400 && !t.revealed(); i++) {
       for (const g of giveaways(t, e, 'playing')) found.add(`playing: ${g}`);
+      last = playedOut(t, e);
       await t.tick(200);
     }
+    if (t.component().motion()) for (const g of last) found.add(`playing: ${g}`);
   }
   return [...found];
 }
@@ -246,7 +297,7 @@ describe('IdsWidgetComponent', { timeout: LONG_MS }, () => {
       const t = await setup({ motion: 'full' });
       await t.press(t.play());
       expect(t.text('.notice')).toEqual([PLAYING_NOTICE]);
-      expect(t.play().getAttribute('aria-label')).toBe('Pause the mint');
+      expect(t.play().getAttribute('aria-label')).toBe('Stop the mint');
       await t.tick(16);
       await t.tick(1000);
       const count = t.svg().querySelectorAll('[data-id^="dot-g"]').length;
@@ -262,6 +313,18 @@ describe('IdsWidgetComponent', { timeout: LONG_MS }, () => {
     },
     LONG_MS,
   );
+
+  it('stops the mint at its end and says so', async () => {
+    const t = await setup({ motion: 'full' });
+    await t.press(t.play());
+    await t.tick(16);
+    await t.tick(2000);
+    await t.press(t.play());
+    expect(t.component().playing()).toBe(false);
+    expect(t.text('.notice')).toEqual([`${STOPPED_NOTICE} ${mintWords(idMint(B), NOTHING_HIDDEN)}`]);
+    expect(t.svg().querySelectorAll('[data-id^="dot-g"]')).toHaveLength(20);
+    expect(t.play().getAttribute('aria-label')).toBe('Play the mint: 8 ms of three generators');
+  });
 
   for (const motion of ['off', 'full'])
     it(
@@ -291,12 +354,14 @@ describe('IdsWidgetComponent', { timeout: LONG_MS }, () => {
   it(
     'catches a leak planted on every flag of the hiding map, each against a clean run of the same question',
     async () => {
-      const leaks: [string, string, 'asking' | 'playing', HidFlag[]][] = [
+      const leaks: [string, string, 'asking' | 'playing', (HidFlag | 'words')[]][] = [
         ['E1 played, the new lifetime shown', 'one-bit', 'playing', ['lifeNew']],
-        ["E2 played, G0's later ticks shown", 'burst', 'playing', ['burstAfter']],
+        ["E2 played, G0's burst said", 'burst', 'playing', ['burstAfter']],
         ['E3 asked, the sorted list shown', 'order', 'asking', ['order']],
+        ['E3 played, the order said', 'order', 'playing', ['order']],
         ["E3 asked, the inspected id's digits shown", 'order', 'asking', ['inspect']],
-        ['E4 played, the repeats marked', 'clock-back', 'playing', ['repeats', 'order']],
+        ['E4 played, the repeats said', 'clock-back', 'playing', ['repeats', 'order']],
+        ['E3 asked, the order said with the list hidden', 'order', 'asking', ['words']],
         ['E5 asked, the chart shown', 'birthday', 'asking', ['chance']],
         ['E2 asked with live controls', 'burst', 'asking', ['locked']],
       ];
@@ -305,7 +370,8 @@ describe('IdsWidgetComponent', { timeout: LONG_MS }, () => {
         const e = SHOWN[at(id)];
         const run = async (leak: boolean) => {
           const t = await setup({ motion: 'full' });
-          if (leak) plantLeak(t.component(), flags);
+          if (leak && flags[0] === 'words') plantWordLeak(t.component());
+          else if (leak) plantLeak(t.component(), flags);
           await t.card(at(id));
           const found =
             phase === 'asking' ? giveaways(t, e, 'asking') : (await probe(t, e, null, ['playing'])).filter((g) => g.startsWith('playing'));

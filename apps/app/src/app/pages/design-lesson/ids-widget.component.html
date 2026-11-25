@@ -42,26 +42,6 @@
           {{ h.short ? (h.dir === 'older' ? '‹' : '›') : h.dir === 'older' ? '‹ Older id' : 'Newer id ›' }}
         </button>
       }
-      @for (h of hitsOf('play'); track h.owner) {
-        <button
-          type="button"
-          class="play"
-          [attr.aria-label]="playName()"
-          [style]="hitStyle(h)"
-          [disabled]="locked()"
-          (click)="togglePlay()"
-        >
-          <svg viewBox="0 0 36 36" aria-hidden="true">
-            <circle cx="18" cy="18" r="16" />
-            @if (playing() && !locked()) {
-              <path d="M12.5 11h4v14h-4zM19.5 11h4v14h-4z" />
-            } @else {
-              <path d="M14 11v14l11-7z" />
-            }
-          </svg>
-        </button>
-      }
-
       <div class="panel" [class.wide]="wideSlots()" [class.stack]="stackSlots()" [style]="hitStyle(slot('layout'))">
         <fieldset class="group steppers" [disabled]="locked()">
           <legend class="visually-hidden">The layout, 63 bits to share</legend>
@@ -116,6 +96,26 @@
         </fieldset>
       </div>
 
+      @for (h of hitsOf('play'); track h.owner) {
+        <button
+          type="button"
+          class="play"
+          [attr.aria-label]="playName()"
+          [style]="hitStyle(h)"
+          [disabled]="locked()"
+          (click)="togglePlay()"
+        >
+          <svg viewBox="0 0 36 36" aria-hidden="true">
+            <circle cx="18" cy="18" r="16" />
+            @if (playing() && !locked()) {
+              <path d="M12.5 11h4v14h-4zM19.5 11h4v14h-4z" />
+            } @else {
+              <path d="M14 11v14l11-7z" />
+            }
+          </svg>
+        </button>
+      }
+
       <div class="panel mint" [class.wide]="wideSlots()" [style]="hitStyle(slot('mint'))">
         <fieldset class="group" [disabled]="locked()">
           <legend class="control-label">Requests to G0</legend>
@@ -146,7 +146,7 @@
             [disabled]="locked()"
             (change)="set('guard', $any($event.target).checked ? 1 : 0)"
           />
-          <span>Keep the last timestamp (wait if the clock is behind it)</span>
+          <span>Check the clock against the last timestamp (wait if it is behind)</span>
         </label>
       </div>
 

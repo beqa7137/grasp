@@ -8,12 +8,14 @@ import {
   conversion,
   hiding,
   madeBy,
+  onStage,
   mintWords,
   randomWords,
   summary,
   tableOf,
   type HidFlag,
 } from './ids-words';
+import { LEGEND } from './ids-sorted';
 
 const show = (s: IdSettings) => JSON.stringify(s);
 const SHOWN = ID_EXPERIMENTS.map(renderExperiment);
@@ -68,7 +70,8 @@ describe('Unique IDs words', { timeout: 120_000 }, () => {
   });
 
   it("keep the widget's runs whole in its HTML text: units, needs, numbers, dates, powers of ten and percentages", () => {
-    const text = 'It lasts 69.7 years, to 7 September 2095, for 5,000 requests (need 1,000,000), number 1, about 9.4 × 10⁻²⁰ or 2.7%.';
+    const text =
+      'It lasts 69.7 years, to 7 September 2095, for 5,000 requests (need 1,000,000), number 1, about 9.4 × 10⁻²⁰ or 2.7%, the 1 in 18.4 billion of 3.5 trillion.';
     expect([...text.matchAll(IDS_KEEP)].map((k) => k[0])).toEqual([
       '69.7 years',
       '7 September 2095',
@@ -77,6 +80,8 @@ describe('Unique IDs words', { timeout: 120_000 }, () => {
       'number 1',
       '9.4 × 10⁻²⁰',
       '2.7%',
+      '1 in 18.4 billion',
+      '3.5 trillion',
     ]);
   });
 
@@ -94,11 +99,18 @@ describe('Unique IDs words', { timeout: 120_000 }, () => {
     const flags = (hide: readonly string[], phase: 'asking' | 'playing' | 'revealed') =>
       (Object.entries(hiding(hide, phase)) as [HidFlag, boolean][]).filter(([, v]) => v).map(([k]) => k);
     expect(flags(['lifetime'], 'asking')).toEqual(['ghost', 'locked']);
-    expect(flags(['lifetime'], 'playing')).toEqual(['lifeNew', 'ghost', 'locked']);
+    expect(flags(['lifetime'], 'playing')).toEqual(['lifeNew', 'ghost', 'locked', 'answered']);
     expect(flags(['burstAfter'], 'asking')).toEqual(['ghost', 'locked']);
-    expect(flags(['burstAfter'], 'playing')).toEqual(['burstAfter', 'ghost', 'locked']);
+    expect(flags(['burstAfter'], 'playing')).toEqual(['burstAfter', 'ghost', 'locked', 'answered']);
     expect(flags(['order', 'inspect'], 'asking')).toEqual(['order', 'inspect', 'ghost', 'locked']);
-    expect(flags(['repeats'], 'playing')).toEqual(['order', 'inspect', 'repeats', 'ghost', 'locked']);
+    expect(flags(['repeats'], 'playing')).toEqual(['order', 'inspect', 'repeats', 'ghost', 'locked', 'answered']);
+    // While the answer plays the stage draws what it asked about as the play makes it; only the words wait.
+    const onStageFlags = (hide: readonly string[]) =>
+      (Object.entries(onStage(hiding(hide, 'playing'))) as [HidFlag, boolean][]).filter(([, v]) => v).map(([k]) => k);
+    expect(onStageFlags(['repeats'])).toEqual(['ghost', 'locked', 'answered']);
+    expect(onStageFlags(['burstAfter'])).toEqual(['ghost', 'locked', 'answered']);
+    expect(onStageFlags(['lifetime'])).toEqual(['lifeNew', 'ghost', 'locked', 'answered']);
+    expect(mintWords(idMint({ ...B, fault: 1 }), hiding(['order'], 'playing'))).toContain('The order of the ids shows at the reveal.');
     expect(flags(['chance'], 'asking')).toEqual(['chance', 'ghost', 'locked']);
     for (const e of SHOWN) expect(flags(e.hide, 'revealed'), e.id).toEqual([]);
     expect(askNotice('A burst in one tick', hiding(['burstAfter'], 'asking'))).toBe('A burst in one tick.');
@@ -111,7 +123,7 @@ describe('Unique IDs words', { timeout: 120_000 }, () => {
     const banned: Record<string, RegExp> = {
       'one-bit': /34\.8|3 November 2060|halves/,
       burst: /3\.95 ms|\b904\b|full ticks|waits? \d/,
-      order: /sorts (first|before|after)|out of time order|0\.7 ms later/,
+      order: /sorts? (first|before|after)|out of time order|0\.7 ms later|made later/,
       'clock-back': /made twice|same id|repeats? an|Two ids/,
       birthday: /2\.7%|0\.027|about 1 in/,
     };
@@ -135,5 +147,28 @@ describe('Unique IDs words', { timeout: 120_000 }, () => {
       }
     }
     expect(out).toEqual([]);
+  });
+
+  it('say an out-of-order id the way the model marks it: made before an id that sorts ahead of it', () => {
+    expect(LEGEND).toMatch(/^A hollow dot was made before an id that sorts ahead of it/);
+    const out: string[] = [];
+    for (const s of SETTINGS.filter((x) => x.fault === 1 || x.fault === 2)) {
+      const m = idMint(s);
+      const notes = new Map(tableOf(m, 'full').rows.map((r) => [r[1], r[8]]));
+      for (const x of m.lateByTick) {
+        if (!m.sorted.slice(0, x.rank).some((y) => y.issued > x.issued)) out.push(`${show(s)}: ${x.key} has no later id ahead of it`);
+        const note = notes.get(x.id.toLocaleString('en-US'));
+        if (note !== undefined && note !== 'made twice' && note !== 'sorts after a later id') out.push(`${show(s)}: ${x.key} noted "${note}"`);
+      }
+    }
+    expect(idMint({ ...B, fault: 1 }).lateByTick.length).toBeGreaterThan(0);
+    expect(out.slice(0, 10)).toEqual([]);
+  });
+
+  it('say one generator alone without "each" or "talking to each other"', () => {
+    const t = summary(idMint({ ...B, gen: 0 }), NOTHING_HIDDEN);
+    expect(t).toContain('There is room for 1 generator, making up to');
+    expect(t).toContain('One generator made 7 ids.');
+    expect(t).not.toMatch(/each other|1 generator, each/);
   });
 });

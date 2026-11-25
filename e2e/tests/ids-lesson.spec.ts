@@ -50,7 +50,7 @@ function unitSplits(widget: Locator) {
   return widget.evaluate((w) => {
     const out: string[] = [];
     const UNITS =
-      /\d[\d,.]* (?:ms|years?|bits?|ids|generators?|ticks?|requests)\b|\(need [\d,]+(?: years)?\)|\bnumber \d\b|\d+ (?:January|February|March|April|May|June|July|August|September|October|November|December) \d{4}|\d[\d.]* × 10[⁰¹²³⁴⁵⁶⁷⁸⁹⁻]+|\d[\d.]*%/g;
+      /\b1 in [\d,.]+(?: (?:thousand|million|billion|trillion))?|\d[\d,.]* (?:ms|years?|bits?|ids|generators?|ticks?|requests|thousand|million|billion|trillion)\b|\(need [\d,]+(?: years)?\)|\bnumber \d\b|\d+ (?:January|February|March|April|May|June|July|August|September|October|November|December) \d{4}|\d[\d.]* × 10[⁰¹²³⁴⁵⁶⁷⁸⁹⁻]+|\d[\d.]*%/g;
     for (const el of w.querySelectorAll('.notice, .caption, .describe .said, .describe .note, app-experiment-dock .dock, .panel')) {
       if (el.getBoundingClientRect().width < 2) continue;
       const nodes: Text[] = [];
@@ -102,9 +102,9 @@ test('the ids widget draws one id bit by bit, and changes with every control', a
   await widget.getByRole('radio', { name: '5,000 at once' }).check();
   await expect(summary).toHaveAttribute('aria-label', /G0's burst of 5,000 requests/);
   await widget.getByRole('radio', { name: "G1's clock steps back" }).check();
-  await expect(widget.locator('.notice')).toHaveText(/G1's clock steps back 2 ms at 5\.5 ms, and G1 keeps its last timestamp\./);
-  await widget.getByRole('checkbox', { name: /^Keep the last timestamp/ }).uncheck();
-  await expect(widget.locator('.notice')).toHaveText(/and G1 trusts it\./);
+  await expect(widget.locator('.notice')).toHaveText(/G1's clock steps back 2 ms at 5\.5 ms, and G1 checks its clock against its last timestamp\./);
+  await widget.getByRole('checkbox', { name: /^Check the clock against the last timestamp/ }).uncheck();
+  await expect(widget.locator('.notice')).toHaveText(/Two ids repeat: G1 trusted its clock when it stepped back 2 ms/);
   await widget.getByRole('radio', { name: 'G2 given number 1' }).check();
   await expect(widget.locator('.notice')).toHaveText(/G2 was handed G1's number, 1\./);
   await widget.getByRole('radio', { name: '64 random bits' }).check();
@@ -135,9 +135,9 @@ test('the ids widget runs from the keyboard alone', async ({ page }) => {
   await page.keyboard.press('ArrowRight');
   await expect(widget.getByRole('radio', { name: "G2's clock ahead" })).toBeChecked();
   await page.keyboard.press('Tab');
-  await expect(widget.getByRole('checkbox', { name: /^Keep the last timestamp/ })).toBeFocused();
+  await expect(widget.getByRole('checkbox', { name: /^Check the clock against the last timestamp/ })).toBeFocused();
   await page.keyboard.press('Space');
-  await expect(widget.getByRole('checkbox', { name: /^Keep the last timestamp/ })).not.toBeChecked();
+  await expect(widget.getByRole('checkbox', { name: /^Check the clock against the last timestamp/ })).not.toBeChecked();
   await widget.getByRole('slider', { name: 'Ids made' }).focus();
   await page.keyboard.press('ArrowRight');
   await expect(widget.locator('.notice')).toHaveText(/ten billion|10¹⁰/);
@@ -343,14 +343,16 @@ test.describe('the ids widget under Reduced motion', () => {
 test.describe('the ids widget with motion', () => {
   test.use({ motionOff: false, reducedMotion: 'no-preference' });
 
-  test('plays the mint on one clock, with a now line, and Pause ends it', async ({ page }) => {
+  test('plays the mint on one clock, with a now line, and Stop ends it at its end', async ({ page }) => {
     const { widget } = await open(page);
     await widget.getByRole('button', { name: PLAY }).click();
     await expect(widget.locator('.notice')).toHaveText('Playing the mint: 8 ms of the clock, slowed down.');
     await expect(widget.locator('svg.draw .now-line')).toHaveCount(1);
     await expect.poll(() => widget.locator('svg.draw [data-id^="dot-g"]').count()).toBeLessThan(20);
-    await widget.getByRole('button', { name: 'Pause the mint' }).click();
+    await widget.getByRole('button', { name: 'Stop the mint' }).click();
     await expect(widget.getByRole('button', { name: PLAY })).toBeVisible();
+    await expect(widget.locator('.notice')).toHaveText(/^Stopped: the mint is drawn at its end\. Three generators made 20 ids/);
+    await expect(widget.locator('svg.draw [data-id^="dot-g"]')).toHaveCount(20);
     await widget.getByRole('button', { name: PLAY }).click();
     await expect(widget.locator('.notice')).toHaveText(/^Three generators made 20 ids/, { timeout: 14_000 });
     await expect(widget.locator('svg.draw [data-id^="dot-g"]')).toHaveCount(20);
@@ -365,7 +367,7 @@ test.describe('the ids widget with motion', () => {
     expect(await stageText()).not.toContain('made twice');
     await expect(widget.locator('app-widget-check .explain')).toHaveText(SHOWN[e].reveal, { timeout: 14_000 });
     await expect(widget.getByRole('button', { name: 'One generator bit more' })).toBeEnabled();
-    expect(await stageText()).toContain('same id as the row above');
+    expect(await stageText()).toContain('same id as above');
   });
 
   test('on a phone, brings G0 into view before the burst plays', async ({ page }) => {

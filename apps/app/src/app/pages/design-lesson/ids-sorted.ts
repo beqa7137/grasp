@@ -1,12 +1,13 @@
-import { ID_ROW_SLOTS, ID_WINDOW_US, formatIdMs, formatInt, idRows, tsShort, type IdRow } from '@grasp/engine';
+import { ID_ROW_SLOTS, ID_WINDOW_US, formatIdMs, formatInt, idRows, lateAmong, tsShort, type IdRow } from '@grasp/engine';
 import { sampleLine } from './latency-draw';
 import { IDS_TEXT, hiddenBox, label, line, r1, rect, small, text, type Ctx } from './ids-draw';
-import { visible } from './ids-words';
 
 const ROW = 16;
 const WIDEST_ID = '9,223,372,036,854,775,807';
 const WIDEST_KEY = ['…000 · 0 · 0–65,535', '…000·0·0–65,535'];
-export const LEGEND = 'A hollow amber dot sorts before an id made earlier, in an earlier tick: out of time order.';
+export const LEGEND = 'A hollow dot was made before an id that sorts ahead of it, in an earlier tick: out of time order.';
+/** The note under a repeat, one form sized for the narrowest stage. */
+export const REPEAT_NOTE = 'same id as above';
 
 /** The row's fields as the gutter names them: the timestamp's last digits, the generator number, the sequence. */
 export const rowKey = (row: IdRow, tight = false) =>
@@ -24,9 +25,10 @@ const idColumn = (W: number, PAD: number) => {
 };
 
 /**
- * Band D, "Sorted by id": every id in id order in 21 fixed slots, each with its fields, and in the plot a dot at the
- * moment it was made, joined in row order, over the true ticks. A row steps back inside a tick; an id out of time order
- * across ticks is hollow amber, and a repeat says so right below its twin.
+ * Band D, "Sorted by id": the ids made so far in id order in 21 fixed slots, each with its fields, and in the plot a dot
+ * at the moment it was made, joined in row order, over the true ticks. A new id slides in where it sorts. A row steps
+ * back inside a tick; an id out of time order across ticks, among those made so far, is hollow, and a repeat says so
+ * right below its twin.
  */
 export function sortedBand(c: Ctx, y0: number): number {
   const { D, W, PAD, s, m, hid, view } = c;
@@ -54,14 +56,15 @@ export function sortedBand(c: Ctx, y0: number): number {
     ]);
     return top + bandH + 8;
   }
+  if (!m.layout.fits) text(c, 'no-id', PAD, top + 12, small('No id: every generator refuses.', 'bad'), { owner: 'rows' });
   const tickUs = s.tick * 1000;
   for (let k = 0; k * tickUs < ID_WINDOW_US; k++)
     if (k % 2 === 0) rect(c, 'back', `d-band-${k}`, 'tick-band', X(k * tickUs), top, X((k + 1) * tickUs) - X(k * tickUs), rowsH);
-  const rows = idRows(m).filter((r) => visible(m, r.x, hid));
-  const late = new Set(m.lateByTick.map((x) => x.key));
+  const madeSoFar = (us: number) => view.t === null || us <= view.t;
+  const rows = idRows(m).filter((r) => madeSoFar(r.made));
+  const late = new Set(lateAmong(m.sorted.filter((x) => x.issued < ID_WINDOW_US && madeSoFar(x.issued)), tickUs).map((x) => x.key));
   const pts: [number, number][] = [];
   rows.forEach((row, i) => {
-    if (c.view.t !== null && row.made > c.view.t) return;
     const ry = top + i * ROW;
     const cy = ry + ROW / 2;
     if (idW) text(c, `row-id-${row.key}`, PAD, ry + 12, [[formatInt(row.x.id), 'mono', 'ink']], { owner: 'rows' });
@@ -96,10 +99,9 @@ export function sortedBand(c: Ctx, y0: number): number {
   );
   // Notes go in the plot beside their row, after every dot and line is known, so none lands on one.
   rows.forEach((row, i) => {
-    if (c.view.t !== null && row.made > c.view.t) return;
     const ry = top + i * ROW + 12;
     const x = X(row.made);
-    const note = !hid.repeats && row.x.repeatOf ? ['same id as the row above', 'same as above'] : null;
+    const note = !hid.repeats && row.x.repeatOf ? [REPEAT_NOTE] : null;
     const pairNote =
       view.pair && row.x.key === view.pair[0]
         ? [
@@ -124,12 +126,6 @@ export function sortedBand(c: Ctx, y0: number): number {
       else if (forms !== note) D.missing.push(forms[0]);
     }
   });
-  if (hid.burstAfter && rows.length < ID_ROW_SLOTS)
-    hiddenBox(c, 'rows-hidden', x0 - keyW - idW, top + rows.length * ROW + 2, full, (ID_ROW_SLOTS - rows.length) * ROW - 2, [
-      "G0's later ids are hidden until you answer",
-      'Hidden until you answer',
-      'Hidden',
-    ]);
   const ay = top + rowsH + 4;
   line(c, 'grid', 'd-axis', 'axis', x0, ay, x0 + w, ay);
   for (let ms = 0; ms <= 8; ms += w < 150 ? 4 : 2)
@@ -137,7 +133,7 @@ export function sortedBand(c: Ctx, y0: number): number {
       anchor: ms === 8 ? 'end' : 'middle',
       owner: 'd-axis',
     });
-  if (m.lateByTick.length)
+  if (late.size)
     IDS_TEXT.wrap(LEGEND, 'small', full - 14).forEach((t, i) => {
       if (i === 0) D.add('dots', 'legend-dot', { k: 'circle', cls: 'rdot late', cx: PAD + 4, cy: ay + 30, r: 3.5 });
       text(c, `d-legend-${i}`, PAD + 14, ay + 34 + i * 14, small(t), { owner: 'legend' });
