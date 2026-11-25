@@ -14,7 +14,7 @@ Ask: Just before the nightly full backup, someone drops the orders table. The st
 
 Reveal: Nothing: a replica is not a backup. A standby copies every change within seconds, the drop included, so 5 s after the primary loses the table, the standby loses it too. It protects against losing a machine, not against losing the data: a bad migration or ransomware reaches it the same way, so keep backups immutable in another account, retained long enough to reach back before a mistake noticed weeks later. Point-in-time recovery, restored beside the primary, stops just before the drop and loses nothing, but gets the table back only in 5.8 h.
 
-### Ten terabytes, a backup every six hours
+### Ten terabytes, disks lost
 
 Ask: A 10 TB database restores at 50 GB/min. A full backup runs every 6 h, the log is archived every 1 min, and replay runs 5× as fast as the writes came in. The disks fail just before the next full backup. How long until point-in-time recovery serves again?
 
@@ -59,7 +59,7 @@ Reveal: The table is back in 13 min with nothing lost: the drop sits in its log,
 Ask: Meet an RPO of 1 min and an RTO of 1 h for this 2 TB database with point-in-time recovery: tune the restore speed, the full backups and the replay. Each full backup reads all 2 TB from the primary, so run one no more often than every 6 h.
 
 
-Reveal: Restore at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min to restore 2 TB, then at most 6 h of log in 18 min, 58 min in all; with the log archived every 1 min or more often, it loses at most that. At 10× the replay alone takes 36 min and misses the hour; hourly full backups would make it, but read 2 TB from the primary 24 times a day, unless they are incremental or taken from a standby. At 10 TB nothing here meets the hour: copying it at 50 GB/min takes 3.3 h alone. So large databases restore from volume snapshots, or fail over to a standby for the dead disk and a delayed replica for the bad delete, and keep point-in-time recovery for the rest. And a recovery time is real only once a drill has measured it.
+Reveal: Restore at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min to restore 2 TB, then at most 6 h of log in 18 min, 58 min in all; with the log archived every 1 min or more often, it loses at most that. At 10× the replay takes 36 min, 76 min in all with the restore, and misses the hour; hourly full backups would make it, but read 2 TB from the primary 24 times a day, unless they are incremental or taken from a standby. At 10 TB nothing here meets the hour: copying it at 50 GB/min takes 3.3 h alone. So large databases restore from volume snapshots, or fail over to a standby for the dead disk and a delayed replica for the bad delete, and keep point-in-time recovery for the rest. And a recovery time is real only once a drill has measured it.
 
 ## Desktop, Reduced motion
 
@@ -144,7 +144,7 @@ Reveal: Restore at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min
 - A schematic model, worst case: the disaster strikes just before the next full backup and the next log archive. Restores copy at a fixed speed; the log replays at a fixed multiple of the speed it was written; the standby runs a fixed 5 s behind and a promotion takes 1 min; the delayed replica receives the log 5 s behind and applies it 1 h behind, and the drop is noticed within that hour. After a drop the primary keeps serving: each plan recovers beside it, and copying the table back takes 1 min. Lower RPO and RTO cost more: more frequent full backups read the primary more often, and a sync standby adds a round trip to every commit. The clocks start when recovery starts: noticing the disaster, checking the data and repointing the application add to them.
 - Describe
 - 1 A dropped table
-- 2 Ten terabytes, a backup every six hours
+- 2 Ten terabytes, disks lost
 - 3 Archive more often
 - 4 Five times the data
 - 5 A replica an hour behind
@@ -455,7 +455,7 @@ Reveal: Restore at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min
 - 4.5 h: the restore, then 6 h of log at 5×
 - 8.1 h: the restore, then the day's 24 h of log at 5×
 - A timeline of one disaster and four recovery plans for a 10 TB database whose disks fail at the worst moment. Before the disaster, on a log scale: full backups every 6 h lose up to 6 h; point-in-time recovery, the base backup plus the log archived every 1 min, loses up to 1 min; the asynchronous standby loses up to 5 s; the delayed replica, 1 h behind, loses up to 5 s. After it, serving again: full backups in 3.3 h; point-in-time recovery: after your answer; the standby in 1 min; the delayed replica in 13 min. A schematic, worst-case model.
-- Experiment: Ten terabytes, a backup every six hours
+- Experiment: Ten terabytes, disks lost
 
 #### experiment 2 revealed
 
@@ -558,7 +558,7 @@ Reveal: Restore at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min
 - back in 4 min · was 7 min
 - Goal met:
 - ✓point-in-time recovery serves again within 1 h (now 58 min): met
-- Restore at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min to restore 2 TB, then at most 6 h of log in 18 min, 58 min in all; with the log archived every 1 min or more often, it loses at most that. At 10× the replay alone takes 36 min and misses the hour; hourly full backups would make it, but read 2 TB from the primary 24 times a day, unless they are incremental or taken from a standby. At 10 TB nothing here meets the hour: copying it at 50 GB/min takes 3.3 h alone. So large databases restore from volume snapshots, or fail over to a standby for the dead disk and a delayed replica for the bad delete, and keep point-in-time recovery for the rest. And a recovery time is real only once a drill has measured it.
+- Restore at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min to restore 2 TB, then at most 6 h of log in 18 min, 58 min in all; with the log archived every 1 min or more often, it loses at most that. At 10× the replay takes 36 min, 76 min in all with the restore, and misses the hour; hourly full backups would make it, but read 2 TB from the primary 24 times a day, unless they are incremental or taken from a standby. At 10 TB nothing here meets the hour: copying it at 50 GB/min takes 3.3 h alone. So large databases restore from volume snapshots, or fail over to a standby for the dead disk and a delayed replica for the bad delete, and keep point-in-time recovery for the rest. And a recovery time is real only once a drill has measured it.
 - A timeline of one disaster and four recovery plans for a 2 TB database whose disks fail at the worst moment. Before the disaster, on a log scale: full backups every 6 h lose up to 6 h; point-in-time recovery, the base backup plus the log archived every 1 min, loses up to 1 min; the asynchronous standby loses up to 5 s; the delayed replica, 1 h behind, loses up to 5 s. After it, serving again: full backups in 40 min; point-in-time recovery in 58 min; the standby in 1 min; the delayed replica in 4 min. A schematic, worst-case model.
 
 ## Desktop, with motion
@@ -644,7 +644,7 @@ Reveal: Restore at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min
 - A schematic model, worst case: the disaster strikes just before the next full backup and the next log archive. Restores copy at a fixed speed; the log replays at a fixed multiple of the speed it was written; the standby runs a fixed 5 s behind and a promotion takes 1 min; the delayed replica receives the log 5 s behind and applies it 1 h behind, and the drop is noticed within that hour. After a drop the primary keeps serving: each plan recovers beside it, and copying the table back takes 1 min. Lower RPO and RTO cost more: more frequent full backups read the primary more often, and a sync standby adds a round trip to every commit. The clocks start when recovery starts: noticing the disaster, checking the data and repointing the application add to them.
 - Describe
 - 1 A dropped table
-- 2 Ten terabytes, a backup every six hours
+- 2 Ten terabytes, disks lost
 - 3 Archive more often
 - 4 Five times the data
 - 5 A replica an hour behind
@@ -706,9 +706,13 @@ Reveal: Restore at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min
 #### playing, Disks lost
 
 - Recovering after the disaster.
-- Recovering: 3 min after the disaster.
-- NOW 3 min AFTER THE DISASTER
 - recovering
+
+#### playing, Disks lost
+
+- Recovering: 7 min after the disaster.
+- NOW 7 min AFTER THE DISASTER
+- replay its 1 h of log at 10×: 6 min; promote it: …
 
 #### playing, Disks lost
 
@@ -737,8 +741,8 @@ Reveal: Restore at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min
 
 #### playing, Disks lost
 
-- Recovering: 40 min after the disaster.
-- NOW 40 min AFTER THE DISASTER
+- Recovering: 36 min after the disaster.
+- NOW 36 min AFTER THE DISASTER
 
 #### playing, Disks lost
 
@@ -747,13 +751,13 @@ Reveal: Restore at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min
 
 #### playing, Disks lost
 
-- Recovering: 50 min after the disaster.
-- NOW 50 min AFTER THE DISASTER
+- Recovering: 46 min after the disaster.
+- NOW 46 min AFTER THE DISASTER
 
 #### playing, Disks lost
 
-- Recovering: 56 min after the disaster.
-- NOW 56 min AFTER THE DISASTER
+- Recovering: 53 min after the disaster.
+- NOW 53 min AFTER THE DISASTER
 
 #### playing, Disks lost
 
@@ -772,8 +776,8 @@ Reveal: Restore at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min
 
 #### playing, Disks lost
 
-- Recovering: 76 min after the disaster.
-- NOW 76 min AFTER THE DISASTER
+- Recovering: 73 min after the disaster.
+- NOW 73 min AFTER THE DISASTER
 
 #### playing, Disks lost
 
@@ -787,13 +791,13 @@ Reveal: Restore at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min
 
 #### playing, Disks lost
 
-- Recovering: 93 min after the disaster.
-- NOW 93 min AFTER THE DISASTER
+- Recovering: 89 min after the disaster.
+- NOW 89 min AFTER THE DISASTER
 
 #### playing, Disks lost
 
-- Recovering: 96 min after the disaster.
-- NOW 96 min AFTER THE DISASTER
+- Recovering: 99 min after the disaster.
+- NOW 99 min AFTER THE DISASTER
 
 #### playing, Disks lost
 
@@ -822,6 +826,11 @@ Reveal: Restore at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min
 
 #### playing, Disks lost
 
+- Recovering: 2.2 h after the disaster.
+- NOW 2.2 h AFTER THE DISASTER
+
+#### playing, Disks lost
+
 - Recovering: 2.3 h after the disaster.
 - NOW 2.3 h AFTER THE DISASTER
 
@@ -839,11 +848,6 @@ Reveal: Restore at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min
 
 - Recovering: 2.6 h after the disaster.
 - NOW 2.6 h AFTER THE DISASTER
-
-#### playing, Disks lost
-
-- Recovering: 2.7 h after the disaster.
-- NOW 2.7 h AFTER THE DISASTER
 
 #### playing, Disks lost
 
@@ -915,11 +919,6 @@ Reveal: Restore at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min
 
 - Recovering: 4.1 h after the disaster.
 - NOW 4.1 h AFTER THE DISASTER
-
-#### playing, Disks lost
-
-- Recovering: 4.2 h after the disaster.
-- NOW 4.2 h AFTER THE DISASTER
 
 #### playing, Disks lost
 
@@ -1030,13 +1029,10 @@ Reveal: Restore at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min
 #### playing, Table dropped
 
 - Recovering after the drop.
-- never
-- it has applied the drop too: no copy without it
-
-#### playing, Table dropped
-
 - Recovering: 3 min after the drop.
 - NOW 3 min AFTER THE DROP
+- never
+- it has applied the drop too: no copy without it
 
 #### playing, Table dropped
 
@@ -1052,13 +1048,8 @@ Reveal: Restore at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min
 
 #### playing, Table dropped
 
-- Recovering: 20 min after the drop.
-- NOW 20 min AFTER THE DROP
-
-#### playing, Table dropped
-
-- Recovering: 27 min after the drop.
-- NOW 27 min AFTER THE DROP
+- Recovering: 23 min after the drop.
+- NOW 23 min AFTER THE DROP
 
 #### playing, Table dropped
 
@@ -1067,8 +1058,8 @@ Reveal: Restore at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min
 
 #### playing, Table dropped
 
-- Recovering: 36 min after the drop.
-- NOW 36 min AFTER THE DROP
+- Recovering: 33 min after the drop.
+- NOW 33 min AFTER THE DROP
 
 #### playing, Table dropped
 
@@ -1102,13 +1093,8 @@ Reveal: Restore at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min
 
 #### playing, Table dropped
 
-- Recovering: 73 min after the drop.
-- NOW 73 min AFTER THE DROP
-
-#### playing, Table dropped
-
-- Recovering: 80 min after the drop.
-- NOW 80 min AFTER THE DROP
+- Recovering: 76 min after the drop.
+- NOW 76 min AFTER THE DROP
 
 #### playing, Table dropped
 
@@ -1117,8 +1103,13 @@ Reveal: Restore at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min
 
 #### playing, Table dropped
 
-- Recovering: 90 min after the drop.
-- NOW 90 min AFTER THE DROP
+- Recovering: 86 min after the drop.
+- NOW 86 min AFTER THE DROP
+
+#### playing, Table dropped
+
+- Recovering: 93 min after the drop.
+- NOW 93 min AFTER THE DROP
 
 #### playing, Table dropped
 
@@ -1149,11 +1140,6 @@ Reveal: Restore at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min
 
 - Recovering: 2.1 h after the drop.
 - NOW 2.1 h AFTER THE DROP
-
-#### playing, Table dropped
-
-- Recovering: 2.2 h after the drop.
-- NOW 2.2 h AFTER THE DROP
 
 #### playing, Table dropped
 
@@ -1202,11 +1188,6 @@ Reveal: Restore at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min
 
 #### playing, Table dropped
 
-- Recovering: 3.2 h after the drop.
-- NOW 3.2 h AFTER THE DROP
-
-#### playing, Table dropped
-
 - Recovering: 3.3 h after the drop.
 - NOW 3.3 h AFTER THE DROP
 
@@ -1231,6 +1212,11 @@ Reveal: Restore at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min
 
 #### playing, Table dropped
 
+- Recovering: 3.7 h after the drop.
+- NOW 3.7 h AFTER THE DROP
+
+#### playing, Table dropped
+
 - Recovering: 3.8 h after the drop.
 - NOW 3.8 h AFTER THE DROP
 
@@ -1243,11 +1229,6 @@ Reveal: Restore at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min
 
 - Recovering: 4 h after the drop.
 - NOW 4 h AFTER THE DROP
-
-#### playing, Table dropped
-
-- Recovering: 4.1 h after the drop.
-- NOW 4.1 h AFTER THE DROP
 
 #### playing, Table dropped
 
@@ -1271,6 +1252,11 @@ Reveal: Restore at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min
 
 #### playing, Table dropped
 
+- Recovering: 4.6 h after the drop.
+- NOW 4.6 h AFTER THE DROP
+
+#### playing, Table dropped
+
 - Recovering: 4.7 h after the drop.
 - NOW 4.7 h AFTER THE DROP
 
@@ -1288,11 +1274,6 @@ Reveal: Restore at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min
 
 - Recovering: 5 h after the drop.
 - NOW 5 h AFTER THE DROP
-
-#### playing, Table dropped
-
-- Recovering: 5.1 h after the drop.
-- NOW 5.1 h AFTER THE DROP
 
 #### playing, Table dropped
 
@@ -1318,11 +1299,6 @@ Reveal: Restore at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min
 
 - Recovering: 5.6 h after the drop.
 - NOW 5.6 h AFTER THE DROP
-
-#### playing, Table dropped
-
-- Recovering: 5.7 h after the drop.
-- NOW 5.7 h AFTER THE DROP
 
 #### playing, Table dropped
 
@@ -1405,7 +1381,7 @@ Reveal: Restore at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min
 - 4.5 h: the restore, then 6 h of log at 5×
 - 8.1 h: the restore, then the day's 24 h of log at 5×
 - A timeline of one disaster and four recovery plans for a 10 TB database whose disks fail at the worst moment. Before the disaster, on a log scale: full backups every 6 h lose up to 6 h; point-in-time recovery, the base backup plus the log archived every 1 min, loses up to 1 min; the asynchronous standby loses up to 5 s; the delayed replica, 1 h behind, loses up to 5 s. After it, serving again: full backups in 3.3 h; point-in-time recovery: after your answer; the standby in 1 min; the delayed replica in 13 min. A schematic, worst-case model.
-- Experiment: Ten terabytes, a backup every six hours
+- Experiment: Ten terabytes, disks lost
 
 #### experiment 2 playing
 
@@ -1428,10 +1404,6 @@ Reveal: Restore at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min
 
 - the base backup, then the log archived
 - A timeline of one disaster and four recovery plans for a 2 TB database whose disks fail at the worst moment. Before the disaster, on a log scale: full backups every 24 h lose up to 24 h; point-in-time recovery, the base backup plus the archived log: its loss shows after your answer; the asynchronous standby loses up to 5 s; the delayed replica, 1 h behind, loses up to 5 s. After it, serving again: full backups in 3.3 h; point-in-time recovery: after your answer; the standby in 1 min; the delayed replica in 7 min. A schematic, worst-case model.
-
-#### experiment 3 playing
-
-- replay its 1 h of log at 10×: 6 min; promote it: …
 
 #### experiment 4 asking
 
@@ -1505,7 +1477,7 @@ Reveal: Restore at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min
 - replay its 1 h of log at 20×: 3 min; promote it: 1 min
 - Goal met:
 - ✓point-in-time recovery serves again within 1 h (now 58 min): met
-- Restore at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min to restore 2 TB, then at most 6 h of log in 18 min, 58 min in all; with the log archived every 1 min or more often, it loses at most that. At 10× the replay alone takes 36 min and misses the hour; hourly full backups would make it, but read 2 TB from the primary 24 times a day, unless they are incremental or taken from a standby. At 10 TB nothing here meets the hour: copying it at 50 GB/min takes 3.3 h alone. So large databases restore from volume snapshots, or fail over to a standby for the dead disk and a delayed replica for the bad delete, and keep point-in-time recovery for the rest. And a recovery time is real only once a drill has measured it.
+- Restore at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min to restore 2 TB, then at most 6 h of log in 18 min, 58 min in all; with the log archived every 1 min or more often, it loses at most that. At 10× the replay takes 36 min, 76 min in all with the restore, and misses the hour; hourly full backups would make it, but read 2 TB from the primary 24 times a day, unless they are incremental or taken from a standby. At 10 TB nothing here meets the hour: copying it at 50 GB/min takes 3.3 h alone. So large databases restore from volume snapshots, or fail over to a standby for the dead disk and a delayed replica for the bad delete, and keep point-in-time recovery for the rest. And a recovery time is real only once a drill has measured it.
 - A timeline of one disaster and four recovery plans for a 2 TB database whose disks fail at the worst moment. Before the disaster, on a log scale: full backups every 6 h lose up to 6 h; point-in-time recovery, the base backup plus the log archived every 1 min, loses up to 1 min; the asynchronous standby loses up to 5 s; the delayed replica, 1 h behind, loses up to 5 s. After it, serving again: full backups in 40 min; point-in-time recovery in 58 min; the standby in 1 min; the delayed replica in 4 min. A schematic, worst-case model.
 - done
 
@@ -1592,7 +1564,7 @@ Reveal: Restore at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min
 - A schematic model, worst case: the disaster strikes just before the next full backup and the next log archive. Restores copy at a fixed speed; the log replays at a fixed multiple of the speed it was written; the standby runs a fixed 5 s behind and a promotion takes 1 min; the delayed replica receives the log 5 s behind and applies it 1 h behind, and the drop is noticed within that hour. After a drop the primary keeps serving: each plan recovers beside it, and copying the table back takes 1 min. Lower RPO and RTO cost more: more frequent full backups read the primary more often, and a sync standby adds a round trip to every commit. The clocks start when recovery starts: noticing the disaster, checking the data and repointing the application add to them.
 - Describe
 - 1 A dropped table
-- 2 Ten terabytes, a backup every six hours
+- 2 Ten terabytes, disks lost
 - 3 Archive more often
 - 4 Five times the data
 - 5 A replica an hour behind
@@ -1882,7 +1854,7 @@ Reveal: Restore at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min
 - 4.5 h: the restore, then 6 h of log at 5×
 - 8.1 h: the restore, then the day's 24 h of log at 5×
 - A timeline of one disaster and four recovery plans for a 10 TB database whose disks fail at the worst moment. Before the disaster, on a log scale: full backups every 6 h lose up to 6 h; point-in-time recovery, the base backup plus the log archived every 1 min, loses up to 1 min; the asynchronous standby loses up to 5 s; the delayed replica, 1 h behind, loses up to 5 s. After it, serving again: full backups in 3.3 h; point-in-time recovery: after your answer; the standby in 1 min; the delayed replica in 13 min. A schematic, worst-case model.
-- Experiment: Ten terabytes, a backup every six hours
+- Experiment: Ten terabytes, disks lost
 
 #### experiment 2 revealed
 
@@ -1985,5 +1957,5 @@ Reveal: Restore at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min
 - 18 min; 58 min in all
 - Goal met:
 - ✓point-in-time recovery serves again within 1 h (now 58 min): met
-- Restore at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min to restore 2 TB, then at most 6 h of log in 18 min, 58 min in all; with the log archived every 1 min or more often, it loses at most that. At 10× the replay alone takes 36 min and misses the hour; hourly full backups would make it, but read 2 TB from the primary 24 times a day, unless they are incremental or taken from a standby. At 10 TB nothing here meets the hour: copying it at 50 GB/min takes 3.3 h alone. So large databases restore from volume snapshots, or fail over to a standby for the dead disk and a delayed replica for the bad delete, and keep point-in-time recovery for the rest. And a recovery time is real only once a drill has measured it.
+- Restore at 50 GB/min, a full backup every 6 h and replay at 20×: 40 min to restore 2 TB, then at most 6 h of log in 18 min, 58 min in all; with the log archived every 1 min or more often, it loses at most that. At 10× the replay takes 36 min, 76 min in all with the restore, and misses the hour; hourly full backups would make it, but read 2 TB from the primary 24 times a day, unless they are incremental or taken from a standby. At 10 TB nothing here meets the hour: copying it at 50 GB/min takes 3.3 h alone. So large databases restore from volume snapshots, or fail over to a standby for the dead disk and a delayed replica for the bad delete, and keep point-in-time recovery for the rest. And a recovery time is real only once a drill has measured it.
 - A timeline of one disaster and four recovery plans for a 2 TB database whose disks fail at the worst moment. Before the disaster, on a log scale: full backups every 6 h lose up to 6 h; point-in-time recovery, the base backup plus the log archived every 1 min, loses up to 1 min; the asynchronous standby loses up to 5 s; the delayed replica, 1 h behind, loses up to 5 s. After it, serving again: full backups in 40 min; point-in-time recovery in 58 min; the standby in 1 min; the delayed replica in 4 min. A schematic, worst-case model.
