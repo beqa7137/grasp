@@ -134,13 +134,17 @@ describe.each(storages)('Progress append contract (%s)', (storage) => {
       const learnerId = randomUUID();
       const valid = target('evt-target-ok');
       await post(learnerId, [{ ...valid, target: { level: 'mid', rounds: { coding: 0, design: 0, behavioral: 1 } } }]).expect(200);
+      for (const company of ['microsoft', 'initech']) {
+        await post(learnerId, [{ ...valid, id: `evt-target-${company}`, target: { ...valid.target, company } }]).expect(200);
+      }
       const invalid = [
         { level: 'staff', rounds: valid.target.rounds },
         { ...valid.target, rounds: { coding: 4, design: 0, behavioral: 0 } },
         { ...valid.target, rounds: { coding: 0, design: 0, behavioral: 0 } },
         { ...valid.target, rounds: { coding: 1, design: 1 } },
         { ...valid.target, rounds: { ...valid.target.rounds, ood: 1 } },
-        { ...valid.target, company: 'initech' },
+        { ...valid.target, company: 'Initech Inc' },
+        { ...valid.target, company: 'x'.repeat(33) },
         { ...valid.target, interviewDate: '2026-12-01' },
       ];
       for (const [i, body] of invalid.entries()) await post(learnerId, [{ ...valid, id: `evt-target-bad-${i}`, target: body }]).expect(400);
