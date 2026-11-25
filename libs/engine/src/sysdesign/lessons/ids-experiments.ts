@@ -162,7 +162,7 @@ export const ID_EXPERIMENTS: readonly ExperimentSpec[] = [
     title: 'The clock steps back',
     setup: ID_SETUP.clock,
     act: { set: { fault: ID_FAULT.stepBack }, run: 'mint' },
-    ask: 'G1 trusts its clock: it does not keep its last timestamp. At {stepAt} its clock steps back {step}. What happens to the ids it makes after that?',
+    ask: 'G1 trusts its clock: it never checks it against the last timestamp it used. At {stepAt} its clock steps back {step}. What happens to the ids it makes after that?',
     choices: [
       { text: 'Some repeat ids it already made', value: 'repeat' },
       { text: 'They sort before its earlier ids, but none repeats', value: 'early' },
@@ -170,7 +170,7 @@ export const ID_EXPERIMENTS: readonly ExperimentSpec[] = [
     ],
     truth: 'outcome',
     reveal:
-      '{twice} made twice: after the step G1\'s clock reads ticks it has used, and its sequence starts again at {zero}, so it makes the same timestamp, number and sequence as before. Turn on "Keep the last timestamp" and G1 waits {gWait} for its clock to pass the last timestamp it used, and none repeats.',
+      '{twice} made twice: after the step G1\'s clock reads ticks it has used, and its sequence starts again at {zero}, so it makes the same timestamp, number and sequence as before. Turn on "Check the clock against the last timestamp" and G1 waits {gWait} for its clock to reach the last timestamp it used again, then carries on its sequence there, and none repeats.',
     focus: ['laneG1', 'sorted'],
     hide: ['repeats'],
     slots: () => {
@@ -231,7 +231,7 @@ export const ID_EXPERIMENTS: readonly ExperimentSpec[] = [
     goal: ID_CHALLENGE_GOAL,
     ask: 'Design the layout for up to {gens} generators, each able to make {rate} ids a second on its own, lasting at least {need} years from today.',
     reveal:
-      '{gBits} generator bits and {sBits} sequence bits at a {tick} tick: {gensGot} generators, {perSec} ids a second each, and {tBits} timestamp bits that last {life}, {left} of them from today. One generator bit fewer leaves {fewer} generators, one sequence bit fewer {slower} ids a second, and one more bit for either halves the timestamp to {half}, short of {need} years.',
+      '{gBits} generator bits and {sBits} sequence bits at a {tick} tick: {gensGot} generators, {perSec} ids a second each, and {tBits} timestamp bits that last {life} from an epoch of {epochDate}, {left} of them from today. One generator bit fewer leaves {fewer} generators, one sequence bit fewer {slower} ids a second, and one more bit for either halves the timestamp to {half}, short of {need} years.',
     focus: [],
     hide: [],
     slots: () => {
@@ -248,6 +248,7 @@ export const ID_EXPERIMENTS: readonly ExperimentSpec[] = [
         perSec: num(L.perSecond),
         tBits: num(L.timeBits),
         life: years(L.years),
+        epochDate: date(L.epochMs),
         left: years(L.yearsLeft),
         fewer: num(L.generators / 2),
         slower: num(L.perSecond / 2),

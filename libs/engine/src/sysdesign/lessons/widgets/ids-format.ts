@@ -45,11 +45,12 @@ export function formatDate(ms: number): string | null {
 }
 /** The end of the timestamp: a date while one exists, else how far off it is. */
 export const endWords = (L: IdLayout) => formatDate(L.endMs) ?? `about ${formatYears(L.years)} after the epoch`;
-/** Microseconds as milliseconds: "2.9 ms", "0.05 ms", "3.95 ms". */
+/** Microseconds as milliseconds, to 0.01 ms under 10, 0.1 ms under 100, else whole: "2.9 ms", "0.05 ms", "78 ms". */
 export const formatIdMs = (us: number) => {
   const v = us / 1000;
   if (v >= 100) return `${formatInt(v)} ms`;
-  return `${Number.isInteger(v) ? v : v.toFixed(v < 10 ? 2 : 1).replace(/0$/, '')} ms`;
+  const d = v < 10 ? 100 : 10;
+  return `${Math.round(v * d) / d} ms`;
 };
 export function formatSci(x: number): string {
   let e = Math.floor(Math.log10(x));
@@ -121,10 +122,10 @@ export const headSentence = (L: IdLayout) =>
   `The 64 bits are 1 sign bit, ${L.timeBits} timestamp bits, ${plural(L.genBits, 'generator bit', 'generator bits')} and ${plural(L.seqBits, 'sequence bit', 'sequence bits')}.`;
 export const timeSentence = (s: IdSettings, L: IdLayout) =>
   L.fits
-    ? `The timestamp counts ${s.tick} ms ticks from ${formatDate(L.epochMs)} and lasts ${formatYears(L.years)}, to ${endWords(L)}.`
+    ? `The timestamp counts ${s.tick} ms ticks from ${formatDate(L.epochMs)} and lasts ${formatYears(L.years)}${formatDate(L.endMs) ? `, to ${formatDate(L.endMs)}` : ''}.`
     : `The timestamp counts ${s.tick} ms ticks from ${formatDate(L.epochMs)} and ran out on ${endWords(L)}, so today's clock no longer fits and every generator must refuse to mint.`;
 export const roomSentence = (L: IdLayout) =>
-  `There is room for ${plural(L.generators, 'generator', 'generators')}, each making up to ${formatInt(L.perSecond)} ids a second.`;
+  `There is room for ${plural(L.generators, 'generator', 'generators')}, ${L.generators === 1 ? 'making' : 'each making'} up to ${formatInt(L.perSecond)} ids a second.`;
 export function layoutSentence(s: IdSettings): string {
   const L = idLayout(s);
   return `${headSentence(L)} ${timeSentence(s, L)} ${roomSentence(L)}`;
@@ -151,13 +152,13 @@ export function mintParts(m: IdMint): MintParts | null {
   const repeats = m.repeats.length
     ? s.fault === ID_FAULT.shared
       ? `${opening(m.repeats.length, 'id repeats', 'ids repeat')}: G1 and G2 share the number 1, so in a tick where both make an id with the same sequence, the ids are equal.`
-      : `${opening(m.repeats.length, 'id repeats', 'ids repeat')}: G1's clock stepped back ${formatIdMs(ID_STEP_US)} and the generator trusted it, reissuing timestamps it had used.`
+      : `${opening(m.repeats.length, 'id repeats', 'ids repeat')}: G1 trusted its clock when it stepped back ${formatIdMs(ID_STEP_US)}, reissuing timestamps it had used.`
     : 'No id repeats.';
   let guard: string | null = null;
   if (s.fault === ID_FAULT.stepBack && s.guard) {
     const w = m.lanes[1].ids.find((x) => x.wait > 0 && x.issued > ID_STEP_AT_US);
     if (w)
-      guard = `G1's clock stepped back ${formatIdMs(ID_STEP_US)}; it kept its last timestamp and waited ${formatIdMs(w.wait)} for its clock to catch up.`;
+      guard = `G1's clock stepped back ${formatIdMs(ID_STEP_US)}; it checked its clock against its last timestamp and waited ${formatIdMs(w.wait)} for its clock to catch up.`;
   }
   let burst: string | null = null;
   if (s.load === ID_LOAD.burst && m.lastBurst) {
@@ -177,11 +178,11 @@ export function mintParts(m: IdMint): MintParts | null {
       ? `${opening(late, 'id', 'ids')} from G2, whose clock runs ${formatIdMs(ID_SKEW_US)} ahead, ${late === 1 ? 'sorts' : 'sort'} after ids made later.`
       : late
         ? `G1's clock now runs ${formatIdMs(ID_STEP_US)} behind, so ${plural(late, 'id', 'ids')} made earlier ${late === 1 ? 'sorts' : 'sort'} after ids G1 made later.`
-        : s.tick === 10
-          ? 'With a 10 ms tick every id here shares one timestamp, so they sort by generator, then by sequence.'
+        : s.tick === 10 && new Set(m.drawn.map((x) => x.ts)).size === 1
+          ? 'With a 10 ms tick every id drawn here shares one timestamp, so they sort by generator, then by sequence.'
           : 'They sort by tick, then by generator, then by sequence, so time order holds only to the tick.';
   return {
-    made: `${who} made ${plural(m.ids.length, 'id', 'ids')} without talking to each other.`,
+    made: `${who} made ${plural(m.ids.length, 'id', 'ids')}${running.length > 1 ? ' without talking to each other' : ''}.`,
     idle: idle.length
       ? `${idle.map((l) => genName(l.lane)).join(' and ')} cannot run: ${plural(L.genBits, 'generator bit gives', 'generator bits give')} only ${plural(L.generators, 'number', 'numbers')}.`
       : null,

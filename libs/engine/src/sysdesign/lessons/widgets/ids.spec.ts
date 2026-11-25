@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatChance, formatDate, formatYears, leakLine, mintSentence, pairsChain, randomSentence } from './ids-format.js';
+import { formatChance, formatDate, formatIdMs, formatYears, leakLine, mintSentence, pairsChain, randomSentence } from './ids-format.js';
 import {
   ID_ARRIVALS_US,
   ID_BASELINE as B,
@@ -140,6 +140,28 @@ describe('the Unique IDs model', () => {
     expect(idMint({ ...B, guard: 0, fault: 2 }).repeats).toHaveLength(2);
     expect(idMint({ ...B, guard: 1, fault: 2 }).repeats).toHaveLength(0);
     expect(idMint({ ...B, fault: 3 }).repeats.length).toBeGreaterThan(0);
+  });
+
+  it('marks as late exactly the ids that sort after an id made later, in a later tick', () => {
+    for (const s of TRICKLE.filter((x) => x.fault === 1 || x.fault === 2)) {
+      const m = idMint(s);
+      const tick = (x: { issued: number }) => Math.floor(x.issued / (s.tick * 1000));
+      const late = m.sorted.filter((x) => m.sorted.slice(0, x.rank).some((y) => y.issued > x.issued + 1e-9 && tick(y) > tick(x)));
+      expect(m.lateByTick.map((x) => x.key)).toEqual(late.map((x) => x.key));
+    }
+    expect(idMint({ ...B, fault: 1 }).lateByTick.length).toBeGreaterThan(0);
+  });
+
+  it('says every wait and moment the model makes as a well-formed number of ms', () => {
+    const values = new Set<number>();
+    for (const gen of [0, 10, 12, 16])
+      for (const seq of FIELDS)
+        for (const tick of [1, 10])
+          for (const load of [0, 1])
+            for (const fault of [0, 2])
+              for (const x of idMint({ ...B, gen, seq, tick, load, fault, guard: 1 }).ids) values.add(x.wait).add(x.issued).add(x.clock);
+    for (const v of values) expect(formatIdMs(v), String(v)).toMatch(/^(0|[1-9][\d,]*)(\.\d*[1-9])? ms$/);
+    expect([77960, 18950, 3950, 50, 100_000, 40_000].map(formatIdMs)).toEqual(['78 ms', '19 ms', '3.95 ms', '0.05 ms', '100 ms', '40 ms']);
   });
 
   it('keeps every id in the band of its own clock tick, and never needs more than the row slots', () => {

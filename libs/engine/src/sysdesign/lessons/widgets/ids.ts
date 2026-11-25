@@ -55,6 +55,8 @@ export const ID_ARRIVALS_US: readonly (readonly number[])[] = [
   [100, 2500, 2900, 3700, 6600, 7100],
 ];
 export const ID_GENERATORS = 3;
+/** The id band A shows at rest: G2's at 2.9 ms, with a generator and a sequence above 0. */
+export const ID_REST_ID = { lane: 2, at: 2900 } as const;
 export const ID_RANDOM_BITS = [64, 122] as const;
 export const ID_COUNT_EXP = { min: 3, max: 15 } as const;
 export const ID_BASELINE: IdSettings = { gen: 10, seq: 12, tick: 1, epoch: 0, load: 0, fault: 0, guard: 1, bits: 122, count: 9 };
@@ -291,7 +293,7 @@ export interface IdMint {
   /** Every id in id order (the index's key order); equal ids in made order, so a repeat sits right below its twin. */
   sorted: MintedId[];
   repeats: MintedId[];
-  /** Ids that sort before one made earlier in an earlier tick: out of time order across ticks. */
+  /** Ids made before an id that sorts ahead of them, in an earlier tick: out of time order across ticks. */
   lateByTick: MintedId[];
   drawn: MintedId[];
   /** Ids made after the drawn window. */
@@ -330,13 +332,7 @@ export function idMint(s: IdSettings): IdMint {
   }
   sorted.forEach((x, i) => (x.rank = i));
   byMade.forEach((x, i) => (x.made = i));
-  const tickUs = s.tick * 1000;
-  let maxIssued = -Infinity;
-  const lateByTick: MintedId[] = [];
-  for (const x of sorted) {
-    if (x.issued < maxIssued - 1e-9 && Math.floor(x.issued / tickUs) < Math.floor(maxIssued / tickUs)) lateByTick.push(x);
-    maxIssued = Math.max(maxIssued, x.issued);
-  }
+  const lateByTick = lateAmong(sorted, s.tick * 1000);
   const drawn = all.filter((x) => x.issued < ID_WINDOW_US);
   const waited = all.filter((x) => x.wait > 0);
   const g0 = lanes[0].ids;
@@ -354,6 +350,20 @@ export function idMint(s: IdSettings): IdMint {
     waited,
     lastBurst: s.load === ID_LOAD.burst && g0.length ? g0[g0.length - 1] : null,
   };
+}
+
+/**
+ * Of ids in id order, those made in an earlier tick than some id that sorts ahead of them: each sorts after an id made
+ * later, out of time order across ticks.
+ */
+export function lateAmong(sorted: readonly MintedId[], tickUs: number): MintedId[] {
+  let maxIssued = -Infinity;
+  const out: MintedId[] = [];
+  for (const x of sorted) {
+    if (x.issued < maxIssued - 1e-9 && Math.floor(x.issued / tickUs) < Math.floor(maxIssued / tickUs)) out.push(x);
+    maxIssued = Math.max(maxIssued, x.issued);
+  }
+  return out;
 }
 
 export interface IdGroup {

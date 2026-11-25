@@ -124,7 +124,8 @@ export const TEMPLATE_DIGITS_ALLOWED = [
   'G1',
   'G2',
   'UUIDv4',
-  '1 in ',
+  'About 1 in ',
+  'the 1 in ',
 ] as const;
 
 const trim = (v: number, decimals: number) => String(Number(v.toFixed(decimals)));

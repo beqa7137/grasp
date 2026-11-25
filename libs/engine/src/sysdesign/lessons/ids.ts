@@ -26,7 +26,7 @@ export const IDS_LESSON: SdLesson = {
     },
     {
       title: 'Random ids and the birthday bound',
-      body: 'A UUIDv4 has 122 random bits (6 of its 128 are fixed for the version and variant), so any machine can mint one with no coordination at all. The chance of any repeat among n ids is about 1 - e^(-n^2 / 2^(b+1)) for b random bits: it grows with the square of the count, and reaches even odds near 2^(b/2) ids. For 122 bits that is beyond 10^18 ids, safe for anything real. For 64 random bits it is about 5 billion ids, and a few billion already make a repeat likely, so random 64-bit ids need a uniqueness check.',
+      body: 'A UUIDv4 has 122 random bits (6 of its 128 are fixed for the version and variant), so any machine can mint one with no coordination at all. The chance of any repeat among n ids is about 1 - e^(-n^2 / 2^(b+1)) for b random bits: it grows with the square of the count, and reaches even odds near 2^(b/2) ids. For 122 bits that is beyond 10^18 ids, safe for anything real. For 64 random bits it is about 5 billion ids, and the chance is already far too high to ignore well before that, so random 64-bit ids need a uniqueness check.',
     },
     {
       title: 'Index locality: random versus time-ordered keys',

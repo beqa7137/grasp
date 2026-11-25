@@ -32,14 +32,14 @@ const EXPECTED: Record<string, { ask: string; choices: string[]; reveal: string 
       "G2's clock read 5.7 ms when it made its id, so its timestamp is the tick at 5 ms; G1's id carries the tick at 4 ms. The timestamp is the high bits, so G1's id sorts first although it was made 0.7 ms later. Each generator stamps ids with its own clock, so across machines ids are only as time-ordered as their clocks agree.",
   },
   'clock-back': {
-    ask: 'G1 trusts its clock: it does not keep its last timestamp. At 5.5 ms its clock steps back 2 ms. What happens to the ids it makes after that?',
+    ask: 'G1 trusts its clock: it never checks it against the last timestamp it used. At 5.5 ms its clock steps back 2 ms. What happens to the ids it makes after that?',
     choices: [
       'Some repeat ids it already made',
       'They sort before its earlier ids, but none repeats',
       'Nothing goes wrong: the sequence keeps them apart',
     ],
     reveal:
-      'Two ids are made twice: after the step G1\'s clock reads ticks it has used, and its sequence starts again at 0, so it makes the same timestamp, number and sequence as before. Turn on "Keep the last timestamp" and G1 waits 0.7 ms for its clock to pass the last timestamp it used, and none repeats.',
+      'Two ids are made twice: after the step G1\'s clock reads ticks it has used, and its sequence starts again at 0, so it makes the same timestamp, number and sequence as before. Turn on "Check the clock against the last timestamp" and G1 waits 0.7 ms for its clock to reach the last timestamp it used again, then carries on its sequence there, and none repeats.',
   },
   birthday: {
     ask: 'A billion ids, each 64 random bits: 2⁶⁴ values, about 18 billion billion. What is the chance that any two are equal?',
@@ -51,7 +51,7 @@ const EXPECTED: Record<string, { ask: string; choices: string[]; reveal: string 
     ask: 'Design the layout for up to 1,000 generators, each able to make 1,000,000 ids a second on its own, lasting at least 200 years from today.',
     choices: [],
     reveal:
-      '10 generator bits and 10 sequence bits at a 1 ms tick: 1,024 generators, 1,024,000 ids a second each, and 43 timestamp bits that last 278.7 years, 277.8 years of them from today. One generator bit fewer leaves 512 generators, one sequence bit fewer 512,000 ids a second, and one more bit for either halves the timestamp to 139.4 years, short of 200 years.',
+      '10 generator bits and 10 sequence bits at a 1 ms tick: 1,024 generators, 1,024,000 ids a second each, and 43 timestamp bits that last 278.7 years from an epoch of 1 January 2026, 277.8 years of them from today. One generator bit fewer leaves 512 generators, one sequence bit fewer 512,000 ids a second, and one more bit for either halves the timestamp to 139.4 years, short of 200 years.',
   },
 };
 
