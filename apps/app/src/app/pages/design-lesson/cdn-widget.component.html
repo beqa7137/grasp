@@ -1,0 +1,179 @@
+<div class="controls">
+  @for (g of groups; track g.name) {
+    <fieldset class="group" [disabled]="locked()">
+      <legend class="control-label">{{ g.legend }}</legend>
+      <div class="segments">
+        @for (o of g.options; track o.value) {
+          <label class="segment">
+            <input type="radio" [name]="'cdn-' + g.name" [checked]="settings()[g.name] === o.value" (change)="set(g.name, o.value)" />
+            <span>{{ o.label }}</span>
+          </label>
+        }
+      </div>
+    </fieldset>
+  }
+  <p class="notice" aria-live="polite" aria-atomic="true"><g-code-text [text]="notice()" /></p>
+</div>
+
+<div class="main">
+  <g-stage
+    class="cdn-stage"
+    [height]="stage().H"
+    label="CDNs and edge: where requests are answered, one location's copies, and every request by popularity"
+  >
+    @if (ready()) {
+      @let st = stage();
+      <svg
+        class="draw"
+        [attr.viewBox]="'0 0 ' + st.D.W + ' ' + st.H"
+        [attr.width]="st.D.W"
+        [attr.height]="st.H"
+        role="img"
+        [attr.aria-label]="st.summary"
+      >
+        <defs>
+          <pattern id="cdn-dense" width="3" height="10" patternUnits="userSpaceOnUse">
+            <line class="dense-line" x1="1" y1="0" x2="1" y2="10" />
+          </pattern>
+          <pattern id="cdn-dense-other" width="4" height="10" patternUnits="userSpaceOnUse">
+            <line class="dense-other-line" x1="1" y1="0" x2="1" y2="10" />
+          </pattern>
+          <clipPath id="cdn-clock">
+            <rect x="0" y="0" [attr.width]="head() ?? st.D.W" [attr.height]="st.H" />
+          </clipPath>
+        </defs>
+        <g app-cdn-prims [prims]="under()" />
+        <g class="sample" app-cdn-prims [prims]="marks()" [attr.clip-path]="head() === null ? null : 'url(#cdn-clock)'" />
+        <g app-cdn-prims [prims]="over()" />
+        <g app-cdn-prims [prims]="stepMarks()" />
+        @if (head(); as x) {
+          @for (h of st.meta.timeline.heads; track $index) {
+            <line class="playhead" [attr.x1]="x" [attr.x2]="x" [attr.y1]="h.y0" [attr.y2]="h.y1" />
+          }
+          <path
+            class="playhead-cap"
+            [attr.d]="
+              'M' +
+              (x - 3.5) +
+              ',' +
+              (st.meta.timeline.axisY + 5) +
+              ' L' +
+              (x + 3.5) +
+              ',' +
+              (st.meta.timeline.axisY + 5) +
+              ' L' +
+              x +
+              ',' +
+              st.meta.timeline.axisY +
+              ' Z'
+            "
+          />
+        }
+        @if (lit(); as l) {
+          <rect [attr.class]="'lit-row ' + l.where" [attr.x]="l.row.x" [attr.y]="l.row.y" [attr.width]="l.row.w" [attr.height]="l.row.h" />
+          @for (b of l.boxes; track $index) {
+            <rect class="lit" [attr.x]="b.x - 2" [attr.y]="b.y - 2" [attr.width]="b.w + 4" [attr.height]="b.h + 4" />
+          }
+        }
+        @if (particle(); as p) {
+          <g [attr.transform]="'translate(' + p.x + ' ' + p.y + ')'">
+            <circle class="particle-halo" r="9" />
+            <circle class="particle" r="5.5" />
+          </g>
+        }
+        @for (f of st.focus; track f.id) {
+          <g app-focus [box]="f" [on]="exp.focusOn().includes(f.region)" />
+        }
+      </svg>
+
+      @if (playHit(); as h) {
+        <button
+          type="button"
+          class="play"
+          [attr.aria-label]="playName()"
+          [style]="hitStyle(h)"
+          [disabled]="locked()"
+          (click)="togglePlay()"
+        >
+          <svg viewBox="0 0 36 36" aria-hidden="true">
+            <circle cx="18" cy="18" r="16" />
+            @if (stopping()) {
+              <path d="M12.5 11h4v14h-4zM19.5 11h4v14h-4z" />
+            } @else {
+              <path d="M14 11v14l11-7z" />
+            }
+          </svg>
+        </button>
+      }
+      @if (shieldHit(); as h) {
+        <label class="switch" [style]="hitStyle(h)">
+          <input
+            type="checkbox"
+            aria-label="Origin shield"
+            [checked]="settings().shield === 1"
+            [disabled]="locked()"
+            (change)="set('shield', $any($event.target).checked ? 1 : 0)"
+          />
+          <span><i class="knob" aria-hidden="true"></i>{{ h.w >= 150 ? 'Origin shield' : 'Shield' }}</span>
+        </label>
+      }
+    }
+  </g-stage>
+  @if (caption()) {
+    <p class="caption"><g-code-text [text]="caption()" /></p>
+  }
+  <p #prose class="model-note guide" [class.set]="proseBox()">
+    @for (line of guide(); track $index) {
+      <span>{{ $last ? line : line + ' ' }}</span>
+    }
+  </p>
+  <p class="model-note" [class.set]="proseBox()">
+    @for (line of note(); track $index) {
+      <span>{{ $last ? line : line + ' ' }}</span>
+    }
+  </p>
+
+  <div class="describe">
+    <button
+      type="button"
+      class="g-btn"
+      [attr.aria-expanded]="describe() && !describeWaits()"
+      [disabled]="describeWaits()"
+      (click)="toggleDescribe()"
+    >
+      {{ describe() && !describeWaits() ? 'Hide the description' : 'Describe' }}
+    </button>
+    @if (describeWaits()) {
+      <span class="muted">{{ describeWaitsWhy() }}</span>
+    }
+    @if (describe() && !describeWaits()) {
+      @let d = describeTable();
+      <p class="said"><g-code-text [text]="describeSaid()" /></p>
+      <g-data-table
+        label="The CDN at each count of locations, for this traffic and TTL"
+        [head]="d.head"
+        [rows]="d.rows"
+        [active]="d.active"
+        [compact]="d.compact"
+        [rowHeads]="true"
+        [height]="null"
+      />
+      <p class="muted note"><g-code-text [text]="d.note" /></p>
+    }
+  </div>
+</div>
+
+@if (experiments().length) {
+  <app-experiment-dock
+    class="experiments"
+    [experiments]="experiments()"
+    [active]="exp.active()"
+    [phase]="exp.phase()"
+    [done]="exp.done()"
+    [goalStatus]="goalStatus()"
+    [goalChecks]="goalChecks()"
+    [chosen]="exp.chosen()"
+    (chosenChange)="exp.answer($event)"
+    (start)="start($event)"
+  />
+}

@@ -3493,6 +3493,60 @@ sample.ts`: the seeded year (seed 3282478, common random numbers, no two outages
     the write at every width, a Describe width check at every width for the default, the widest and a lookup setting,
     and a check that a level chip saying "model" has its gloss in the step line at every width.
 
+- **CDNs & Edge note** (R42, the batch's fourth remaining widget, `cdn`; as built from the brief, mockup and critique
+  round of `design/r42-cdn`, and where it differs):
+  - **Verdict.** The old widget (two sliders, four TTL buttons, a checkbox, one stacked bar and three tiles) had every
+    number right and none of them a picture of why: a learner could watch "Edge hits" fall from 69% to 56% at 100
+    locations without being able to say why more locations make the origin busier, what a TTL does to one copy, why
+    the tail misses or what the shield catches, and the edge sat 10 ms from users at any count, so one location
+    looked best on every count. It is redrawn as the tiers a request falls through, one location's copies over five
+    TTLs and every request by popularity.
+  - **Engine.** `widgets/cdn.ts`: `cdnScenario` (shares, rates, paths, the mean, the half-hit ranks and the three lanes,
+    its sum inlined so all 192 settings take one pass each), `cdnColumns` (each pixel column's exact mean, so each
+    band's area is its share), `cdnSample` with the brief's seed rule and `cdnEvents`; `widgets/cdn-format.ts` says its
+    numbers. The shield counts only the other locations' misses and users reach the nearest of n locations in
+    10 ms × √(20 / n); `cdnOutcome` is retired, its edge hit rate kept at every setting and its origin and mean without
+    a shield (at 20 locations for the mean). Framework: `ExperimentRun` gains `'timeline'`, `ExperimentBound` gains
+    `atMost` (the TTL cap), and slot units gain `sig3`, `share`, `pathMs`, `meanMs`, `rank`, `ttl` and `ttlAdj` (the
+    brief's `rate` was taken by Storage Engines' MB/s, and `rateAbout` is the house `approx`).
+    `cdn-experiments.ts`: the five questions and the challenge in the brief's wording, answers at 2, 1, 3, 2, 1, the
+    challenge passing at exactly one of 192 settings. `cdn.spec.ts` pins the formulas, the old rule, the lesson's
+    numbers, the shield identity (1 − h_e)(1 − h_s) = 1 / (1 + rT) at every shield setting, the square's areas, a
+    discrete-event simulation of TTL caches at every location and the shield, and the sample at every setting;
+    `cdn-experiments.spec.ts` every rendered string, the word claims and the enumeration. The lesson's text fixes of
+    the brief's section 7 land; its `tryThis` is gone.
+  - **Picture.** `cdn-layout.ts` builds the stage from `cdn-tiers.ts`, `cdn-timeline.ts` and `cdn-square.ts` on the
+    shared `StageDraw` with the widget's own roles (`cdn-text.ts`, the one measurement module, with its keep rule);
+    every text block reserves its longest form over all 192 settings and both hidden forms (`reserve`), so the stage's
+    height depends on its width alone. The timeline's sample is drawn whole and a play shows it through a clip at the
+    playhead, so nothing shows before its moment and the stage is not rebuilt each frame; the step line is drawn apart
+    as the clock runs. The notes under the stage are broken by measure (`proseLines`), so their height is the same in
+    every browser.
+  - **Where it differs from the mockup.** Answering does not re-space the tiers over 240 ms: the act applies at once
+    and the timeline plays; the reveal's flows, bands and rings fade in over 400 ms. Focus outlines are the house
+    `app-focus` boxes made solid in this widget. Describe is compact under a 560 px stage by rule, not by measured
+    fit. The dock's idle line ("Pick an experiment below…") is the house dock's, which has none.
+  - **Fix round 1.** The sample keeps every edge request when the shield turns on (its seed ignores the shield, which
+    draws on its own stream), so the same misses turn into shield hits; at one location the shield's starting copy is
+    the edge's, so it never hits; a lane that expects a request in its window shows one (the default's tail lane now
+    misses), and an empty lane says so on its track. A lane or shield track draws as its band once its ticks would sit
+    closer than 4 px. The notice is set when a play starts and when it ends (the story, or the setting after a Stop),
+    an answer's play says "Your answer is in" and every hidden figure says it shows at the reveal. The challenge
+    names a moved traffic or cache key as an unmet line, Describe's shield columns wait for "An origin shield", the
+    text reserve covers every ghost one control away, the mean tick leaves the "no shield" and "never hits" rows'
+    words alone, and a play lights the outlined cell, the boxes a miss passes and its latency row, with a larger
+    particle. The sweep's tokens are every figure of the act's scenario, it reads the tiers' rates while they hide,
+    and two planted bypasses (a rate printed past the map, one appended to the step line) prove it. Lesson: the shield
+    concept says what leaves the origin, finite caches and LRU are taught, the edge-functions sentence is merged.
+  - **Fix round 2.** A lane's warm-up starts a random fraction of a TTL before its three TTLs, so a hot lane's copies
+    no longer expire on the window's ticks in step across lanes (an engine spec checks the phases of every hot lane
+    over all 192 settings against a uniform spread). The playhead's segment over each lane spans its tracks only, and
+    an empty lane's note sits in the lane's label band, beside its last line or on a line of its own the reserve keeps;
+    the layout spec sweeps the playhead across the window against every word and checks that a key naming gray ticks
+    is chosen whenever they are drawn. "Shield hit X% of misses" wraps whole, the shield story says whose misses it
+    counts, and learner text quotes with curly quotes (the claims list rejects a straight one). Describe's 1-location
+    origin figure stays: the shield toggle at rest shows the same number.
+
 **R46 Case widgets II.**
 
 - **Scope:**

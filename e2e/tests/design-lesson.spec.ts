@@ -164,14 +164,12 @@ test('the storage lesson draws one write through both engines, and bloom filters
 
 test('the CDN lesson shows a shield absorbing the misses that more edge locations cause', async ({ page }) => {
   await page.goto('/design/topics/sd-cdn');
-  const readout = (label: string) => page.locator('.readouts div').filter({ hasText: label }).locator('dd');
-  await expect(readout('Edge hits')).toHaveText('69.2%');
-  await expect(readout('Origin load')).toHaveText('3,077/s');
-  await page.getByRole('checkbox', { name: /Origin shield/ }).check();
-  await expect(readout('Origin load')).toHaveText('886/s');
+  const summary = page.locator('app-cdn-widget svg.draw');
+  await expect(summary).toHaveAttribute('aria-label', /69\.2% are answered at the edge in 10 ms, and 3,080\/s reach the origin/);
+  await page.getByRole('checkbox', { name: 'Origin shield' }).check();
+  await expect(summary).toHaveAttribute('aria-label', /21\.6% by the shield in 40 ms, and 913\/s reach the origin/);
   await page.getByRole('radio', { name: '1 h' }).click();
-  await expect(readout('Edge hits')).toHaveText('95.8%');
-  await expect(readout('Origin load')).toHaveText('26/s');
+  await expect(summary).toHaveAttribute('aria-label', /95\.8% are answered at the edge in 10 ms, .* and 27\/s reach the origin/);
 });
 
 test('the multi-region lesson trades read and write latency against what a region outage loses', async ({ page }) => {

@@ -99,6 +99,19 @@ const storageCard = async (p, title) => {
   await storageAt(p);
   await p.locator('app-storage-widget .cards button', { hasText: title }).click();
 };
+const cdnStageToTop = (p) => p.locator('app-cdn-widget g-stage').evaluate((stage) => stage.scrollIntoView({ block: 'start' }));
+/** Sets the CDN widget as a learner would, by its radios and its shield switch, once its summary is drawn. */
+const cdnAt = async (p, { rps, pops, ttl, key, shield } = {}) => {
+  const widget = p.locator('app-cdn-widget');
+  await widget.locator('svg.draw[aria-label^="A CDN with"]').waitFor();
+  for (const name of [rps, pops, ttl, key]) if (name) await widget.getByRole('radio', { name, exact: true }).check();
+  if (shield !== undefined) await widget.getByRole('checkbox', { name: 'Origin shield' }).setChecked(shield);
+  await cdnStageToTop(p);
+};
+const cdnCard = async (p, title) => {
+  await cdnAt(p);
+  await p.locator('app-cdn-widget .cards button', { hasText: title }).click();
+};
 const capacityStageToTop = (p) => p.locator('app-capacity-widget g-stage').evaluate((stage) => stage.scrollIntoView({ block: 'start' }));
 /**
  * Sets the capacity widget as a learner would: each tier's steppers pressed from the default (2 load balancers, 4 app
@@ -648,6 +661,79 @@ export function designStates() {
         await storageStageToTop(p);
       },
     },
+    { id: 'lesson-cdn', path: '/design/topics/sd-cdn', setup: (p) => cdnAt(p) },
+    { id: 'lesson-cdn-shield', path: '/design/topics/sd-cdn', setup: (p) => cdnAt(p, { shield: true }) },
+    { id: 'lesson-cdn-many', path: '/design/topics/sd-cdn', setup: (p) => cdnAt(p, { pops: '100' }) },
+    { id: 'lesson-cdn-one', path: '/design/topics/sd-cdn', setup: (p) => cdnAt(p, { pops: '1', shield: true }) },
+    { id: 'lesson-cdn-short', path: '/design/topics/sd-cdn', setup: (p) => cdnAt(p, { ttl: '5 s' }) },
+    {
+      id: 'lesson-cdn-busy',
+      path: '/design/topics/sd-cdn',
+      setup: (p) => cdnAt(p, { rps: '100,000/s', pops: '5', ttl: '1 h', key: '+ utm_source', shield: true }),
+    },
+    { id: 'lesson-cdn-quiet', path: '/design/topics/sd-cdn', setup: (p) => cdnAt(p, { rps: '1,000/s', pops: '5' }) },
+    {
+      id: 'lesson-cdn-reduced',
+      path: '/design/topics/sd-cdn',
+      setup: async (p) => {
+        await cdnAt(p);
+        await p.locator('app-cdn-widget').getByRole('button', { name: 'Play 5 minutes at the outlined location' }).click();
+        await p.locator('app-cdn-widget .caption').waitFor();
+      },
+    },
+    {
+      id: 'lesson-cdn-describe',
+      path: '/design/topics/sd-cdn',
+      setup: async (p) => {
+        await cdnAt(p);
+        await p.locator('app-cdn-widget').getByRole('button', { name: 'Describe' }).click();
+        await p.locator('app-cdn-widget .describe g-data-table').scrollIntoViewIfNeeded();
+      },
+    },
+    {
+      id: 'lesson-cdn-table',
+      path: '/design/topics/sd-cdn',
+      setup: async (p) => {
+        await cdnAt(p, { ttl: '1 h', key: '+ utm_source', shield: true });
+        await p.locator('app-cdn-widget').getByRole('button', { name: 'Describe' }).click();
+        await p.locator('app-cdn-widget .describe g-data-table').scrollIntoViewIfNeeded();
+      },
+    },
+    {
+      id: 'lesson-cdn-asking',
+      path: '/design/topics/sd-cdn',
+      setup: async (p) => {
+        await cdnCard(p, 'Which objects hit');
+        await p.locator('app-widget-check legend').waitFor();
+        await cdnStageToTop(p);
+      },
+    },
+    {
+      id: 'lesson-cdn-revealed',
+      path: '/design/topics/sd-cdn',
+      setup: async (p) => {
+        await cdnCard(p, 'An origin shield');
+        await p
+          .locator('app-widget-check')
+          .getByRole('button', { name: /^About 910: fewer than/ })
+          .click();
+        await p
+          .locator('app-widget-check .explain')
+          .filter({ hasText: /^About 910: 913 a second/ })
+          .waitFor();
+        await cdnStageToTop(p);
+      },
+    },
+    {
+      id: 'lesson-cdn-challenge',
+      path: '/design/topics/sd-cdn',
+      setup: async (p) => {
+        await cdnCard(p, 'Challenge');
+        await cdnAt(p, { pops: '100', ttl: '5 min', shield: true });
+        await p.locator('app-experiment-dock .reveal').waitFor();
+        await cdnStageToTop(p);
+      },
+    },
     { id: 'lesson-caching', path: '/design/topics/sd-caching', setup: (p) => cacheStageToTop(p) },
     {
       id: 'lesson-caching-flushed',
@@ -1185,14 +1271,6 @@ export function designStates() {
       setup: async (p) => {
         await p.locator('#try').scrollIntoViewIfNeeded();
         await p.getByRole('slider', { name: /Requests failing now/ }).fill('144');
-      },
-    },
-    {
-      id: 'lesson-cdn-shield',
-      path: '/design/topics/sd-cdn',
-      setup: async (p) => {
-        await p.locator('#try').scrollIntoViewIfNeeded();
-        await p.getByRole('checkbox', { name: /Origin shield/ }).check();
       },
     },
   ];

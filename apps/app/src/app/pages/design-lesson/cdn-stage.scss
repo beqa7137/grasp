@@ -1,0 +1,214 @@
+@use '../../../type' as *;
+
+// The CDNs & Edge stage's drawing roles; `cdn-text.ts` measures text by these sizes, so a size changed here changes its
+// checks. Stage text keeps proportional digits, as measured. Color says who answered a request, everywhere: green the
+// edge, amber the shield, red the origin; blue is a request still travelling. Dashed means only "hidden until you
+// answer".
+text {
+  paint-order: stroke;
+  stroke: var(--g-viz-stage);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+.t-label {
+  @include label;
+  fill: var(--g-muted);
+}
+.t-unit {
+  text-transform: none;
+}
+.t-title {
+  font: 600 var(--g-text-title-s) var(--ion-font-family);
+  fill: var(--g-text);
+}
+.t-cap {
+  font: 500 var(--g-text-body-s) var(--ion-font-family);
+  fill: var(--g-muted);
+}
+.t-capB {
+  font: 600 var(--g-text-body-s) var(--ion-font-family);
+  fill: var(--g-text);
+}
+.t-small {
+  font: 500 var(--g-text-label) var(--ion-font-family);
+  fill: var(--g-muted);
+}
+.t-smallB {
+  font: 700 var(--g-text-label) var(--ion-font-family);
+  fill: var(--g-text);
+}
+.t-mono {
+  font: 600 var(--g-text-label) var(--g-font-mono);
+  fill: var(--g-text);
+}
+.t-num {
+  font: 600 var(--g-text-body-s) var(--g-font-mono);
+  fill: var(--g-text);
+}
+.ink {
+  fill: var(--g-text);
+}
+.muted {
+  fill: var(--g-muted);
+}
+.edge-ink {
+  fill: var(--g-found-ink);
+}
+.shield-ink {
+  fill: var(--g-warn-ink);
+}
+.origin-ink {
+  fill: var(--g-danger-ink);
+}
+.rule {
+  stroke: var(--g-line);
+}
+.user {
+  fill: var(--g-stroke);
+}
+.anycast {
+  stroke: var(--g-line-strong);
+  stroke-width: 1;
+}
+.pop {
+  fill: var(--g-raised);
+  stroke: var(--g-stroke);
+  stroke-width: 1.25;
+  &.watched {
+    fill: none;
+    stroke: var(--g-text);
+    stroke-width: 2;
+  }
+}
+.fill-edge,
+.band-edge,
+.swatch-edge {
+  fill: var(--g-viz-final);
+}
+.fill-shield,
+.band-shield,
+.swatch-shield {
+  fill: var(--g-viz-considering);
+}
+.fill-origin,
+.band-origin,
+.swatch-origin {
+  fill: var(--g-viz-critical);
+}
+// 0.78 keeps the travelling misses at 3:1 or more against the stage in both themes (theme-contrast.spec).
+.fill-travel {
+  fill: var(--g-viz-current);
+  fill-opacity: 0.78;
+}
+.cell-sep {
+  stroke: var(--g-viz-stage);
+  stroke-width: 1;
+}
+.band-sep {
+  fill: none;
+  stroke: var(--g-viz-stage);
+  stroke-width: 1;
+}
+.tier {
+  fill: var(--g-raised);
+  stroke: var(--g-stroke);
+  stroke-width: 1.25;
+}
+.hidden-box {
+  fill: none;
+  stroke: var(--g-stroke);
+  stroke-width: 1.25;
+  stroke-dasharray: 4 3;
+}
+.path-bar {
+  &.edge {
+    fill: var(--g-viz-final);
+  }
+  &.shield {
+    fill: var(--g-viz-considering);
+  }
+  &.origin {
+    fill: var(--g-viz-critical);
+  }
+}
+.mean-tick {
+  stroke: var(--g-text);
+  stroke-width: 1.5;
+}
+// The timeline: copies, hits, misses and what answered them.
+.track,
+.axis {
+  stroke: var(--g-line-strong);
+}
+.gridline {
+  stroke: var(--g-line);
+}
+.tickmark {
+  stroke: var(--g-stroke);
+}
+.copy {
+  fill: var(--g-viz-final-soft);
+  stroke: var(--g-viz-final);
+  stroke-width: 1;
+  &.shield {
+    fill: var(--g-viz-considering-soft);
+    stroke: var(--g-viz-considering);
+  }
+}
+.tick-hit {
+  stroke: var(--g-viz-final);
+  stroke-width: 1.5;
+}
+.tick-req {
+  stroke: var(--g-stroke);
+  stroke-width: 1.5;
+}
+.tick-other {
+  stroke: var(--g-stroke);
+  stroke-width: 1;
+}
+.tick-miss {
+  stroke: var(--g-text);
+  stroke-width: 1.5;
+}
+.dot {
+  stroke: var(--g-viz-stage);
+  stroke-width: 1;
+  &.ans-shield {
+    fill: var(--g-viz-considering);
+  }
+  &.ans-origin {
+    fill: var(--g-viz-critical);
+  }
+}
+.dense {
+  fill: url(#cdn-dense);
+}
+.dense-other {
+  fill: url(#cdn-dense-other);
+}
+// The square: bands, the half-hit rings (stroke only, around the point) and their hairlines.
+.knee {
+  fill: var(--g-viz-stage);
+  stroke: var(--g-text);
+  stroke-width: 1.5;
+  &.shield {
+    stroke: var(--g-warn-ink);
+    stroke-width: 2;
+  }
+}
+.knee-line {
+  stroke: var(--g-text);
+  stroke-width: 1;
+  &.shield {
+    stroke: var(--g-warn-ink);
+  }
+}
+.bracket {
+  fill: none;
+  stroke: var(--g-stroke);
+  stroke-width: 1.25;
+}
+.lane-mark {
+  fill: var(--g-text);
+}

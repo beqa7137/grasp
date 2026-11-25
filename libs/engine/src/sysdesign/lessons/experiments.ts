@@ -1,4 +1,5 @@
 import { formatAvailability, formatDown, formatHours, formatOneIn } from './format-time.js';
+import { cdnSig3, formatMeanMs, formatPathMs, formatRank, formatShare, ttlAdj, ttlWords } from './widgets/cdn-format.js';
 import { formatAmp, formatBytes, formatGb, formatKb, formatLevels, formatRate, formatReads, formatSize } from './widgets/storage-format.js';
 
 /**
@@ -30,6 +31,13 @@ export type SlotUnit =
   | 'avail'
   | 'hours'
   | 'oneIn'
+  | 'sig3'
+  | 'share'
+  | 'pathMs'
+  | 'meanMs'
+  | 'rank'
+  | 'ttl'
+  | 'ttlAdj'
   | 'word';
 
 /** A model value with its unit, or a `word` the model chose ("The old value"), which may carry no digits. */
@@ -51,7 +59,8 @@ export type ExperimentSettings = Readonly<Record<string, number>>;
  * requests, a simulated year, a ramp of the traffic, the stream flowing through the tiers or keys moving between
  * nodes.
  */
-export type ExperimentRun = 'load' | 'rename' | 'write-read' | 'read' | 'sample' | 'btree' | 'lsm' | 'year' | 'ramp' | 'flow' | 'move';
+export type ExperimentRun =
+  'load' | 'rename' | 'write-read' | 'read' | 'sample' | 'btree' | 'lsm' | 'year' | 'ramp' | 'flow' | 'move' | 'timeline';
 
 /** What answering plays: new settings (then, if named, a run), a run on its own, or the widget's flush. */
 export type ExperimentAct = { set: ExperimentSettings; run?: ExperimentRun } | { run: ExperimentRun } | { flush: true };
@@ -77,8 +86,8 @@ export interface ExperimentSpec {
   slots: () => Slots;
 }
 
-/** A measure a challenge must bring under a bound, or keep at or above one. */
-export type ExperimentBound = { metric: string; below: number } | { metric: string; atLeast: number };
+/** A measure a challenge must bring under a bound, keep at or under one, or keep at or above one. */
+export type ExperimentBound = { metric: string; below: number } | { metric: string; atMost: number } | { metric: string; atLeast: number };
 
 /** A challenge's goal: one bound, or `all` of several at once; either way the `keep` settings must still hold. */
 export type ExperimentGoal = (ExperimentBound | { all: readonly ExperimentBound[] }) & { keep?: ExperimentSettings };
@@ -172,6 +181,13 @@ const FORMAT: Record<Exclude<SlotUnit, 'word'>, (v: number) => string> = {
   avail: formatAvailability,
   hours: formatHours,
   oneIn: formatOneIn,
+  sig3: cdnSig3,
+  share: formatShare,
+  pathMs: formatPathMs,
+  meanMs: formatMeanMs,
+  rank: formatRank,
+  ttl: ttlWords,
+  ttlAdj,
 };
 
 export const formatSlot = (slot: Slot) => (slot.unit === 'word' ? slot.value : FORMAT[slot.unit](slot.value));
@@ -225,10 +241,11 @@ export const goalKept = (goal: ExperimentGoal, settings: ExperimentSettings): bo
 /** A goal's bounds, one or several. */
 export const goalBounds = (goal: ExperimentGoal): readonly ExperimentBound[] => ('all' in goal ? goal.all : [goal]);
 
-/** Whether `value` meets a bound: under a `below`, or at or above an `atLeast`. */
-export const boundMet = (b: ExperimentBound, value: number) => ('below' in b ? value < b.below : value >= b.atLeast);
+/** Whether `value` meets a bound: under a `below`, at or under an `atMost`, or at or above an `atLeast`. */
+export const boundMet = (b: ExperimentBound, value: number) =>
+  'below' in b ? value < b.below : 'atMost' in b ? value <= b.atMost : value >= b.atLeast;
 /** The number a bound names, either way. */
-export const boundLimit = (b: ExperimentBound) => ('below' in b ? b.below : b.atLeast);
+export const boundLimit = (b: ExperimentBound) => ('below' in b ? b.below : 'atMost' in b ? b.atMost : b.atLeast);
 
 /** A challenge is met when every bound's metric meets it and the settings it keeps are as it set them. */
 export function goalMet(goal: ExperimentGoal, metrics: Readonly<Record<string, number>>, settings: ExperimentSettings): boolean {

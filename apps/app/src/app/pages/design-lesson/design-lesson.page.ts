@@ -19,7 +19,6 @@ import { QuickCheckComponent } from '../pattern/quick-check.component';
 import { WorkedExampleComponent } from '../pattern/worked-example.component';
 import { BatchWidgetComponent } from './batch-widget.component';
 import { BudgetWidgetComponent } from './budget-widget.component';
-import { CdnWidgetComponent } from './cdn-widget.component';
 import { CrackWidgetComponent } from './crack-widget.component';
 import { DeliveryWidgetComponent } from './delivery-widget.component';
 import { ClocksWidgetComponent } from './clocks-widget.component';
@@ -45,7 +44,17 @@ import { LazyWidgetComponent } from './lazy-widget.component';
 
 /** A system design topic taught hands-on: a widget to experiment with, the ideas to name, worked examples and a quick check. */
 /** Widgets that leave the reading column at container wide, to sit beside their controls and experiments. */
-const BREAKOUT = new Set(['balancer', 'feed-model', 'quorum', 'queue-latency', 'availability', 'storage-engine', 'pipeline', 'hash-ring']);
+const BREAKOUT = new Set([
+  'balancer',
+  'feed-model',
+  'quorum',
+  'queue-latency',
+  'availability',
+  'storage-engine',
+  'pipeline',
+  'hash-ring',
+  'cdn',
+]);
 
 @Component({
   selector: 'app-design-lesson',
@@ -69,7 +78,6 @@ const BREAKOUT = new Set(['balancer', 'feed-model', 'quorum', 'queue-latency', '
     IdLayoutWidgetComponent,
     IndexWidgetComponent,
     StreamWidgetComponent,
-    CdnWidgetComponent,
     RegionWidgetComponent,
     BudgetWidgetComponent,
     PaginationWidgetComponent,
@@ -190,7 +198,11 @@ const BREAKOUT = new Set(['balancer', 'feed-model', 'quorum', 'queue-latency', '
                     />
                   }
                   @case ('cdn') {
-                    <app-cdn-widget />
+                    <app-lazy-widget
+                      [load]="loadCdnWidget"
+                      [inputs]="{ experiments: l.widget.experiments ?? [] }"
+                      [placeholder]="heights.cdn"
+                    />
                   }
                   @case ('multi-region') {
                     <app-region-widget />
@@ -472,6 +484,7 @@ export class DesignLessonPage {
   readonly loadLatencyWidget = () => import('./latency-widget.component').then((m) => m.LatencyWidgetComponent);
   readonly loadStorageWidget = () => import('./storage-widget.component').then((m) => m.StorageWidgetComponent);
   readonly loadCapacityWidget = () => import('./capacity-widget.component').then((m) => m.CapacityWidgetComponent);
+  readonly loadCdnWidget = () => import('./cdn-widget.component').then((m) => m.CdnWidgetComponent);
   readonly loadRingWidget = () => import('./ring-widget.component').then((m) => m.RingWidgetComponent);
   readonly loadQueueWidget = () => import('./queue-widget.component').then((m) => m.QueueWidgetComponent);
   readonly loadOverloadWidget = () => import('./overload-widget.component').then((m) => m.OverloadWidgetComponent);

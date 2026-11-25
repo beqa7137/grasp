@@ -1,0 +1,157 @@
+@use '../../../type' as *;
+@use '../../../breakpoints' as *;
+@use 'feed-controls';
+@use 'widget-controls';
+@use 'widget-layout' as *;
+
+@include stage-layout('.cdn-stage');
+// A checked segment keeps its weight, so its label never re-wraps and nothing moves when one is chosen.
+.segment input:checked + span {
+  font-weight: 500;
+}
+.segment span {
+  white-space: nowrap;
+}
+.caption,
+.model-note {
+  order: 2;
+  margin: 0;
+  font-size: var(--g-text-body-s);
+  text-wrap: pretty;
+}
+.caption,
+.model-note.guide {
+  color: var(--g-text);
+}
+.model-note {
+  color: var(--g-muted);
+}
+// Broken by measure (proseLines), so the browser's own glyph widths never change the block's height.
+.model-note.set span {
+  display: block;
+  white-space: nowrap;
+}
+svg.draw {
+  display: block;
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+}
+.dense-line {
+  stroke: var(--g-viz-final);
+  stroke-width: 1;
+}
+.dense-other-line {
+  stroke: var(--g-stroke);
+  stroke-width: 1;
+}
+// The playhead is the accent hairline, thinner than a miss tick and never ink, so it never reads as a miss.
+.playhead {
+  stroke: var(--g-accent);
+  stroke-width: 1;
+}
+.playhead-cap {
+  fill: var(--g-accent);
+}
+.particle {
+  fill: var(--g-text);
+  stroke: var(--g-viz-stage);
+  stroke-width: 1.5;
+}
+.particle-halo {
+  fill: var(--g-accent);
+  opacity: 0.25;
+}
+// What a play lights for the request it tells: the boxes it passes through, and its path's row under the latency bars.
+.lit {
+  fill: none;
+  stroke: var(--g-accent);
+  stroke-width: 2;
+}
+.lit-row {
+  fill: var(--g-accent);
+  opacity: 0.14;
+}
+// A reveal's outline is solid: dashed means only "hidden until you answer".
+:host ::ng-deep g.focus rect.focus-outline {
+  stroke-dasharray: none;
+}
+.play {
+  top: auto;
+}
+// The origin shield's switch sits on the stage beside what it changes: a native checkbox drawn as a switch.
+.switch {
+  position: absolute;
+  z-index: 2;
+  display: block;
+  input {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+  span {
+    display: flex;
+    align-items: center;
+    gap: var(--g-space-2);
+    height: 100%;
+    padding: 0 var(--g-space-2);
+    border-radius: var(--g-radius-sm);
+    border: 1px solid var(--g-line-strong);
+    background: var(--g-raised);
+    box-shadow: var(--g-shadow-raised);
+    font: 500 var(--g-text-body-s) / 1.2 var(--ion-font-family);
+    color: var(--g-text);
+    white-space: nowrap;
+  }
+  .knob {
+    flex: none;
+    position: relative;
+    width: 30px;
+    height: 18px;
+    border-radius: var(--g-radius-pill);
+    background: var(--g-viz-track);
+    border: 1px solid var(--g-stroke);
+    &::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--g-raised);
+      border: 1px solid var(--g-stroke);
+    }
+  }
+  input:checked + span .knob {
+    background: var(--g-accent);
+    border-color: var(--g-accent);
+    &::after {
+      left: 14px;
+    }
+  }
+  input:disabled {
+    cursor: default;
+  }
+  input:disabled + span {
+    opacity: 0.55;
+  }
+  input:focus-visible + span {
+    outline: var(--g-focus-ring);
+    outline-offset: 2px;
+  }
+}
+.describe {
+  .said {
+    flex: 1 0 100%;
+    margin: 0;
+    font-size: var(--g-text-body-s);
+  }
+  .note {
+    flex: 1 0 100%;
+    margin: 0;
+  }
+}
