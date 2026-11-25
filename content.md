@@ -1,0 +1,1465 @@
+# CDNs & Edge widget: content
+
+Generated from the real strings: the experiments from the engine build, then every string the widget renders, by a browser walk.
+
+## Experiments
+
+### Which objects hit
+
+Ask: At 20 locations with a 5-minute TTL, the object at popularity rank k is asked for about 827 ÷ k times a second, spread evenly over the locations. Each location keeps a copy for the TTL after a miss. From about which rank down do most of an object's requests miss at the edge?
+
+- From about the 2,500th: below it, an object is asked for less than once a minute at a location
+- (answer) From about the 12,400th: below it, an object is asked for less than once per TTL at a location
+- Almost none: across the CDN, even the 100,000th is asked for about 2.5 times per TTL
+
+Reveal: From about the 12,400th. A copy lives for the TTL after the miss that fetched it, so what decides a hit is how often its object is asked for at one location within one TTL. Split over 20 locations, the 12,400th most popular object is asked for about once every 5 minutes at each: one miss, then on average one hit, half its requests. More popular objects hit more often; the 25,000th hits 33.2% of the time, and the 90,000 least popular objects, 19.0% of all requests between them, hit least of all. The green area is the edge's share: 81.8%.
+
+### More locations
+
+Ask: The CDN serves 10,000 requests a second from 20 locations, and 3,080 a second reach the origin. It moves to 100 locations with the same traffic, each nearer its users. How many requests a second reach the origin now?
+
+- (answer) About 4,400: each location now sees each object less often before its copy expires
+- About 3,100: the same requests for the same objects
+- About 1,500: more caches hold more copies between them
+
+Reveal: About 4,400: 4,390 a second, up from 3,080. Every location keeps its own copies, so an object is fetched once per location per TTL, not once per CDN. Split over 100 locations, each sees each object a fifth as often: the hit rate at the edge falls from 69.2% to 56.1%, and the curve moves left (the half-hit rank, from the 2,481st to the 496th). Users gain on hits: the nearest location is 4.5 ms away instead of 10 ms. The mean response goes from 46.9 ms to 57.2 ms.
+
+### An origin shield
+
+Ask: At 100 locations, 4,390 requests a second reach the origin. Add an origin shield: one mid tier that every location asks on a miss, before the origin, keeping copies for the same 1 minute. How many requests a second reach the origin now?
+
+- About 4,400: the shield passes on what the locations miss
+- About 3,100: back where 20 locations left it
+- (answer) About 910: fewer than with 20 locations and no shield
+
+Reveal: About 910: 913 a second. The edge still hits 56.1%, but the shield sees the misses of all 100 locations combined, 4,390 a second, so it keeps warm what no one location can: it answers 34.8% of all requests, and its half-hit rank is the 48,635th, against the edge's 496th. The mean response falls from 57.2 ms to 28.6 ms.
+
+### Ten times the traffic
+
+Ask: At 10,000 requests a second, 69.2% hit at the edge and 3,080 a second reach the origin. Traffic grows tenfold, to 100,000 requests a second, for the same objects. How many requests a second reach the origin now?
+
+- About 31,000: ten times the traffic, ten times the misses
+- (answer) About 13,000: more misses, but far fewer than ten times as many
+- About 3,100: the edge absorbs the extra requests
+
+Reveal: About 13,000: 13,400 a second, 4.3 times as many, not ten. Each object is asked for ten times as often, so its copy is asked for again sooner before it expires: the edge hit rate rises from 69.2% to 86.6%, and the half-hit rank moves from the 2,481st to the 24,814th. A CDN pays off most for the busiest content. The misses that are left come from the long tail: objects asked for so rarely at any one location that even ten times the traffic leaves most of their copies cold.
+
+### A tracking parameter
+
+Ask: With the shield on, 913 requests a second reach the origin. Marketing links now add a tracking parameter with 10 values (?utm_source=…), spread evenly, and the CDN keys its cache on the full URL. The image served is the same. How many requests a second reach the origin now?
+
+- (answer) About 2,500: the shield still helps, but each copy is asked for a tenth as often
+- About 5,000: the shield stops helping, as if it were off
+- About 9,100: ten URLs an image, ten times the misses
+
+Reveal: About 2,500: 2,520 a second, up from 913. Each image is now 10 keys, each asked for a tenth as often. At the edge that is the same as ten times the locations (the edge hit rate falls from 69.2% to 50.4%), but unlike more locations the shield cannot undo it: the shield too sees ten keys an image, each a tenth as often, so it answers 24.4% of all requests, against 21.6% before, far less than the edge lost. The fix is the cache key, not the CDN: drop tracking parameters from it (and sort the rest), and the hit rate comes back.
+
+### Challenge: fit the origin
+
+Ask: Your origin serves 10,000 requests a second of images and can take at most 500 a second. Product wants a mean response under 18 ms, and each cache may keep an image at most 5 minutes. Choose the locations, the TTL and the shield.
+
+
+Reveal: The one setting that fits is 100 locations, a 5-minute TTL and the shield. It sends 280 a second to the origin, and the mean response is 17.1 ms. The TTL is as long as the cap allows; the 100 locations bring the edge to 4.5 ms from users but split the traffic, so the edge hits only 69.2%; the shield, seeing every location's misses, gives the origin its load back. With 20 locations the origin takes 280 a second too, but users wait 18.8 ms on average.
+
+## Desktop, reduced motion
+
+- Traffic
+- 1,000/s
+- 10,000/s
+- 100,000/s
+- Edge locations
+- 1
+- 5
+- 20
+- 100
+- TTL
+- 5 s
+- 1 min
+- 5 min
+- 1 h
+- Cache key
+- Path only
+- + utm_source
+- With 20 locations, a 1-minute TTL and no shield, 69.2% of 10,000 requests a second hit at the edge, 3,080/s reach the origin, and the mean response is 46.9 ms.
+- A CDN of 20 locations serving 10,000 requests a second
+- The site serves 100,000 images, popularity on a Zipf curve. Each location keeps a copy for
+- 1 minute after a miss.
+- Where the requests go · the model
+- 10,000/s requests
+- From users, each sent to its nearest
+- location (anycast or DNS).
+- 6,920/s answered at the edge
+- In 10 ms, for 69.2% of requests.
+- Each of 20 locations, one cell each,
+- takes 500/s and keeps its
+- own copies.
+- No shield: every miss goes on to
+- the origin.
+- 3,080/s reach the origin
+- In 130 ms (the edge, then a round
+- trip to the origin), for 30.8%
+- of 10,000/s.
+- edge hit
+- 10 ms
+- shield hit
+- no shield
+- origin fetch
+- 130 ms
+- mean 46.9 ms
+- Mean response 46.9 ms = 69.2% × 10 ms + 30.8% × 130 ms.
+- The outlined location, 5 minutes · one sample
+- #1 asked for 41 times a second here · edge hit over 99.9%
+- #2,500 asked for about once a minute here · edge hit 49.8%
+- #25,000 asked for once every 10 minutes here · edge hit 9.0%
+- 0
+- 2 min
+- 3 min
+- 4 min
+- One sample. Bar: a copy · short tick: a hit · tall tick: a miss, its dot below the track: the origin answered.
+- Every request, most popular objects first · the model
+- 69.2% at the edge
+- 30.8% at the origin
+- the 90,000 least popular: 19.0% of requests
+- #1
+- #2,500
+- #25,000
+- 100%
+- 50%
+- 0%
+- 2,481st
+- 10
+- 10,000
+- 100,000
+- Objects by popularity, each as wide as its share of requests
+- Half of its requests hit at the edge: the 2,481st
+- Play runs these 5 minutes at the outlined location in 6 seconds.
+- Origin shield
+- The timeline is one random sample of the outlined location. A bar is a copy, alive for the TTL after the miss that fetched it. A short tick is a hit; a tall tick is a miss, running below the track to a dot: the origin answered. In the square, objects are ordered by popularity rank, each as wide as its share of requests, and a column’s height is where its requests are answered.
+- An analytic model: requests are independent Poisson arrivals, spread evenly over the locations; an object never changes during its TTL; caches have no size limit; a miss is fetched at once (request collapsing keeps it to one fetch). A copy asked for at rate r hits with probability rT ÷ (1 + rT). A copy fetched from the shield lives a full TTL at the edge (the Age header is ignored), so with a shield an image can be up to two TTLs old. Users reach the nearest of n locations in 10 ms × √(20 ÷ n); the shield adds 30 ms and the origin 120 ms. Times are one request on a warm connection; a new connection also pays its TCP and TLS round trips, which end at the nearest location, so a CDN saves several long round trips, not one. The timeline is one random sample; the hit shares beside it are the model's.
+- [aria-label] CDNs and edge: where requests are answered, one location's copies, and every request by popularity
+- [aria-label] A CDN with 20 locations serves 10,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 minute after a miss. By the model, 69.2% are answered at the edge in 10 ms, and 3,080/s reach the origin, in 130 ms: a mean response of 46.9 ms. Popular objects hit and the long tail misses: objects more popular than the 2,481st hit at the edge more than half the time, and the rest less. The timeline is one random sample of the outlined location’s requests.
+- [aria-label] Play 5 minutes at the outlined location
+- [aria-label] Origin shield
+- With 100 locations, a 1-minute TTL and no shield, 56.1% of 10,000 requests a second hit at the edge, 4,390/s reach the origin, and the mean response is 57.2 ms.
+- A CDN of 100 locations serving 10,000 requests a second
+- 5,610/s answered at the edge
+- In 4.5 ms, for 56.1% of requests.
+- Each of 100 locations, one cell each,
+- takes 100/s and keeps its
+- 4,390/s reach the origin
+- In 124.5 ms (the edge, then a round
+- trip to the origin), for 43.9% of
+- 10,000/s. It was 3,080/s.
+- 4.5 ms
+- 124.5 ms
+- mean 57.2 ms
+- Mean response 57.2 ms = 56.1% × 4.5 ms + 43.9% × 124.5 ms. It was 46.9 ms.
+- #1 asked for 8.3 times a second here · edge hit 99.8%
+- #2,500 asked for once every 5 minutes here · edge hit 16.6%
+- #25,000 asked for once every 50 minutes here · edge hit 1.9%
+- 56.1% at the edge
+- 43.9% at the origin
+- 496th
+- Half of its requests hit at the edge: the 496th
+- [aria-label] A CDN with 100 locations serves 10,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 minute after a miss. By the model, 56.1% are answered at the edge in 4.5 ms, and 4,390/s reach the origin, in 124.5 ms: a mean response of 57.2 ms. Popular objects hit and the long tail misses: objects more popular than the 496th hit at the edge more than half the time, and the rest less. The timeline is one random sample of the outlined location’s requests.
+- With 1 location, a 1-minute TTL and no shield, 90.9% of 10,000 requests a second hit at the edge, 913/s reach the origin, and the mean response is 55.7 ms.
+- A CDN of 1 location serving 10,000 requests a second
+- 9,090/s answered at the edge
+- In 44.7 ms, for 90.9% of requests.
+- The one location takes 10,000/s and
+- keeps its own copies.
+- 913/s reach the origin
+- In 164.7 ms (the edge, then a round
+- trip to the origin), for 9.1% of
+- 10,000/s. It was 4,390/s.
+- 44.7 ms
+- 164.7 ms
+- mean 55.7 ms
+- Mean response 55.7 ms = 90.9% × 44.7 ms + 9.1% × 164.7 ms. It was 57.2 ms.
+- #1 asked for 827 times a second here · edge hit over 99.9%
+- #2,500 asked for 20 times a minute here · edge hit 95.2%
+- #25,000 asked for 2 times a minute here · edge hit 66.5%
+- 90.9% at the edge
+- 9.1% at the origin
+- 49,627th
+- 1,000
+- Half of its requests hit at the edge: the 49,627th
+- [aria-label] A CDN with 1 location serves 10,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 minute after a miss. By the model, 90.9% are answered at the edge in 44.7 ms, and 913/s reach the origin, in 164.7 ms: a mean response of 55.7 ms. Popular objects hit and the long tail misses: objects more popular than the 49,627th hit at the edge more than half the time, and the rest less. The timeline is one random sample of the outlined location’s requests.
+- With 5 locations, a 1-minute TTL and no shield, 80.1% of 10,000 requests a second hit at the edge, 1,990/s reach the origin, and the mean response is 43.9 ms.
+- A CDN of 5 locations serving 10,000 requests a second
+- 8,010/s answered at the edge
+- In 20 ms, for 80.1% of requests.
+- Each of 5 locations, one cell each,
+- takes 2,000/s and keeps its
+- 1,990/s reach the origin
+- In 140 ms (the edge, then a round
+- trip to the origin), for 19.9% of
+- 10,000/s. It was 913/s.
+- 20 ms
+- 140 ms
+- mean 43.9 ms
+- Mean response 43.9 ms = 80.1% × 20 ms + 19.9% × 140 ms. It was 55.7 ms.
+- #1 asked for 165 times a second here · edge hit over 99.9%
+- #2,500 asked for 4 times a minute here · edge hit 79.9%
+- #25,000 asked for once every 3 minutes here · edge hit 28.4%
+- 80.1% at the edge
+- 19.9% at the origin
+- 9,925th
+- Half of its requests hit at the edge: the 9,925th
+- [aria-label] A CDN with 5 locations serves 10,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 minute after a miss. By the model, 80.1% are answered at the edge in 20 ms, and 1,990/s reach the origin, in 140 ms: a mean response of 43.9 ms. Popular objects hit and the long tail misses: objects more popular than the 9,925th hit at the edge more than half the time, and the rest less. The timeline is one random sample of the outlined location’s requests.
+- With 5 locations, a 5-second TTL and no shield, 60.3% of 10,000 requests a second hit at the edge, 3,970/s reach the origin, and the mean response is 67.7 ms.
+- 5 seconds after a miss.
+- 6,030/s answered at the edge
+- In 20 ms, for 60.3% of requests.
+- 3,970/s reach the origin
+- trip to the origin), for 39.7% of
+- 10,000/s. It was 1,990/s.
+- mean 67.7 ms
+- Mean response 67.7 ms = 60.3% × 20 ms + 39.7% × 140 ms. It was 43.9 ms.
+- The outlined location, 25 seconds · one sample
+- #1 asked for 165 times a second here · edge hit 99.9%
+- #2,500 asked for 4 times a minute here · edge hit 24.9%
+- #25,000 asked for once every 3 minutes here · edge hit 3.2%
+- 10 s
+- 15 s
+- 20 s
+- 25 s
+- 60.3% at the edge
+- 39.7% at the origin
+- 827th
+- Half of its requests hit at the edge: the 827th
+- Play runs these 25 seconds at the outlined location in 6 seconds.
+- [aria-label] A CDN with 5 locations serves 10,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 5 seconds after a miss. By the model, 60.3% are answered at the edge in 20 ms, and 3,970/s reach the origin, in 140 ms: a mean response of 67.7 ms. Popular objects hit and the long tail misses: objects more popular than the 827th hit at the edge more than half the time, and the rest less. The timeline is one random sample of the outlined location’s requests.
+- [aria-label] Play 25 seconds at the outlined location
+- With 5 locations, a 1-hour TTL and no shield, 98.7% of 10,000 requests a second hit at the edge, 128/s reach the origin, and the mean response is 21.5 ms.
+- 1 hour after a miss.
+- 9,870/s answered at the edge
+- In 20 ms, for 98.7% of requests.
+- 128/s reach the origin
+- trip to the origin), for 1.3% of
+- 10,000/s. It was 3,970/s.
+- mean 21.5 ms
+- Mean response 21.5 ms = 98.7% × 20 ms + 1.3% × 140 ms. It was 67.7 ms.
+- The outlined location, 5 hours · one sample
+- #2,500 asked for 4 times a minute here · edge hit 99.6%
+- #25,000 asked for once every 3 minutes here · edge hit 96.0%
+- 2 h
+- 3 h
+- 4 h
+- 5 h
+- 98.7% at the edge
+- 1.3% at the origin
+- Every object hits at the edge at least half the time
+- Play runs these 5 hours at the outlined location in 6 seconds.
+- [aria-label] A CDN with 5 locations serves 10,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 hour after a miss. By the model, 98.7% are answered at the edge in 20 ms, and 128/s reach the origin, in 140 ms: a mean response of 21.5 ms. Every object hits at the edge at least half the time. The timeline is one random sample of the outlined location’s requests.
+- [aria-label] Play 5 hours at the outlined location
+- With 5 locations, a 1-hour TTL and no shield, 99.9% of 100,000 requests a second hit at the edge, 138/s reach the origin, and the mean response is 20.2 ms.
+- A CDN of 5 locations serving 100,000 requests a second
+- 100,000/s requests
+- 99,900/s answered at the edge
+- In 20 ms, for 99.9% of requests.
+- takes 20,000/s and keeps its
+- 138/s reach the origin
+- trip to the origin), for 0.1% of
+- 100,000/s. It was 82/s.
+- mean 20.2 ms
+- Mean response 20.2 ms = 99.9% × 20 ms + 0.1% × 140 ms. It was 29.8 ms.
+- #1 asked for 1,650 times a second here · edge hit over 99.9%
+- #2,500 asked for 40 times a minute here · edge hit over 99.9%
+- #25,000 asked for 4 times a minute here · edge hit 99.6%
+- 99.9% at the edge
+- 0.1% at the origin
+- [aria-label] A CDN with 5 locations serves 100,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 hour after a miss. By the model, 99.9% are answered at the edge in 20 ms, and 138/s reach the origin, in 140 ms: a mean response of 20.2 ms. Every object hits at the edge at least half the time. The timeline is one random sample of the outlined location’s requests.
+- With 5 locations, a 1-hour TTL and no shield, 10 URLs an image, 98.7% of 100,000 requests a second hit at the edge, 1,280/s reach the origin, and the mean response is 21.5 ms.
+- 1 hour after a miss. A tracking parameter gives each image 10 URLs, each cached on its own.
+- 98,700/s answered at the edge
+- 1,280/s reach the origin
+- 100,000/s. It was 138/s.
+- Mean response 21.5 ms = 98.7% × 20 ms + 1.3% × 140 ms. It was 20.2 ms.
+- #1, one of its URLs, asked for 165 times a second here · edge hit over 99.9%
+- #2,500, one of its URLs, asked for 4 times a minute here · edge hit 99.6%
+- #25,000, one of its URLs, asked for once every 3 minutes here · edge hit 96.0%
+- [aria-label] A CDN with 5 locations serves 100,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 hour after a miss. A tracking parameter gives each image 10 URLs, each cached on its own. By the model, 98.7% are answered at the edge in 20 ms, and 1,280/s reach the origin, in 140 ms: a mean response of 21.5 ms. Every object hits at the edge at least half the time. The timeline is one random sample of the outlined location’s requests.
+- With 5 locations, a 1-hour TTL and the shield, 10 URLs an image, 98.7% of 100,000 requests a second hit at the edge, 273/s reach the origin, and the mean response is 20.7 ms.
+- 1,010/s answered by the shield
+- In 50 ms, for 1.0% of requests. It
+- sees every location’s misses.
+- 273/s reach the origin
+- In 170 ms (the edge, the shield, then
+- a round trip to the origin), for 0.3%
+- of 100,000/s. It was 1,280/s.
+- 50 ms
+- 170 ms
+- mean 20.7 ms
+- Mean response 20.7 ms = 98.7% × 20 ms + 1.0% × 50 ms + 0.3% × 170 ms. It was 21.5 ms.
+- #1, one of its URLs, asked for 165 times a second here · edge hit over 99.9% · shield hit 80.0%
+- #2,500, one of its URLs, asked for 4 times a minute here · edge hit 99.6% · shield hit 79.9%
+- #25,000, one of its URLs, asked for once every 3 minutes here
+- edge hit 96.0% · shield hit 79.3%
+- One sample. Bar: a copy · short tick: a hit · tall tick: a miss, ending at the shield track if the shield answered,
+- below it if the origin did.
+- 1.0% by the shield
+- 0.3% at the origin
+- Every object’s edge misses hit the shield at least half the time
+- The timeline is one random sample of the outlined location. A bar is a copy, alive for the TTL after the miss that fetched it. A short tick is a hit; a tall tick is a miss, ending in a square on the shield track if the shield answered and running below it to a dot if the origin did. In the square, objects are ordered by popularity rank, each as wide as its share of requests, and a column’s height is where its requests are answered.
+- [aria-label] A CDN with 5 locations serves 100,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 hour after a miss, and an origin shield sits between the locations and the origin. A tracking parameter gives each image 10 URLs, each cached on its own. By the model, 98.7% are answered at the edge in 20 ms, 1.0% by the shield in 50 ms, and 273/s reach the origin, in 170 ms: a mean response of 20.7 ms. Every object hits at the edge at least half the time. The timeline is one random sample of the outlined location’s requests.
+- With 20 locations, a 1-hour TTL and the shield, 10 URLs an image, 95.8% of 100,000 requests a second hit at the edge, 273/s reach the origin, and the mean response is 11.6 ms.
+- A CDN of 20 locations serving 100,000 requests a second
+- 95,800/s answered at the edge
+- In 10 ms, for 95.8% of requests.
+- takes 5,000/s and keeps its
+- 3,980/s answered by the shield
+- In 40 ms, for 4.0% of requests. It
+- In 160 ms (the edge, the shield, then
+- of 100,000/s.
+- 40 ms
+- 160 ms
+- mean 11.6 ms
+- Mean response 11.6 ms = 95.8% × 10 ms + 4.0% × 40 ms + 0.3% × 160 ms. It was 20.7 ms.
+- #1, one of its URLs, asked for 41 times a second here · edge hit over 99.9% · shield hit 95.0%
+- #2,500, one of its URLs, asked for about once a minute here
+- edge hit 98.3% · shield hit 94.9%
+- #25,000, one of its URLs, asked for once every 10 minutes here
+- edge hit 85.6% · shield hit 94.2%
+- 95.8% at the edge
+- 4.0% by the shield
+- [aria-label] A CDN with 20 locations serves 100,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 hour after a miss, and an origin shield sits between the locations and the origin. A tracking parameter gives each image 10 URLs, each cached on its own. By the model, 95.8% are answered at the edge in 10 ms, 4.0% by the shield in 40 ms, and 273/s reach the origin, in 160 ms: a mean response of 11.6 ms. Every object hits at the edge at least half the time. The timeline is one random sample of the outlined location’s requests.
+- With 20 locations, a 1-minute TTL and the shield, 10 URLs an image, 69.2% of 100,000 requests a second hit at the edge, 9,130/s reach the origin, and the mean response is 30.2 ms.
+- 1 minute after a miss. A tracking parameter gives each image 10 URLs, each cached on
+- its own.
+- 69,200/s answered at the edge
+- 21,600/s answered by the shield
+- In 40 ms, for 21.6% of requests. It
+- 9,130/s reach the origin
+- a round trip to the origin), for 9.1% of
+- 100,000/s. It was 273/s.
+- mean 30.2 ms
+- Mean response 30.2 ms = 69.2% × 10 ms + 21.6% × 40 ms + 9.1% × 160 ms. It was 11.6 ms.
+- edge hit 49.8% · shield hit 90.4%
+- edge hit 9.0% · shield hit 63.2%
+- 21.6% by the shield
+- 44,664th
+- Half of its edge misses hit the shield: the 44,664th
+- [aria-label] A CDN with 20 locations serves 100,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 minute after a miss, and an origin shield sits between the locations and the origin. A tracking parameter gives each image 10 URLs, each cached on its own. By the model, 69.2% are answered at the edge in 10 ms, 21.6% by the shield in 40 ms, and 9,130/s reach the origin, in 160 ms: a mean response of 30.2 ms. Popular objects hit and the long tail misses: objects more popular than the 2,481st hit at the edge more than half the time, and the rest less. The timeline is one random sample of the outlined location’s requests.
+- With 20 locations, a 1-minute TTL and the shield, 10 URLs an image, 50.4% of 10,000 requests a second hit at the edge, 2,520/s reach the origin, and the mean response is 55.2 ms.
+- 5,040/s answered at the edge
+- In 10 ms, for 50.4% of requests.
+- 2,440/s answered by the shield
+- In 40 ms, for 24.4% of requests. It
+- 2,520/s reach the origin
+- a round trip to the origin), for 25.2%
+- of 10,000/s. It was 9,130/s.
+- mean 55.2 ms
+- Mean response 55.2 ms = 50.4% × 10 ms + 24.4% × 40 ms + 25.2% × 160 ms.
+- It was 30.2 ms.
+- #1, one of its URLs, asked for 4.1 times a second here · edge hit 99.6% · shield hit 95.0%
+- #2,500, one of its URLs, asked for once every 10 minutes here
+- #25,000, one of its URLs, asked for once every 2 hours here · edge hit 1.0% · shield hit 15.7%
+- 50.4% at the edge
+- 24.4% by the shield
+- 25.2% at the origin
+- 248th
+- 4,466th
+- Half of its requests hit at the edge: the 248th
+- Half of its edge misses hit the shield: the 4,466th
+- [aria-label] A CDN with 20 locations serves 10,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 minute after a miss, and an origin shield sits between the locations and the origin. A tracking parameter gives each image 10 URLs, each cached on its own. By the model, 50.4% are answered at the edge in 10 ms, 24.4% by the shield in 40 ms, and 2,520/s reach the origin, in 160 ms: a mean response of 55.2 ms. Popular objects hit and the long tail misses: objects more popular than the 248th hit at the edge more than half the time, and the rest less. The timeline is one random sample of the outlined location’s requests.
+- In this sample of 5 minutes at the outlined location, #1 missed 5 times, once each time its copy expired, and every other request hit; #2,500 was asked for 6 times and missed 4 times; #25,000 was not asked for at all. A miss starts a copy that lives for the TTL. The hit shares beside each object are the model’s.
+- trip to the origin), for 30.8% of
+- Mean response 46.9 ms = 69.2% × 10 ms + 30.8% × 130 ms. It was 30.2 ms.
+- Played below the picture: motion is reduced.
+- A CDN with 20 locations serves 10,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 minute after a miss. By the model, 69.2% are answered at the edge in 10 ms, and 3,080/s reach the origin, in 130 ms: a mean response of 46.9 ms. Popular objects hit and the long tail misses: objects more popular than the 2,481st hit at the edge more than half the time, and the rest less. The timeline is one random sample of the outlined location’s requests.
+- Locations
+- Nearest
+- Edge hit
+- Origin
+- Origin, shield
+- Mean
+- Mean, shield
+- 1 location
+- 90.9%
+- 913/s
+- 55.7 ms
+- 58.4 ms
+- 5 locations
+- 80.1%
+- 1,990/s
+- 43.9 ms
+- 36.9 ms
+- 20 locations
+- 69.2%
+- 3,080/s
+- 46.9 ms
+- 30.2 ms
+- 100 locations
+- 56.1%
+- 4,390/s
+- 57.2 ms
+- 28.6 ms
+- Rows are this traffic and TTL; the edge hit rate does not depend on the shield. The tail, the 90,000 least popular images, takes 19.0% of requests.
+- [aria-label] The CDN at each count of locations, for this traffic and TTL
+- With 20 locations, a 5-minute TTL and no shield, 81.8% of 10,000 requests a second hit at the edge, 1,820/s reach the origin, and the mean response is 31.9 ms.
+- 5 minutes after a miss.
+- 8,180/s answered at the edge
+- In 10 ms, for 81.8% of requests. Each
+- of 20 locations, one cell each, takes
+- 500/s and keeps its own copies.
+- 1,820/s reach the origin
+- trip to the origin), for 18.2%
+- mean 31.9 ms
+- Mean response 31.9 ms = 81.8% × 10 ms + 18.2% × 130 ms.
+- The outlined location, 25 minutes · one sample
+- #2,500 asked for about once a minute here · edge hit 83.2%
+- #25,000 asked for once every 10 minutes here · edge hit 33.2%
+- 10 min
+- 15 min
+- 20 min
+- 25 min
+- 81.8% at the edge
+- 18.2% at the origin
+- 12,407th
+- Half of its requests hit at the edge: the 12,407th
+- Play runs these 25 minutes at the outlined location in 6 seconds.
+- Look here
+- From about the 12,400th. A copy lives for the TTL after the miss that fetched it, so what decides a hit is how often its object is asked for at one location within one TTL. Split over 20 locations, the 12,400th most popular object is asked for about once every 5 minutes at each: one miss, then on average one hit, half its requests. More popular objects hit more often; the 25,000th hits 33.2% of the time, and the 90,000 least popular objects, 19.0% of all requests between them, hit least of all. The green area is the edge's share: 81.8%.
+- [aria-label] A CDN with 20 locations serves 10,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 5 minutes after a miss. By the model, 81.8% are answered at the edge in 10 ms, and 1,820/s reach the origin, in 130 ms: a mean response of 31.9 ms. Popular objects hit and the long tail misses: objects more popular than the 12,407th hit at the edge more than half the time, and the rest less. The timeline is one random sample of the outlined location’s requests.
+- [aria-label] Play 25 minutes at the outlined location
+- [aria-label] Experiment: Which objects hit
+- [aria-label] At 20 locations with a 5-minute TTL, the object at popularity rank k is asked for about 827 ÷ k times a second, spread evenly over the locations. Each location keeps a copy for the TTL after a miss. From about which rank down do most of an object's requests miss at the edge?
+- [aria-label] your answer, wrong
+- [aria-label] correct answer
+- [aria-label] done
+- Play and every setting wait for your answer.
+- An analytic model with a random sample beside it. Its assumptions show after your answer.
+- Describe waits for your answer.
+- The CDN serves 10,000 requests a second from 20 locations, and 3,080 a second reach the origin. It moves to 100 locations with the same traffic, each nearer its users. How many requests a second reach the origin now?
+- [aria-label] Play the timeline, after your answer
+- [aria-label] Experiment: More locations
+- trip to the origin), for 43.9%
+- Mean response 57.2 ms = 56.1% × 4.5 ms + 43.9% × 124.5 ms.
+- About 4,400: 4,390 a second, up from 3,080. Every location keeps its own copies, so an object is fetched once per location per TTL, not once per CDN. Split over 100 locations, each sees each object a fifth as often: the hit rate at the edge falls from 69.2% to 56.1%, and the curve moves left (the half-hit rank, from the 2,481st to the 496th). Users gain on hits: the nearest location is 4.5 ms away instead of 10 ms. The mean response goes from 46.9 ms to 57.2 ms.
+- [aria-label] The CDN serves 10,000 requests a second from 20 locations, and 3,080 a second reach the origin. It moves to 100 locations with the same traffic, each nearer its users. How many requests a second reach the origin now?
+- [aria-label] your answer, correct
+- At 100 locations, 4,390 requests a second reach the origin. Add an origin shield: one mid tier that every location asks on a miss, before the origin, keeping copies for the same 1 minute. How many requests a second reach the origin now?
+- [aria-label] Experiment: An origin shield
+- With 100 locations, a 1-minute TTL and the shield, 56.1% of 10,000 requests a second hit at the edge, 913/s reach the origin, and the mean response is 28.6 ms.
+- 3,480/s answered by the shield
+- In 34.5 ms, for 34.8% of requests. It
+- In 154.5 ms (the edge, the shield,
+- then a round trip to the origin), for
+- 9.1% of 10,000/s.
+- 34.5 ms
+- 154.5 ms
+- mean 28.6 ms
+- Mean response 28.6 ms = 56.1% × 4.5 ms + 34.8% × 34.5 ms + 9.1% × 154.5 ms.
+- #1 asked for 8.3 times a second here · edge hit 99.8% · shield hit 99.0%
+- #2,500 asked for once every 5 minutes here · edge hit 16.6% · shield hit 94.3%
+- #25,000 asked for once every 50 minutes here · edge hit 1.9% · shield hit 65.8%
+- 34.8% by the shield
+- 48,635th
+- Half of its edge misses hit the shield: the 48,635th
+- About 910: 913 a second. The edge still hits 56.1%, but the shield sees the misses of all 100 locations combined, 4,390 a second, so it keeps warm what no one location can: it answers 34.8% of all requests, and its half-hit rank is the 48,635th, against the edge's 496th. The mean response falls from 57.2 ms to 28.6 ms.
+- [aria-label] A CDN with 100 locations serves 10,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 minute after a miss, and an origin shield sits between the locations and the origin. By the model, 56.1% are answered at the edge in 4.5 ms, 34.8% by the shield in 34.5 ms, and 913/s reach the origin, in 154.5 ms: a mean response of 28.6 ms. Popular objects hit and the long tail misses: objects more popular than the 496th hit at the edge more than half the time, and the rest less. The timeline is one random sample of the outlined location’s requests.
+- [aria-label] At 100 locations, 4,390 requests a second reach the origin. Add an origin shield: one mid tier that every location asks on a miss, before the origin, keeping copies for the same 1 minute. How many requests a second reach the origin now?
+- At 10,000 requests a second, 69.2% hit at the edge and 3,080 a second reach the origin. Traffic grows tenfold, to 100,000 requests a second, for the same objects. How many requests a second reach the origin now?
+- [aria-label] Experiment: Ten times the traffic
+- With 20 locations, a 1-minute TTL and no shield, 86.6% of 100,000 requests a second hit at the edge, 13,400/s reach the origin, and the mean response is 26.0 ms.
+- 86,600/s answered at the edge
+- In 10 ms, for 86.6% of requests.
+- 13,400/s reach the origin
+- trip to the origin), for 13.4%
+- mean 26.0 ms
+- Mean response 26.0 ms = 86.6% × 10 ms + 13.4% × 130 ms.
+- #1 asked for 414 times a second here · edge hit over 99.9%
+- #2,500 asked for 9.9 times a minute here · edge hit 90.8%
+- #25,000 asked for about once a minute here · edge hit 49.8%
+- 86.6% at the edge
+- 13.4% at the origin
+- 24,814th
+- Half of its requests hit at the edge: the 24,814th
+- About 13,000: 13,400 a second, 4.3 times as many, not ten. Each object is asked for ten times as often, so its copy is asked for again sooner before it expires: the edge hit rate rises from 69.2% to 86.6%, and the half-hit rank moves from the 2,481st to the 24,814th. A CDN pays off most for the busiest content. The misses that are left come from the long tail: objects asked for so rarely at any one location that even ten times the traffic leaves most of their copies cold.
+- [aria-label] A CDN with 20 locations serves 100,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 minute after a miss. By the model, 86.6% are answered at the edge in 10 ms, and 13,400/s reach the origin, in 130 ms: a mean response of 26.0 ms. Popular objects hit and the long tail misses: objects more popular than the 24,814th hit at the edge more than half the time, and the rest less. The timeline is one random sample of the outlined location’s requests.
+- [aria-label] At 10,000 requests a second, 69.2% hit at the edge and 3,080 a second reach the origin. Traffic grows tenfold, to 100,000 requests a second, for the same objects. How many requests a second reach the origin now?
+- About 2,500: 2,520 a second, up from 913. Each image is now 10 keys, each asked for a tenth as often. At the edge that is the same as ten times the locations (the edge hit rate falls from 69.2% to 50.4%), but unlike more locations the shield cannot undo it: the shield too sees ten keys an image, each a tenth as often, so it answers 24.4% of all requests, against 21.6% before, far less than the edge lost. The fix is the cache key, not the CDN: drop tracking parameters from it (and sort the rest), and the hit rate comes back.
+- [aria-label] Experiment: A tracking parameter
+- [aria-label] With the shield on, 913 requests a second reach the origin. Marketing links now add a tracking parameter with 10 values (?utm_source=…), spread evenly, and the CDN keys its cache on the full URL. The image served is the same. How many requests a second reach the origin now?
+- Describe waits until you meet the goal.
+- Your goal:
+- ·the origin takes 3,080/s, under 500/s: not yet
+- ·the mean response is 46.9 ms, under 18 ms: not yet
+- ✓each cache keeps a copy for 1 minute, at most 5 minutes: met
+- [aria-label] Experiment: Challenge: fit the origin
+- trip to the origin), for 18.2% of
+- Mean response 31.9 ms = 81.8% × 10 ms + 18.2% × 130 ms. It was 46.9 ms.
+- Not yet:
+- ·the origin takes 1,820/s, under 500/s: not yet
+- ·the mean response is 31.9 ms, under 18 ms: not yet
+- ✓each cache keeps a copy for 5 minutes, at most 5 minutes: met
+- With 20 locations, a 5-minute TTL and the shield, 81.8% of 10,000 requests a second hit at the edge, 280/s reach the origin, and the mean response is 18.8 ms.
+- 1,540/s answered by the shield
+- In 40 ms, for 15.4% of requests. It
+- 280/s reach the origin
+- a round trip to the origin), for 2.8%
+- of 10,000/s. It was 1,820/s.
+- mean 18.8 ms
+- Mean response 18.8 ms = 81.8% × 10 ms + 15.4% × 40 ms + 2.8% × 160 ms. It was 31.9 ms.
+- #1 asked for 41 times a second here · edge hit over 99.9% · shield hit 95.0%
+- #2,500 asked for about once a minute here · edge hit 83.2% · shield hit 94.1%
+- #25,000 asked for once every 10 minutes here · edge hit 33.2% · shield hit 86.3%
+- 15.4% by the shield
+- 2.8% at the origin
+- ✓the origin takes 280/s, under 500/s: met
+- ·the mean response is 18.8 ms, under 18 ms: not yet
+- [aria-label] A CDN with 20 locations serves 10,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 5 minutes after a miss, and an origin shield sits between the locations and the origin. By the model, 81.8% are answered at the edge in 10 ms, 15.4% by the shield in 40 ms, and 280/s reach the origin, in 160 ms: a mean response of 18.8 ms. Popular objects hit and the long tail misses: objects more popular than the 12,407th hit at the edge more than half the time, and the rest less. The timeline is one random sample of the outlined location’s requests.
+
+## Desktop, with motion
+
+- Traffic
+- 1,000/s
+- 10,000/s
+- 100,000/s
+- Edge locations
+- 1
+- 5
+- 20
+- 100
+- TTL
+- 5 s
+- 1 min
+- 5 min
+- 1 h
+- Cache key
+- Path only
+- + utm_source
+- With 20 locations, a 1-minute TTL and no shield, 69.2% of 10,000 requests a second hit at the edge, 3,080/s reach the origin, and the mean response is 46.9 ms.
+- A CDN of 20 locations serving 10,000 requests a second
+- The site serves 100,000 images, popularity on a Zipf curve. Each location keeps a copy for
+- 1 minute after a miss.
+- Where the requests go · the model
+- 10,000/s requests
+- From users, each sent to its nearest
+- location (anycast or DNS).
+- 6,920/s answered at the edge
+- In 10 ms, for 69.2% of requests.
+- Each of 20 locations, one cell each,
+- takes 500/s and keeps its
+- own copies.
+- No shield: every miss goes on to
+- the origin.
+- 3,080/s reach the origin
+- In 130 ms (the edge, then a round
+- trip to the origin), for 30.8%
+- of 10,000/s.
+- edge hit
+- 10 ms
+- shield hit
+- no shield
+- origin fetch
+- 130 ms
+- mean 46.9 ms
+- Mean response 46.9 ms = 69.2% × 10 ms + 30.8% × 130 ms.
+- The outlined location, 5 minutes · one sample
+- #1 asked for 41 times a second here · edge hit over 99.9%
+- #2,500 asked for about once a minute here · edge hit 49.8%
+- #25,000 asked for once every 10 minutes here · edge hit 9.0%
+- 0
+- 2 min
+- 3 min
+- 4 min
+- One sample. Bar: a copy · short tick: a hit · tall tick: a miss, its dot below the track: the origin answered.
+- Every request, most popular objects first · the model
+- 69.2% at the edge
+- 30.8% at the origin
+- the 90,000 least popular: 19.0% of requests
+- #1
+- #2,500
+- #25,000
+- 100%
+- 50%
+- 0%
+- 2,481st
+- 10
+- 10,000
+- 100,000
+- Objects by popularity, each as wide as its share of requests
+- Half of its requests hit at the edge: the 2,481st
+- Play runs these 5 minutes at the outlined location in 6 seconds.
+- Origin shield
+- The timeline is one random sample of the outlined location. A bar is a copy, alive for the TTL after the miss that fetched it. A short tick is a hit; a tall tick is a miss, running below the track to a dot: the origin answered. In the square, objects are ordered by popularity rank, each as wide as its share of requests, and a column’s height is where its requests are answered.
+- An analytic model: requests are independent Poisson arrivals, spread evenly over the locations; an object never changes during its TTL; caches have no size limit; a miss is fetched at once (request collapsing keeps it to one fetch). A copy asked for at rate r hits with probability rT ÷ (1 + rT). A copy fetched from the shield lives a full TTL at the edge (the Age header is ignored), so with a shield an image can be up to two TTLs old. Users reach the nearest of n locations in 10 ms × √(20 ÷ n); the shield adds 30 ms and the origin 120 ms. Times are one request on a warm connection; a new connection also pays its TCP and TLS round trips, which end at the nearest location, so a CDN saves several long round trips, not one. The timeline is one random sample; the hit shares beside it are the model's.
+- [aria-label] CDNs and edge: where requests are answered, one location's copies, and every request by popularity
+- [aria-label] A CDN with 20 locations serves 10,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 minute after a miss. By the model, 69.2% are answered at the edge in 10 ms, and 3,080/s reach the origin, in 130 ms: a mean response of 46.9 ms. Popular objects hit and the long tail misses: objects more popular than the 2,481st hit at the edge more than half the time, and the rest less. The timeline is one random sample of the outlined location’s requests.
+- [aria-label] Play 5 minutes at the outlined location
+- [aria-label] Origin shield
+- With 100 locations, a 1-minute TTL and no shield, 56.1% of 10,000 requests a second hit at the edge, 4,390/s reach the origin, and the mean response is 57.2 ms.
+- A CDN of 100 locations serving 10,000 requests a second
+- 5,610/s answered at the edge
+- In 4.5 ms, for 56.1% of requests.
+- Each of 100 locations, one cell each,
+- takes 100/s and keeps its
+- 4,390/s reach the origin
+- In 124.5 ms (the edge, then a round
+- trip to the origin), for 43.9% of
+- 10,000/s. It was 3,080/s.
+- 4.5 ms
+- 124.5 ms
+- mean 57.2 ms
+- Mean response 57.2 ms = 56.1% × 4.5 ms + 43.9% × 124.5 ms. It was 46.9 ms.
+- #1 asked for 8.3 times a second here · edge hit 99.8%
+- #2,500 asked for once every 5 minutes here · edge hit 16.6%
+- #25,000 asked for once every 50 minutes here · edge hit 1.9%
+- 56.1% at the edge
+- 43.9% at the origin
+- 496th
+- Half of its requests hit at the edge: the 496th
+- [aria-label] A CDN with 100 locations serves 10,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 minute after a miss. By the model, 56.1% are answered at the edge in 4.5 ms, and 4,390/s reach the origin, in 124.5 ms: a mean response of 57.2 ms. Popular objects hit and the long tail misses: objects more popular than the 496th hit at the edge more than half the time, and the rest less. The timeline is one random sample of the outlined location’s requests.
+- With 5 locations, a 1-minute TTL and no shield, 80.1% of 10,000 requests a second hit at the edge, 1,990/s reach the origin, and the mean response is 43.9 ms.
+- A CDN of 5 locations serving 10,000 requests a second
+- 8,010/s answered at the edge
+- In 20 ms, for 80.1% of requests.
+- Each of 5 locations, one cell each,
+- takes 2,000/s and keeps its
+- 1,990/s reach the origin
+- In 140 ms (the edge, then a round
+- trip to the origin), for 19.9% of
+- 10,000/s. It was 913/s.
+- 20 ms
+- 140 ms
+- mean 43.9 ms
+- Mean response 43.9 ms = 80.1% × 20 ms + 19.9% × 140 ms. It was 55.7 ms.
+- #1 asked for 165 times a second here · edge hit over 99.9%
+- #2,500 asked for 4 times a minute here · edge hit 79.9%
+- #25,000 asked for once every 3 minutes here · edge hit 28.4%
+- 80.1% at the edge
+- 19.9% at the origin
+- 9,925th
+- 1,000
+- Half of its requests hit at the edge: the 9,925th
+- [aria-label] A CDN with 5 locations serves 10,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 minute after a miss. By the model, 80.1% are answered at the edge in 20 ms, and 1,990/s reach the origin, in 140 ms: a mean response of 43.9 ms. Popular objects hit and the long tail misses: objects more popular than the 9,925th hit at the edge more than half the time, and the rest less. The timeline is one random sample of the outlined location’s requests.
+- With 5 locations, a 1-hour TTL and no shield, 98.7% of 10,000 requests a second hit at the edge, 128/s reach the origin, and the mean response is 21.5 ms.
+- 1 hour after a miss.
+- 9,870/s answered at the edge
+- In 20 ms, for 98.7% of requests.
+- 128/s reach the origin
+- trip to the origin), for 1.3% of
+- 10,000/s. It was 3,970/s.
+- mean 21.5 ms
+- Mean response 21.5 ms = 98.7% × 20 ms + 1.3% × 140 ms. It was 67.7 ms.
+- The outlined location, 5 hours · one sample
+- #2,500 asked for 4 times a minute here · edge hit 99.6%
+- #25,000 asked for once every 3 minutes here · edge hit 96.0%
+- 2 h
+- 3 h
+- 4 h
+- 5 h
+- 98.7% at the edge
+- 1.3% at the origin
+- Every object hits at the edge at least half the time
+- Play runs these 5 hours at the outlined location in 6 seconds.
+- [aria-label] A CDN with 5 locations serves 10,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 hour after a miss. By the model, 98.7% are answered at the edge in 20 ms, and 128/s reach the origin, in 140 ms: a mean response of 21.5 ms. Every object hits at the edge at least half the time. The timeline is one random sample of the outlined location’s requests.
+- [aria-label] Play 5 hours at the outlined location
+- With 5 locations, a 1-hour TTL and no shield, 91.8% of 1,000 requests a second hit at the edge, 82/s reach the origin, and the mean response is 29.8 ms.
+- A CDN of 5 locations serving 1,000 requests a second
+- 1,000/s requests
+- 918/s answered at the edge
+- In 20 ms, for 91.8% of requests.
+- takes 200/s and keeps its
+- 82/s reach the origin
+- trip to the origin), for 8.2% of
+- 1,000/s. It was 128/s.
+- mean 29.8 ms
+- Mean response 29.8 ms = 91.8% × 20 ms + 8.2% × 140 ms. It was 21.5 ms.
+- #1 asked for 17 times a second here · edge hit over 99.9%
+- #2,500 asked for once every 3 minutes here · edge hit 96.0%
+- #25,000 asked for once every 25 minutes here · edge hit 70.4%
+- 91.8% at the edge
+- 8.2% at the origin
+- 59,553rd
+- Half of its requests hit at the edge: the 59,553rd
+- [aria-label] A CDN with 5 locations serves 1,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 hour after a miss. By the model, 91.8% are answered at the edge in 20 ms, and 82/s reach the origin, in 140 ms: a mean response of 29.8 ms. Popular objects hit and the long tail misses: objects more popular than the 59,553rd hit at the edge more than half the time, and the rest less. The timeline is one random sample of the outlined location’s requests.
+- With 5 locations, a 1-hour TTL and no shield, 99.9% of 100,000 requests a second hit at the edge, 138/s reach the origin, and the mean response is 20.2 ms.
+- A CDN of 5 locations serving 100,000 requests a second
+- 100,000/s requests
+- 99,900/s answered at the edge
+- In 20 ms, for 99.9% of requests.
+- takes 20,000/s and keeps its
+- 138/s reach the origin
+- trip to the origin), for 0.1% of
+- 100,000/s. It was 82/s.
+- mean 20.2 ms
+- Mean response 20.2 ms = 99.9% × 20 ms + 0.1% × 140 ms. It was 29.8 ms.
+- #1 asked for 1,650 times a second here · edge hit over 99.9%
+- #2,500 asked for 40 times a minute here · edge hit over 99.9%
+- #25,000 asked for 4 times a minute here · edge hit 99.6%
+- 99.9% at the edge
+- 0.1% at the origin
+- [aria-label] A CDN with 5 locations serves 100,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 hour after a miss. By the model, 99.9% are answered at the edge in 20 ms, and 138/s reach the origin, in 140 ms: a mean response of 20.2 ms. Every object hits at the edge at least half the time. The timeline is one random sample of the outlined location’s requests.
+- With 5 locations, a 1-hour TTL and the shield, 10 URLs an image, 98.7% of 100,000 requests a second hit at the edge, 273/s reach the origin, and the mean response is 20.7 ms.
+- 1 hour after a miss. A tracking parameter gives each image 10 URLs, each cached on its own.
+- 98,700/s answered at the edge
+- 1,010/s answered by the shield
+- In 50 ms, for 1.0% of requests. It
+- sees every location’s misses.
+- 273/s reach the origin
+- In 170 ms (the edge, the shield, then
+- a round trip to the origin), for 0.3%
+- of 100,000/s. It was 1,280/s.
+- 50 ms
+- 170 ms
+- mean 20.7 ms
+- Mean response 20.7 ms = 98.7% × 20 ms + 1.0% × 50 ms + 0.3% × 170 ms. It was 21.5 ms.
+- #1, one of its URLs, asked for 165 times a second here · edge hit over 99.9% · shield hit 80.0%
+- #2,500, one of its URLs, asked for 4 times a minute here · edge hit 99.6% · shield hit 79.9%
+- #25,000, one of its URLs, asked for once every 3 minutes here
+- edge hit 96.0% · shield hit 79.3%
+- One sample. Bar: a copy · short tick: a hit · tall tick: a miss, ending at the shield track if the shield answered,
+- below it if the origin did.
+- 1.0% by the shield
+- 0.3% at the origin
+- Every object’s edge misses hit the shield at least half the time
+- The timeline is one random sample of the outlined location. A bar is a copy, alive for the TTL after the miss that fetched it. A short tick is a hit; a tall tick is a miss, ending in a square on the shield track if the shield answered and running below it to a dot if the origin did. In the square, objects are ordered by popularity rank, each as wide as its share of requests, and a column’s height is where its requests are answered.
+- [aria-label] A CDN with 5 locations serves 100,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 hour after a miss, and an origin shield sits between the locations and the origin. A tracking parameter gives each image 10 URLs, each cached on its own. By the model, 98.7% are answered at the edge in 20 ms, 1.0% by the shield in 50 ms, and 273/s reach the origin, in 170 ms: a mean response of 20.7 ms. Every object hits at the edge at least half the time. The timeline is one random sample of the outlined location’s requests.
+- With 20 locations, a 1-minute TTL and the shield, 10 URLs an image, 69.2% of 100,000 requests a second hit at the edge, 9,130/s reach the origin, and the mean response is 30.2 ms.
+- A CDN of 20 locations serving 100,000 requests a second
+- 1 minute after a miss. A tracking parameter gives each image 10 URLs, each cached on
+- its own.
+- 69,200/s answered at the edge
+- takes 5,000/s and keeps its
+- 21,600/s answered by the shield
+- In 40 ms, for 21.6% of requests. It
+- 9,130/s reach the origin
+- In 160 ms (the edge, the shield, then
+- a round trip to the origin), for 9.1% of
+- 100,000/s. It was 273/s.
+- 40 ms
+- 160 ms
+- mean 30.2 ms
+- Mean response 30.2 ms = 69.2% × 10 ms + 21.6% × 40 ms + 9.1% × 160 ms. It was 11.6 ms.
+- #1, one of its URLs, asked for 41 times a second here · edge hit over 99.9% · shield hit 95.0%
+- #2,500, one of its URLs, asked for about once a minute here
+- edge hit 49.8% · shield hit 90.4%
+- #25,000, one of its URLs, asked for once every 10 minutes here
+- edge hit 9.0% · shield hit 63.2%
+- 21.6% by the shield
+- 9.1% at the origin
+- 44,664th
+- Half of its edge misses hit the shield: the 44,664th
+- [aria-label] A CDN with 20 locations serves 100,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 minute after a miss, and an origin shield sits between the locations and the origin. A tracking parameter gives each image 10 URLs, each cached on its own. By the model, 69.2% are answered at the edge in 10 ms, 21.6% by the shield in 40 ms, and 9,130/s reach the origin, in 160 ms: a mean response of 30.2 ms. Popular objects hit and the long tail misses: objects more popular than the 2,481st hit at the edge more than half the time, and the rest less. The timeline is one random sample of the outlined location’s requests.
+- With 20 locations, a 1-minute TTL and the shield, 10 URLs an image, 50.4% of 10,000 requests a second hit at the edge, 2,520/s reach the origin, and the mean response is 55.2 ms.
+- 5,040/s answered at the edge
+- In 10 ms, for 50.4% of requests.
+- 2,440/s answered by the shield
+- In 40 ms, for 24.4% of requests. It
+- 2,520/s reach the origin
+- a round trip to the origin), for 25.2%
+- of 10,000/s. It was 9,130/s.
+- mean 55.2 ms
+- Mean response 55.2 ms = 50.4% × 10 ms + 24.4% × 40 ms + 25.2% × 160 ms.
+- It was 30.2 ms.
+- #1, one of its URLs, asked for 4.1 times a second here · edge hit 99.6% · shield hit 95.0%
+- #2,500, one of its URLs, asked for once every 10 minutes here
+- #25,000, one of its URLs, asked for once every 2 hours here · edge hit 1.0% · shield hit 15.7%
+- 50.4% at the edge
+- 24.4% by the shield
+- 25.2% at the origin
+- 248th
+- 4,466th
+- Half of its requests hit at the edge: the 248th
+- Half of its edge misses hit the shield: the 4,466th
+- [aria-label] A CDN with 20 locations serves 10,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 minute after a miss, and an origin shield sits between the locations and the origin. A tracking parameter gives each image 10 URLs, each cached on its own. By the model, 50.4% are answered at the edge in 10 ms, 24.4% by the shield in 40 ms, and 2,520/s reach the origin, in 160 ms: a mean response of 55.2 ms. Popular objects hit and the long tail misses: objects more popular than the 248th hit at the edge more than half the time, and the rest less. The timeline is one random sample of the outlined location’s requests.
+- At 10 s of 5 minutes: requests arrive at the outlined location; a short tick found its copy there.
+- trip to the origin), for 30.8% of
+- Mean response 46.9 ms = 69.2% × 10 ms + 30.8% × 130 ms. It was 30.2 ms.
+- [aria-label] Stop the timeline
+- At 20 s of 5 minutes: requests arrive at the outlined location; a short tick found its copy there.
+- At 30 s of 5 minutes: requests arrive at the outlined location; a short tick found its copy there.
+- At 41 s of 5 minutes: requests arrive at the outlined location; a short tick found its copy there.
+- At 50 s of 5 minutes: requests arrive at the outlined location; a short tick found its copy there.
+- At 1 min of 5 minutes: #1’s copy expired; the next request misses, and the requests that arrive during its fetch wait for it (request collapsing), so one fetch goes on, not a herd.
+- At 1 min of 5 minutes: #1’s copy expired; the next request misses, and the requests that arrive
+- during its fetch wait for it (request collapsing), so one fetch goes on, not a herd.
+- At 1.2 min of 5 minutes: #1’s copy expired; the next request misses, and the requests that arrive during its fetch wait for it (request collapsing), so one fetch goes on, not a herd.
+- At 1.2 min of 5 minutes: #1’s copy expired; the next request misses, and the requests that
+- arrive during its fetch wait for it (request collapsing), so one fetch goes on, not a herd.
+- At 1.5 min of 5 minutes: requests arrive at the outlined location; a short tick found its copy there.
+- At 1.5 min of 5 minutes: requests arrive at the outlined location; a short tick found its
+- copy there.
+- At 1.6 min of 5 minutes: requests arrive at the outlined location; a short tick found its copy there.
+- At 1.6 min of 5 minutes: requests arrive at the outlined location; a short tick found its
+- At 1.8 min of 5 minutes: #2,500 has no live copy here, a miss: fetched from the origin, 130 ms; a new copy lives 1 minute.
+- At 1.8 min of 5 minutes: #2,500 has no live copy here, a miss: fetched from the origin, 130 ms;
+- a new copy lives 1 minute.
+- At 2 min of 5 minutes: #1’s copy expired; the next request misses, and the requests that arrive during its fetch wait for it (request collapsing), so one fetch goes on, not a herd.
+- At 2 min of 5 minutes: #1’s copy expired; the next request misses, and the requests that arrive
+- At 2.1 min of 5 minutes: #1’s copy expired; the next request misses, and the requests that arrive during its fetch wait for it (request collapsing), so one fetch goes on, not a herd.
+- At 2.1 min of 5 minutes: #1’s copy expired; the next request misses, and the requests that
+- At 2.3 min of 5 minutes: requests arrive at the outlined location; a short tick found its copy there.
+- At 2.3 min of 5 minutes: requests arrive at the outlined location; a short tick found its
+- At 2.5 min of 5 minutes: requests arrive at the outlined location; a short tick found its copy there.
+- At 2.5 min of 5 minutes: requests arrive at the outlined location; a short tick found its
+- At 2.7 min of 5 minutes: requests arrive at the outlined location; a short tick found its copy there.
+- At 2.7 min of 5 minutes: requests arrive at the outlined location; a short tick found its
+- At 2.9 min of 5 minutes: #2,500 has no live copy here, a miss: fetched from the origin, 130 ms; a new copy lives 1 minute.
+- At 2.9 min of 5 minutes: #2,500 has no live copy here, a miss: fetched from the origin, 130 ms;
+- At 3 min of 5 minutes: #1’s copy expired; the next request misses, and the requests that arrive during its fetch wait for it (request collapsing), so one fetch goes on, not a herd.
+- At 3 min of 5 minutes: #1’s copy expired; the next request misses, and the requests that arrive
+- At 3.2 min of 5 minutes: #1’s copy expired; the next request misses, and the requests that arrive during its fetch wait for it (request collapsing), so one fetch goes on, not a herd.
+- At 3.2 min of 5 minutes: #1’s copy expired; the next request misses, and the requests that
+- At 3.4 min of 5 minutes: requests arrive at the outlined location; a short tick found its copy there.
+- At 3.4 min of 5 minutes: requests arrive at the outlined location; a short tick found its
+- At 3.5 min of 5 minutes: requests arrive at the outlined location; a short tick found its copy there.
+- At 3.5 min of 5 minutes: requests arrive at the outlined location; a short tick found its
+- At 3.7 min of 5 minutes: requests arrive at the outlined location; a short tick found its copy there.
+- At 3.7 min of 5 minutes: requests arrive at the outlined location; a short tick found its
+- At 3.9 min of 5 minutes: requests arrive at the outlined location; a short tick found its copy there.
+- At 3.9 min of 5 minutes: requests arrive at the outlined location; a short tick found its
+- At 4.1 min of 5 minutes: #2,500 has no live copy here, a miss: fetched from the origin, 130 ms; a new copy lives 1 minute.
+- At 4.1 min of 5 minutes: #2,500 has no live copy here, a miss: fetched from the origin, 130 ms;
+- At 4.2 min of 5 minutes: #2,500 has no live copy here, a miss: fetched from the origin, 130 ms; a new copy lives 1 minute.
+- At 4.2 min of 5 minutes: #2,500 has no live copy here, a miss: fetched from the origin, 130 ms;
+- At 4.4 min of 5 minutes: requests arrive at the outlined location; a short tick found its copy there.
+- At 4.4 min of 5 minutes: requests arrive at the outlined location; a short tick found its
+- At 4.6 min of 5 minutes: requests arrive at the outlined location; a short tick found its copy there.
+- At 4.6 min of 5 minutes: requests arrive at the outlined location; a short tick found its
+- At 4.8 min of 5 minutes: requests arrive at the outlined location; a short tick found its copy there.
+- At 4.8 min of 5 minutes: requests arrive at the outlined location; a short tick found its
+- At 4.9 min of 5 minutes: #1’s copy expired; the next request misses, and the requests that arrive during its fetch wait for it (request collapsing), so one fetch goes on, not a herd.
+- At 4.9 min of 5 minutes: #1’s copy expired; the next request misses, and the requests that
+- At 5 min of 5 minutes: #2,500 has no live copy here, a miss: fetched from the origin, 130 ms; a new copy lives 1 minute.
+- A CDN with 20 locations serves 10,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 minute after a miss. By the model, 69.2% are answered at the edge in 10 ms, and 3,080/s reach the origin, in 130 ms: a mean response of 46.9 ms. Popular objects hit and the long tail misses: objects more popular than the 2,481st hit at the edge more than half the time, and the rest less. The timeline is one random sample of the outlined location’s requests.
+- Locations
+- Nearest
+- Edge hit
+- Origin
+- Origin, shield
+- Mean
+- Mean, shield
+- 1 location
+- 44.7 ms
+- 90.9%
+- 913/s
+- 55.7 ms
+- 58.4 ms
+- 5 locations
+- 80.1%
+- 1,990/s
+- 43.9 ms
+- 36.9 ms
+- 20 locations
+- 69.2%
+- 3,080/s
+- 46.9 ms
+- 30.2 ms
+- 100 locations
+- 56.1%
+- 4,390/s
+- 57.2 ms
+- 28.6 ms
+- Rows are this traffic and TTL; the edge hit rate does not depend on the shield. The tail, the 90,000 least popular images, takes 19.0% of requests.
+- [aria-label] The CDN at each count of locations, for this traffic and TTL
+- Play and every setting wait for your answer.
+- 5 minutes after a miss.
+- 8,180/s answered at the edge
+- In 10 ms, for 81.8% of requests. Each
+- of 20 locations, one cell each, takes
+- 500/s and keeps its own copies.
+- 1,820/s reach the origin
+- trip to the origin), for 18.2%
+- mean 31.9 ms
+- Mean response 31.9 ms = 81.8% × 10 ms + 18.2% × 130 ms.
+- The outlined location, 25 minutes · one sample
+- #1 asked for 41 times a second here · edge hit ?%
+- #2,500 asked for about once a minute here · edge hit ?%
+- #25,000 asked for once every 10 minutes here · edge hit ?%
+- 10 min
+- 15 min
+- 20 min
+- 25 min
+- ?% at the edge
+- ?% at the origin
+- Which objects hit shows after your answer
+- Half of its requests hit at the edge: ?
+- At 12.5 min of 25 minutes: #1’s copy expired; the next request misses, and the requests that
+- Look here
+- An analytic model with a random sample beside it. Its assumptions show after your answer.
+- Describe waits for your answer.
+- Watch the picture: the answer plays out on it.
+- [aria-label] A CDN with 20 locations serves 10,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 5 minutes after a miss. By the model, 81.8% are answered at the edge in 10 ms, and 1,820/s reach the origin, in 130 ms: a mean response of 31.9 ms. Which objects hit shows after your answer. The timeline is one random sample of the outlined location’s requests.
+- [aria-label] Play the timeline, after your answer
+- [aria-label] Experiment: Which objects hit
+- [aria-label] At 20 locations with a 5-minute TTL, the object at popularity rank k is asked for about 827 ÷ k times a second, spread evenly over the locations. Each location keeps a copy for the TTL after a miss. From about which rank down do most of an object's requests miss at the edge?
+- At 12.7 min of 25 minutes: #1’s copy expired; the next request misses, and the requests that
+- ?/s answered at the edge
+- In 4.5 ms, for ?% of requests. Each
+- of 100 locations, one cell each, takes
+- 100/s and keeps its own copies.
+- shows after your answer
+- ?/s reach the origin
+- trip to the origin), for ?% of 10,000/s.
+- mean: after your answer
+- Mean response: shows after your answer.
+- #1 asked for 8.3 times a second here · edge hit ?%
+- #2,500 asked for once every 5 minutes here · edge hit ?%
+- #25,000 asked for once every 50 minutes here · edge hit ?%
+- At 2.5 min of 5 minutes: #1’s copy expired; the next request misses, and the requests that
+- [aria-label] A CDN with 100 locations serves 10,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 minute after a miss. Where the requests are answered shows after your answer. Which objects hit shows after your answer. The timeline is one random sample of the outlined location’s requests.
+- [aria-label] Experiment: More locations
+- [aria-label] The CDN serves 10,000 requests a second from 20 locations, and 3,080 a second reach the origin. It moves to 100 locations with the same traffic, each nearer its users. How many requests a second reach the origin now?
+- [aria-label] done
+- ?/s answered by the shield
+- In 34.5 ms, for ?% of requests. It
+- In 154.5 ms (the edge, the shield,
+- then a round trip to the origin), for
+- ?% of 10,000/s.
+- 34.5 ms
+- 154.5 ms
+- #1 asked for 8.3 times a second here · edge hit ?% · shield hit ?%
+- #2,500 asked for once every 5 minutes here · edge hit ?% · shield hit ?%
+- #25,000 asked for once every 50 minutes here · edge hit ?% · shield hit ?%
+- ?% by the shield
+- Half of its edge misses hit the shield: ?
+- [aria-label] A CDN with 100 locations serves 10,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 minute after a miss, and an origin shield sits between the locations and the origin. Where the requests are answered shows after your answer. Which objects hit shows after your answer. The timeline is one random sample of the outlined location’s requests.
+- [aria-label] Experiment: An origin shield
+- [aria-label] At 100 locations, 4,390 requests a second reach the origin. Add an origin shield: one mid tier that every location asks on a miss, before the origin, keeping copies for the same 1 minute. How many requests a second reach the origin now?
+- In 10 ms, for ?% of requests. Each of
+- 20 locations, one cell each, takes
+- 5,000/s and keeps its own copies.
+- trip to the origin), for ?%
+- of 100,000/s.
+- #1 asked for 414 times a second here · edge hit ?%
+- #2,500 asked for 9.9 times a minute here · edge hit ?%
+- #25,000 asked for about once a minute here · edge hit ?%
+- At 2.5 min of 5 minutes: #25,000 has no live copy here, a miss: fetched from the origin,
+- 130 ms; a new copy lives 1 minute.
+- [aria-label] A CDN with 20 locations serves 100,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 minute after a miss. Where the requests are answered shows after your answer. Which objects hit shows after your answer. The timeline is one random sample of the outlined location’s requests.
+- [aria-label] Experiment: Ten times the traffic
+- [aria-label] At 10,000 requests a second, 69.2% hit at the edge and 3,080 a second reach the origin. Traffic grows tenfold, to 100,000 requests a second, for the same objects. How many requests a second reach the origin now?
+- At 2.6 min of 5 minutes: #25,000 has no live copy here, a miss: fetched from the origin,
+- In 40 ms, for ?% of requests. It sees
+- every location’s misses.
+- a round trip to the origin), for ?%
+- #1, one of its URLs, asked for 4.1 times a second here · edge hit ?% · shield hit ?%
+- #2,500, one of its URLs, asked for once every 10 minutes here · edge hit ?% · shield hit ?%
+- #25,000, one of its URLs, asked for once every 2 hours here · edge hit ?% · shield hit ?%
+- At 2.6 min of 5 minutes: requests arrive at the outlined location; a short tick found its
+- [aria-label] A CDN with 20 locations serves 10,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 minute after a miss, and an origin shield sits between the locations and the origin. A tracking parameter gives each image 10 URLs, each cached on its own. Where the requests are answered shows after your answer. Which objects hit shows after your answer. The timeline is one random sample of the outlined location’s requests.
+- [aria-label] Experiment: A tracking parameter
+- [aria-label] With the shield on, 913 requests a second reach the origin. Marketing links now add a tracking parameter with 10 values (?utm_source=…), spread evenly, and the CDN keys its cache on the full URL. The image served is the same. How many requests a second reach the origin now?
+- Describe waits until you meet the goal.
+- Your goal:
+- ·the origin takes 3,080/s, under 500/s: not yet
+- ·the mean response is 46.9 ms, under 18 ms: not yet
+- ✓each cache keeps a copy for 1 minute, at most 5 minutes: met
+- [aria-label] Experiment: Challenge: fit the origin
+- With 20 locations, a 5-minute TTL and the shield, 81.8% of 10,000 requests a second hit at the edge, 280/s reach the origin, and the mean response is 18.8 ms.
+- 1,540/s answered by the shield
+- In 40 ms, for 15.4% of requests. It
+- 280/s reach the origin
+- a round trip to the origin), for 2.8%
+- of 10,000/s. It was 1,820/s.
+- mean 18.8 ms
+- Mean response 18.8 ms = 81.8% × 10 ms + 15.4% × 40 ms + 2.8% × 160 ms. It was 31.9 ms.
+- #1 asked for 41 times a second here · edge hit over 99.9% · shield hit 95.0%
+- #2,500 asked for about once a minute here · edge hit 83.2% · shield hit 94.1%
+- #25,000 asked for once every 10 minutes here · edge hit 33.2% · shield hit 86.3%
+- 81.8% at the edge
+- 15.4% by the shield
+- 2.8% at the origin
+- 12,407th
+- Half of its requests hit at the edge: the 12,407th
+- Play runs these 25 minutes at the outlined location in 6 seconds.
+- Not yet:
+- ✓the origin takes 280/s, under 500/s: met
+- ·the mean response is 18.8 ms, under 18 ms: not yet
+- ✓each cache keeps a copy for 5 minutes, at most 5 minutes: met
+- [aria-label] A CDN with 20 locations serves 10,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 5 minutes after a miss, and an origin shield sits between the locations and the origin. By the model, 81.8% are answered at the edge in 10 ms, 15.4% by the shield in 40 ms, and 280/s reach the origin, in 160 ms: a mean response of 18.8 ms. Popular objects hit and the long tail misses: objects more popular than the 12,407th hit at the edge more than half the time, and the rest less. The timeline is one random sample of the outlined location’s requests.
+- [aria-label] Play 25 minutes at the outlined location
+- With 100 locations, a 5-minute TTL and the shield, 69.2% of 10,000 requests a second hit at the edge, 280/s reach the origin, and the mean response is 17.1 ms.
+- In 4.5 ms, for 69.2% of requests.
+- 2,800/s answered by the shield
+- In 34.5 ms, for 28.0% of requests. It
+- 2.8% of 10,000/s.
+- mean 17.1 ms
+- Mean response 17.1 ms = 69.2% × 4.5 ms + 28.0% × 34.5 ms + 2.8% × 154.5 ms.
+- It was 18.8 ms.
+- #1 asked for 8.3 times a second here · edge hit over 99.9% · shield hit 99.0%
+- #2,500 asked for once every 5 minutes here · edge hit 49.8% · shield hit 98.0%
+- #25,000 asked for once every 50 minutes here · edge hit 9.0% · shield hit 89.9%
+- 28.0% by the shield
+- Goal met:
+- ✓the mean response is 17.1 ms, under 18 ms: met
+- The one setting that fits is 100 locations, a 5-minute TTL and the shield. It sends 280 a second to the origin, and the mean response is 17.1 ms. The TTL is as long as the cap allows; the 100 locations bring the edge to 4.5 ms from users but split the traffic, so the edge hits only 69.2%; the shield, seeing every location's misses, gives the origin its load back. With 20 locations the origin takes 280 a second too, but users wait 18.8 ms on average.
+- [aria-label] A CDN with 100 locations serves 10,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 5 minutes after a miss, and an origin shield sits between the locations and the origin. By the model, 69.2% are answered at the edge in 4.5 ms, 28.0% by the shield in 34.5 ms, and 280/s reach the origin, in 154.5 ms: a mean response of 17.1 ms. Popular objects hit and the long tail misses: objects more popular than the 2,481st hit at the edge more than half the time, and the rest less. The timeline is one random sample of the outlined location’s requests.
+
+## 320 px, reduced motion
+
+- Traffic
+- 1,000/s
+- 10,000/s
+- 100,000/s
+- Edge locations
+- 1
+- 5
+- 20
+- 100
+- TTL
+- 5 s
+- 1 min
+- 5 min
+- 1 h
+- Cache key
+- Path only
+- + utm_source
+- With 20 locations, a 1-minute TTL and no shield, 69.2% of 10,000 requests a second hit at the edge, 3,080/s reach the origin, and the mean response is 46.9 ms.
+- A CDN of 20 locations serving
+- 10,000 requests a second
+- The site serves 100,000 images,
+- popularity on a Zipf curve. Each
+- location keeps a copy for 1 minute
+- after a miss.
+- Where requests go · model
+- 10,000/s requests
+- Each to its
+- nearest location.
+- 6,920/s answered
+- at the edge
+- In 10 ms, 69.2% of
+- requests, at
+- 500/s a location.
+- No shield: misses
+- go on to the origin.
+- 3,080/s reach
+- the origin
+- In 130 ms, 30.8%
+- of 10,000/s.
+- edge hit
+- 10 ms
+- shield hit
+- no shield
+- origin fetch
+- 130 ms
+- mean 46.9 ms
+- Mean response 46.9 ms =
+- 69.2% × 10 ms + 30.8% × 130 ms.
+- Outlined location,
+- 5 minutes · sample
+- #1 asked for 41 times a second here
+- edge hit over 99.9%
+- #2,500 asked for about once a
+- minute here
+- edge hit 49.8%
+- #25,000 asked for once every
+- 10 minutes here
+- edge hit 9.0%
+- 0
+- 2 min
+- 4 min
+- Bar: copy · short tick: hit · tall tick: miss
+- Every request · model
+- 69.2% at the edge
+- 30.8% at the origin
+- 90,000 least popular: 19.0%
+- #1
+- #2,500
+- #25,000
+- 100%
+- 50%
+- 0%
+- 2,481st
+- 10
+- Objects by popularity
+- Half of its requests hit at the edge:
+- the 2,481st
+- Play runs these 5 minutes at the
+- outlined location in 6 seconds.
+- Shield
+- The timeline is one random sample of the outlined location. A bar is a copy, alive for the TTL after the miss that fetched it. A short tick is a hit; a tall tick is a miss, running below the track to a dot: the origin answered. In the square, objects are ordered by popularity rank, each as wide as its share of requests, and a column’s height is where its requests are answered.
+- An analytic model: requests are independent Poisson arrivals, spread evenly over the locations; an object never changes during its TTL; caches have no size limit; a miss is fetched at once (request collapsing keeps it to one fetch). A copy asked for at rate r hits with probability rT ÷ (1 + rT). A copy fetched from the shield lives a full TTL at the edge (the Age header is ignored), so with a shield an image can be up to two TTLs old. Users reach the nearest of n locations in 10 ms × √(20 ÷ n); the shield adds 30 ms and the origin 120 ms. Times are one request on a warm connection; a new connection also pays its TCP and TLS round trips, which end at the nearest location, so a CDN saves several long round trips, not one. The timeline is one random sample; the hit shares beside it are the model's.
+- [aria-label] CDNs and edge: where requests are answered, one location's copies, and every request by popularity
+- [aria-label] A CDN with 20 locations serves 10,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 minute after a miss. By the model, 69.2% are answered at the edge in 10 ms, and 3,080/s reach the origin, in 130 ms: a mean response of 46.9 ms. Popular objects hit and the long tail misses: objects more popular than the 2,481st hit at the edge more than half the time, and the rest less. The timeline is one random sample of the outlined location’s requests.
+- [aria-label] Play 5 minutes at the outlined location
+- [aria-label] Origin shield
+- With 100 locations, a 1-minute TTL and no shield, 56.1% of 10,000 requests a second hit at the edge, 4,390/s reach the origin, and the mean response is 57.2 ms.
+- A CDN of 100 locations serving
+- 5,610/s answered
+- In 4.5 ms, 56.1% of
+- 100/s a location.
+- 4,390/s reach
+- In 124.5 ms, 43.9%
+- It was 3,080/s.
+- 4.5 ms
+- 124.5 ms
+- mean 57.2 ms
+- Mean response 57.2 ms =
+- 56.1% × 4.5 ms +
+- 43.9% × 124.5 ms. It was 46.9 ms.
+- #1 asked for 8.3 times a
+- second here
+- edge hit 99.8%
+- #2,500 asked for once every
+- 5 minutes here
+- edge hit 16.6%
+- 50 minutes here
+- edge hit 1.9%
+- 56.1% at the edge
+- 43.9% at the origin
+- 496th
+- 100,000
+- the 496th
+- [aria-label] A CDN with 100 locations serves 10,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 minute after a miss. By the model, 56.1% are answered at the edge in 4.5 ms, and 4,390/s reach the origin, in 124.5 ms: a mean response of 57.2 ms. Popular objects hit and the long tail misses: objects more popular than the 496th hit at the edge more than half the time, and the rest less. The timeline is one random sample of the outlined location’s requests.
+- With 5 locations, a 1-minute TTL and no shield, 80.1% of 10,000 requests a second hit at the edge, 1,990/s reach the origin, and the mean response is 43.9 ms.
+- A CDN of 5 locations serving
+- 8,010/s answered
+- In 20 ms, 80.1% of
+- 2,000/s a location.
+- 1,990/s reach
+- In 140 ms, 19.9% of
+- 10,000/s.
+- It was 913/s.
+- 20 ms
+- 140 ms
+- mean 43.9 ms
+- Mean response 43.9 ms =
+- 80.1% × 20 ms + 19.9% × 140 ms.
+- It was 55.7 ms.
+- #1 asked for 165 times a
+- #2,500 asked for 4 times a
+- edge hit 79.9%
+- 3 minutes here
+- edge hit 28.4%
+- 80.1% at the edge
+- 19.9% at the origin
+- 9,925th
+- the 9,925th
+- [aria-label] A CDN with 5 locations serves 10,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 minute after a miss. By the model, 80.1% are answered at the edge in 20 ms, and 1,990/s reach the origin, in 140 ms: a mean response of 43.9 ms. Popular objects hit and the long tail misses: objects more popular than the 9,925th hit at the edge more than half the time, and the rest less. The timeline is one random sample of the outlined location’s requests.
+- With 5 locations, a 5-second TTL and no shield, 60.3% of 10,000 requests a second hit at the edge, 3,970/s reach the origin, and the mean response is 67.7 ms.
+- location keeps a copy for 5 seconds
+- 6,030/s answered
+- In 20 ms, 60.3% of
+- 3,970/s reach
+- In 140 ms, 39.7% of
+- It was 1,990/s.
+- mean 67.7 ms
+- Mean response 67.7 ms =
+- 60.3% × 20 ms + 39.7% × 140 ms.
+- It was 43.9 ms.
+- 25 seconds · sample
+- edge hit 99.9%
+- edge hit 24.9%
+- edge hit 3.2%
+- 10 s
+- 15 s
+- 20 s
+- 25 s
+- 60.3% at the edge
+- 39.7% at the origin
+- 827th
+- the 827th
+- Play runs these 25 seconds at the
+- [aria-label] A CDN with 5 locations serves 10,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 5 seconds after a miss. By the model, 60.3% are answered at the edge in 20 ms, and 3,970/s reach the origin, in 140 ms: a mean response of 67.7 ms. Popular objects hit and the long tail misses: objects more popular than the 827th hit at the edge more than half the time, and the rest less. The timeline is one random sample of the outlined location’s requests.
+- [aria-label] Play 25 seconds at the outlined location
+- With 5 locations, a 1-hour TTL and no shield, 98.7% of 10,000 requests a second hit at the edge, 128/s reach the origin, and the mean response is 21.5 ms.
+- location keeps a copy for 1 hour
+- 9,870/s answered
+- In 20 ms, 98.7% of
+- 128/s reach
+- In 140 ms, 1.3% of
+- It was 3,970/s.
+- mean 21.5 ms
+- Mean response 21.5 ms =
+- 98.7% × 20 ms + 1.3% × 140 ms.
+- It was 67.7 ms.
+- 5 hours · sample
+- edge hit 99.6%
+- edge hit 96.0%
+- 2 h
+- 3 h
+- 4 h
+- 5 h
+- 98.7% at the edge
+- 1.3% at the origin
+- 1,000
+- Every object hits at the edge at least
+- half the time
+- Play runs these 5 hours at the
+- [aria-label] A CDN with 5 locations serves 10,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 hour after a miss. By the model, 98.7% are answered at the edge in 20 ms, and 128/s reach the origin, in 140 ms: a mean response of 21.5 ms. Every object hits at the edge at least half the time. The timeline is one random sample of the outlined location’s requests.
+- [aria-label] Play 5 hours at the outlined location
+- With 5 locations, a 1-hour TTL and no shield, 91.8% of 1,000 requests a second hit at the edge, 82/s reach the origin, and the mean response is 29.8 ms.
+- 1,000 requests a second
+- 1,000/s requests
+- 918/s answered at
+- the edge
+- In 20 ms, 91.8% of
+- 200/s a location.
+- 82/s reach
+- In 140 ms, 8.2% of
+- 1,000/s.
+- It was 128/s.
+- mean 29.8 ms
+- Mean response 29.8 ms =
+- 91.8% × 20 ms + 8.2% × 140 ms.
+- It was 21.5 ms.
+- #1 asked for 17 times a second here
+- 25 minutes here
+- edge hit 70.4%
+- 91.8% at the edge
+- 8.2% at the origin
+- 59,553rd
+- the 59,553rd
+- [aria-label] A CDN with 5 locations serves 1,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 hour after a miss. By the model, 91.8% are answered at the edge in 20 ms, and 82/s reach the origin, in 140 ms: a mean response of 29.8 ms. Popular objects hit and the long tail misses: objects more popular than the 59,553rd hit at the edge more than half the time, and the rest less. The timeline is one random sample of the outlined location’s requests.
+- With 5 locations, a 1-hour TTL and no shield, 99.9% of 100,000 requests a second hit at the edge, 138/s reach the origin, and the mean response is 20.2 ms.
+- 100,000 requests a second
+- 100,000/s requests
+- 99,900/s
+- answered at
+- In 20 ms, 99.9% of
+- 20,000/s a location.
+- 138/s reach
+- In 140 ms, 0.1% of
+- 100,000/s.
+- It was 82/s.
+- mean 20.2 ms
+- Mean response 20.2 ms =
+- 99.9% × 20 ms + 0.1% × 140 ms.
+- It was 29.8 ms.
+- #1 asked for 1,650 times a
+- #2,500 asked for 40 times a
+- #25,000 asked for 4 times a
+- 99.9% at the edge
+- 0.1% at the origin
+- [aria-label] A CDN with 5 locations serves 100,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 hour after a miss. By the model, 99.9% are answered at the edge in 20 ms, and 138/s reach the origin, in 140 ms: a mean response of 20.2 ms. Every object hits at the edge at least half the time. The timeline is one random sample of the outlined location’s requests.
+- With 5 locations, a 1-hour TTL and the shield, 10 URLs an image, 98.7% of 100,000 requests a second hit at the edge, 273/s reach the origin, and the mean response is 20.7 ms.
+- after a miss. A tracking parameter
+- gives each image 10 URLs, each
+- cached on its own.
+- 98,700/s
+- 1,010/s answered
+- by the shield
+- In 50 ms, 1.0%
+- of requests.
+- 273/s reach
+- In 170 ms, 0.3% of
+- It was 1,280/s.
+- 50 ms
+- 170 ms
+- mean 20.7 ms
+- Mean response 20.7 ms =
+- 98.7% × 20 ms + 1.0% × 50 ms +
+- 0.3% × 170 ms. It was 21.5 ms.
+- #1, one of its URLs, asked for
+- 165 times a second here
+- edge hit over 99.9% · shield hit 80.0%
+- #2,500, one of its URLs, asked for
+- 4 times a minute here
+- edge hit 99.6% · shield hit 79.9%
+- #25,000, one of its URLs, asked for
+- once every 3 minutes here
+- edge hit 96.0% · shield hit 79.3%
+- Bar: copy · short tick: hit · tall tick: miss, to
+- the shield or below it
+- 1.0% by the shield
+- 0.3% at the origin
+- Every object’s edge misses hit the
+- shield at least half the time
+- The timeline is one random sample of the outlined location. A bar is a copy, alive for the TTL after the miss that fetched it. A short tick is a hit; a tall tick is a miss, ending in a square on the shield track if the shield answered and running below it to a dot if the origin did. In the square, objects are ordered by popularity rank, each as wide as its share of requests, and a column’s height is where its requests are answered.
+- [aria-label] A CDN with 5 locations serves 100,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 hour after a miss, and an origin shield sits between the locations and the origin. A tracking parameter gives each image 10 URLs, each cached on its own. By the model, 98.7% are answered at the edge in 20 ms, 1.0% by the shield in 50 ms, and 273/s reach the origin, in 170 ms: a mean response of 20.7 ms. Every object hits at the edge at least half the time. The timeline is one random sample of the outlined location’s requests.
+- With 20 locations, a 1-hour TTL and the shield, 10 URLs an image, 95.8% of 100,000 requests a second hit at the edge, 273/s reach the origin, and the mean response is 11.6 ms.
+- 95,800/s
+- In 10 ms, 95.8% of
+- 5,000/s a location.
+- 3,980/s answered
+- In 40 ms, 4.0%
+- In 160 ms, 0.3%
+- of 100,000/s.
+- 40 ms
+- 160 ms
+- mean 11.6 ms
+- Mean response 11.6 ms =
+- 95.8% × 10 ms + 4.0% × 40 ms +
+- 0.3% × 160 ms. It was 20.7 ms.
+- 41 times a second here
+- edge hit over 99.9% · shield hit 95.0%
+- about once a minute here
+- edge hit 98.3% · shield hit 94.9%
+- once every 10 minutes here
+- edge hit 85.6% · shield hit 94.2%
+- 95.8% at the edge
+- 4.0% by the shield
+- [aria-label] A CDN with 20 locations serves 100,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 hour after a miss, and an origin shield sits between the locations and the origin. A tracking parameter gives each image 10 URLs, each cached on its own. By the model, 95.8% are answered at the edge in 10 ms, 4.0% by the shield in 40 ms, and 273/s reach the origin, in 160 ms: a mean response of 11.6 ms. Every object hits at the edge at least half the time. The timeline is one random sample of the outlined location’s requests.
+- With 20 locations, a 1-minute TTL and the shield, 10 URLs an image, 69.2% of 100,000 requests a second hit at the edge, 9,130/s reach the origin, and the mean response is 30.2 ms.
+- 69,200/s
+- 21,600/s
+- answered by
+- the shield
+- In 40 ms, 21.6%
+- 9,130/s reach
+- In 160 ms, 9.1% of
+- It was 273/s.
+- mean 30.2 ms
+- Mean response 30.2 ms =
+- 69.2% × 10 ms + 21.6% × 40 ms +
+- 9.1% × 160 ms. It was 11.6 ms.
+- edge hit 49.8% · shield hit 90.4%
+- edge hit 9.0% · shield hit 63.2%
+- 21.6% by the shield
+- 9.1% at the origin
+- Half of its edge misses hit the shield:
+- the 44,664th
+- [aria-label] A CDN with 20 locations serves 100,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 minute after a miss, and an origin shield sits between the locations and the origin. A tracking parameter gives each image 10 URLs, each cached on its own. By the model, 69.2% are answered at the edge in 10 ms, 21.6% by the shield in 40 ms, and 9,130/s reach the origin, in 160 ms: a mean response of 30.2 ms. Popular objects hit and the long tail misses: objects more popular than the 2,481st hit at the edge more than half the time, and the rest less. The timeline is one random sample of the outlined location’s requests.
+- With 20 locations, a 1-minute TTL and the shield, 10 URLs an image, 50.4% of 10,000 requests a second hit at the edge, 2,520/s reach the origin, and the mean response is 55.2 ms.
+- 5,040/s answered
+- In 10 ms, 50.4% of
+- 2,440/s answered
+- In 40 ms, 24.4%
+- 2,520/s reach
+- In 160 ms, 25.2% of
+- It was 9,130/s.
+- mean 55.2 ms
+- Mean response 55.2 ms =
+- 50.4% × 10 ms + 24.4% × 40 ms +
+- 25.2% × 160 ms. It was 30.2 ms.
+- 4.1 times a second here
+- edge hit 99.6% · shield hit 95.0%
+- once every 2 hours here
+- edge hit 1.0% · shield hit 15.7%
+- 50.4% at the edge
+- 24.4% by the shield
+- 25.2% at the origin
+- 248th
+- 4,466th
+- the 248th
+- the 4,466th
+- [aria-label] A CDN with 20 locations serves 10,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 minute after a miss, and an origin shield sits between the locations and the origin. A tracking parameter gives each image 10 URLs, each cached on its own. By the model, 50.4% are answered at the edge in 10 ms, 24.4% by the shield in 40 ms, and 2,520/s reach the origin, in 160 ms: a mean response of 55.2 ms. Popular objects hit and the long tail misses: objects more popular than the 248th hit at the edge more than half the time, and the rest less. The timeline is one random sample of the outlined location’s requests.
+- In this sample of 5 minutes at the outlined location, #1 missed 5 times, once each time its copy expired, and every other request hit; #2,500 was asked for 6 times and missed 4 times; #25,000 was not asked for at all. A miss starts a copy that lives for the TTL. The hit shares beside each object are the model’s.
+- In 130 ms, 30.8% of
+- It was 30.2 ms.
+- Played below the picture: motion
+- is reduced.
+- A CDN with 20 locations serves 10,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 minute after a miss. By the model, 69.2% are answered at the edge in 10 ms, and 3,080/s reach the origin, in 130 ms: a mean response of 46.9 ms. Popular objects hit and the long tail misses: objects more popular than the 2,481st hit at the edge more than half the time, and the rest less. The timeline is one random sample of the outlined location’s requests.
+- Locations
+- Edge hit
+- Origin /s
+- With shield /s
+- Mean ms
+- 90.9%
+- 913
+- 55.7
+- 80.1%
+- 1,990
+- 43.9
+- 69.2%
+- 3,080
+- 46.9
+- 56.1%
+- 4,390
+- 57.2
+- Rows are this traffic and TTL; the edge hit rate does not depend on the shield. The tail, the 90,000 least popular images, takes 19.0% of requests.
+- [aria-label] The CDN at each count of locations, for this traffic and TTL
+- With 20 locations, a 5-minute TTL and no shield, 81.8% of 10,000 requests a second hit at the edge, 1,820/s reach the origin, and the mean response is 31.9 ms.
+- location keeps a copy for 5 minutes
+- 8,180/s answered
+- In 10 ms, 81.8% of
+- 1,820/s reach
+- In 130 ms, 18.2%
+- mean 31.9 ms
+- Mean response 31.9 ms =
+- 81.8% × 10 ms + 18.2% × 130 ms.
+- 25 minutes · sample
+- edge hit 83.2%
+- edge hit 33.2%
+- 10 min
+- 20 min
+- 81.8% at the edge
+- 18.2% at the origin
+- 12,407th
+- the 12,407th
+- Play runs these 25 minutes at the
+- Look here
+- From about the 12,400th. A copy lives for the TTL after the miss that fetched it, so what decides a hit is how often its object is asked for at one location within one TTL. Split over 20 locations, the 12,400th most popular object is asked for about once every 5 minutes at each: one miss, then on average one hit, half its requests. More popular objects hit more often; the 25,000th hits 33.2% of the time, and the 90,000 least popular objects, 19.0% of all requests between them, hit least of all. The green area is the edge's share: 81.8%.
+- [aria-label] A CDN with 20 locations serves 10,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 5 minutes after a miss. By the model, 81.8% are answered at the edge in 10 ms, and 1,820/s reach the origin, in 130 ms: a mean response of 31.9 ms. Popular objects hit and the long tail misses: objects more popular than the 12,407th hit at the edge more than half the time, and the rest less. The timeline is one random sample of the outlined location’s requests.
+- [aria-label] Play 25 minutes at the outlined location
+- [aria-label] Experiment: Which objects hit
+- [aria-label] At 20 locations with a 5-minute TTL, the object at popularity rank k is asked for about 827 ÷ k times a second, spread evenly over the locations. Each location keeps a copy for the TTL after a miss. From about which rank down do most of an object's requests miss at the edge?
+- [aria-label] your answer, wrong
+- [aria-label] correct answer
+- [aria-label] done
+- 43.9% × 124.5 ms.
+- About 4,400: 4,390 a second, up from 3,080. Every location keeps its own copies, so an object is fetched once per location per TTL, not once per CDN. Split over 100 locations, each sees each object a fifth as often: the hit rate at the edge falls from 69.2% to 56.1%, and the curve moves left (the half-hit rank, from the 2,481st to the 496th). Users gain on hits: the nearest location is 4.5 ms away instead of 10 ms. The mean response goes from 46.9 ms to 57.2 ms.
+- [aria-label] Experiment: More locations
+- [aria-label] The CDN serves 10,000 requests a second from 20 locations, and 3,080 a second reach the origin. It moves to 100 locations with the same traffic, each nearer its users. How many requests a second reach the origin now?
+- [aria-label] your answer, correct
+- Play and every setting wait for your answer.
+- An analytic model with a random sample beside it. Its assumptions show after your answer.
+- Describe waits for your answer.
+- At 100 locations, 4,390 requests a second reach the origin. Add an origin shield: one mid tier that every location asks on a miss, before the origin, keeping copies for the same 1 minute. How many requests a second reach the origin now?
+- [aria-label] Play the timeline, after your answer
+- [aria-label] Experiment: An origin shield
+- With 100 locations, a 1-minute TTL and the shield, 56.1% of 10,000 requests a second hit at the edge, 913/s reach the origin, and the mean response is 28.6 ms.
+- 3,480/s answered
+- In 34.5 ms, 34.8%
+- 913/s reach
+- In 154.5 ms, 9.1%
+- 34.5 ms
+- 154.5 ms
+- mean 28.6 ms
+- Mean response 28.6 ms =
+- 56.1% × 4.5 ms + 34.8% × 34.5 ms
+- + 9.1% × 154.5 ms.
+- edge hit 99.8% · shield hit 99.0%
+- edge hit 16.6% · shield hit 94.3%
+- edge hit 1.9% · shield hit 65.8%
+- 34.8% by the shield
+- 48,635th
+- the 48,635th
+- About 910: 913 a second. The edge still hits 56.1%, but the shield sees the misses of all 100 locations combined, 4,390 a second, so it keeps warm what no one location can: it answers 34.8% of all requests, and its half-hit rank is the 48,635th, against the edge's 496th. The mean response falls from 57.2 ms to 28.6 ms.
+- [aria-label] A CDN with 100 locations serves 10,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 minute after a miss, and an origin shield sits between the locations and the origin. By the model, 56.1% are answered at the edge in 4.5 ms, 34.8% by the shield in 34.5 ms, and 913/s reach the origin, in 154.5 ms: a mean response of 28.6 ms. Popular objects hit and the long tail misses: objects more popular than the 496th hit at the edge more than half the time, and the rest less. The timeline is one random sample of the outlined location’s requests.
+- [aria-label] At 100 locations, 4,390 requests a second reach the origin. Add an origin shield: one mid tier that every location asks on a miss, before the origin, keeping copies for the same 1 minute. How many requests a second reach the origin now?
+- With 20 locations, a 1-minute TTL and no shield, 86.6% of 100,000 requests a second hit at the edge, 13,400/s reach the origin, and the mean response is 26.0 ms.
+- 86,600/s
+- In 10 ms, 86.6% of
+- 13,400/s reach
+- In 130 ms, 13.4%
+- mean 26.0 ms
+- Mean response 26.0 ms =
+- 86.6% × 10 ms + 13.4% × 130 ms.
+- #1 asked for 414 times a
+- #2,500 asked for 9.9 times a
+- edge hit 90.8%
+- #25,000 asked for about once a
+- 86.6% at the edge
+- 13.4% at the origin
+- 24,814th
+- the 24,814th
+- About 13,000: 13,400 a second, 4.3 times as many, not ten. Each object is asked for ten times as often, so its copy is asked for again sooner before it expires: the edge hit rate rises from 69.2% to 86.6%, and the half-hit rank moves from the 2,481st to the 24,814th. A CDN pays off most for the busiest content. The misses that are left come from the long tail: objects asked for so rarely at any one location that even ten times the traffic leaves most of their copies cold.
+- [aria-label] A CDN with 20 locations serves 100,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 1 minute after a miss. By the model, 86.6% are answered at the edge in 10 ms, and 13,400/s reach the origin, in 130 ms: a mean response of 26.0 ms. Popular objects hit and the long tail misses: objects more popular than the 24,814th hit at the edge more than half the time, and the rest less. The timeline is one random sample of the outlined location’s requests.
+- [aria-label] Experiment: Ten times the traffic
+- [aria-label] At 10,000 requests a second, 69.2% hit at the edge and 3,080 a second reach the origin. Traffic grows tenfold, to 100,000 requests a second, for the same objects. How many requests a second reach the origin now?
+- In 160 ms, 25.2%
+- 25.2% × 160 ms.
+- About 2,500: 2,520 a second, up from 913. Each image is now 10 keys, each asked for a tenth as often. At the edge that is the same as ten times the locations (the edge hit rate falls from 69.2% to 50.4%), but unlike more locations the shield cannot undo it: the shield too sees ten keys an image, each a tenth as often, so it answers 24.4% of all requests, against 21.6% before, far less than the edge lost. The fix is the cache key, not the CDN: drop tracking parameters from it (and sort the rest), and the hit rate comes back.
+- [aria-label] Experiment: A tracking parameter
+- [aria-label] With the shield on, 913 requests a second reach the origin. Marketing links now add a tracking parameter with 10 values (?utm_source=…), spread evenly, and the CDN keys its cache on the full URL. The image served is the same. How many requests a second reach the origin now?
+- In 130 ms, 18.2% of
+- It was 46.9 ms.
+- Describe waits until you meet the goal.
+- Not yet:
+- ·the origin takes 1,820/s, under 500/s: not yet
+- ·the mean response is 31.9 ms, under 18 ms: not yet
+- ✓each cache keeps a copy for 5 minutes, at most 5 minutes: met
+- [aria-label] Experiment: Challenge: fit the origin
+- With 20 locations, a 5-minute TTL and the shield, 81.8% of 10,000 requests a second hit at the edge, 280/s reach the origin, and the mean response is 18.8 ms.
+- 1,540/s answered
+- In 40 ms, 15.4%
+- 280/s reach
+- In 160 ms, 2.8% of
+- It was 1,820/s.
+- mean 18.8 ms
+- Mean response 18.8 ms =
+- 81.8% × 10 ms + 15.4% × 40 ms +
+- 2.8% × 160 ms. It was 31.9 ms.
+- edge hit 83.2% · shield hit 94.1%
+- edge hit 33.2% · shield hit 86.3%
+- 15.4% by the shield
+- 2.8% at the origin
+- ✓the origin takes 280/s, under 500/s: met
+- ·the mean response is 18.8 ms, under 18 ms: not yet
+- [aria-label] A CDN with 20 locations serves 10,000 requests a second for 100,000 images with Zipf popularity; each location keeps a copy for 5 minutes after a miss, and an origin shield sits between the locations and the origin. By the model, 81.8% are answered at the edge in 10 ms, 15.4% by the shield in 40 ms, and 280/s reach the origin, in 160 ms: a mean response of 18.8 ms. Popular objects hit and the long tail misses: objects more popular than the 12,407th hit at the edge more than half the time, and the rest less. The timeline is one random sample of the outlined location’s requests.
