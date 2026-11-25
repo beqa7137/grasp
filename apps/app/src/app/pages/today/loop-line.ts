@@ -1,4 +1,4 @@
-import { calendarDaysBetween, daysLeftLabel, type ProgressState, type Seniority } from '@grasp/engine';
+import { calendarDaysBetween, daysLeftLabel, type ProgressState, type Seniority, type TargetCompany } from '@grasp/engine';
 
 /**
  * `SENIORITY_LEVELS`' labels: first paint takes no new engine names (REDESIGN.md 4.1), so they are spelled here. Lazy
@@ -6,6 +6,9 @@ import { calendarDaysBetween, daysLeftLabel, type ProgressState, type Seniority 
  */
 export const LEVEL_NAMES: Record<Seniority, string> = { early: 'Early career', mid: 'Mid-level', senior: 'Senior' };
 export const LEVELS = Object.keys(LEVEL_NAMES) as Seniority[];
+
+/** The offered companies' names (`OFFERED_COMPANIES`), spelled here for the same reason. */
+export const COMPANY_LINE_NAMES: Partial<Record<TargetCompany, string>> = { microsoft: 'Microsoft' };
 
 // The plan's `formatMinutes`, spelled again here: sharing that module with the lazy plan code would split it into a
 // first-paint chunk of its own.
@@ -22,14 +25,15 @@ export const addDays = (date: string, days: number) =>
   new Date(Date.parse(`${date}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
 
 /**
- * The target line (REDESIGN.md 2.7), as its parts: "Mid-level loop", "Oct 25", "23 days left", "45 min a day". Today joins
- * them with " · " and keeps each part on one line. `formatDay` turns a YYYY-MM-DD into "Oct 25"; `today` is the learner's
- * calendar day.
+ * The target line (REDESIGN.md 2.7), as its parts: "Mid-level loop" (or "Mid-level Microsoft loop"), "Oct 25", "23 days
+ * left", "45 min a day". Today joins them with " · " and keeps each part on one line. `formatDay` turns a YYYY-MM-DD into
+ * "Oct 25"; `today` is the learner's calendar day.
  */
 export function loopLine(state: Pick<ProgressState, 'target' | 'plan'>, today: string, formatDay: (date: string) => string): string[] {
   const source = loopSource(state);
   if (source === 'assumed') return ['Assuming a Mid-level loop'];
-  const loop = `${LEVEL_NAMES[state.target?.level ?? 'mid']} loop${source === 'derived' ? ' (assumed)' : ''}`;
+  const company = state.target?.company && COMPANY_LINE_NAMES[state.target.company];
+  const loop = `${LEVEL_NAMES[state.target?.level ?? 'mid']}${company ? ` ${company}` : ''} loop${source === 'derived' ? ' (assumed)' : ''}`;
   const plan = state.plan;
   if (!plan) return [loop, 'no date yet'];
   const days = calendarDaysBetween(today, plan.interviewDate);

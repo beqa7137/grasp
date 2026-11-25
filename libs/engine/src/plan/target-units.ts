@@ -32,6 +32,8 @@ export interface TargetUnitsContext {
   counts: RoundCounts;
   startingPoint: PlanLevel;
   tzOffsetMinutes: number;
+  /** Problems to pick first within one difficulty: the Target company's reported ones. */
+  prefer?: ReadonlySet<string>;
 }
 
 /** Each round's share of loop readiness per required skill, so a unit's value is its gain times this. */
@@ -45,13 +47,13 @@ export function skillWeight(round: PlanRound, counts: RoundCounts, skills: numbe
  * its own problems at the level bar a few days later. Flagged patterns come first and patterns placed strong last.
  */
 export function targetCodingUnits(ctx: TargetUnitsContext): PlanUnit[] {
-  const { state, profile, startingPoint } = ctx;
+  const { state, profile, startingPoint, prefer } = ctx;
   const weight = skillWeight('coding', ctx.counts, profile.patterns.required.length);
   const solvedAt = (p: CodingProblemSummary) => state.coding[p.id]?.solvedAt ?? null;
   const groups: Record<'flagged' | 'rest' | 'strong', PlanUnit[]> = { flagged: [], rest: [], strong: [] };
   for (const pattern of PATTERN_CATALOG.filter((p) => profile.patterns.required.includes(p.id))) {
-    const own = problemsAtBar(pattern.id, 'easy');
-    const atBar = problemsAtBar(pattern.id, profile.bar);
+    const own = problemsAtBar(pattern.id, 'easy', prefer);
+    const atBar = problemsAtBar(pattern.id, profile.bar, prefer);
     const firstSolve = earliest(own.map(solvedAt));
     const placedStrong = state.placement[pattern.id] === 'strong';
     const weak = state.weakPatterns[pattern.id];
@@ -75,7 +77,7 @@ export function targetCodingUnits(ctx: TargetUnitsContext): PlanUnit[] {
     }
     if (startingPoint === 'confident' && placedStrong && !firstSolve && !flag) continue;
     const startBar = startingPoint === 'new' ? profile.startBar : profile.bar;
-    const startable = problemsAtBar(pattern.id, startBar);
+    const startable = problemsAtBar(pattern.id, startBar, prefer);
     const first = (firstSolve && own.find((p) => solvedAt(p) === firstSolve)) || (startable.find((p) => !solvedAt(p)) ?? startable[0]);
     const second = atBar.find((p) => p !== first && !solvedAt(p)) ?? atBar.find((p) => p !== first)!;
     const patternUnit: PlanUnit = {

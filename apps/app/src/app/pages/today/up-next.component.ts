@@ -12,6 +12,7 @@ import {
 } from '@angular/core';
 import { buildStudyPlan, currentTarget, roundsInLoop, upNext, type PlanDay, type StudyPlanInput, type UpNextCard } from '@grasp/engine';
 import { RouterLink } from '@angular/router';
+import { ReportedService } from '../../companies/reported.service';
 import { AnnouncerService } from '../../core/announcer.service';
 import { refocusAfterRender } from '../../core/focus';
 import { ProgressService } from '../../core/progress.service';
@@ -170,6 +171,7 @@ export class UpNextComponent {
   private readonly progress = inject(ProgressService);
   private readonly bank = inject(StoryBankService);
   private readonly work = inject(DeviceWorkService);
+  private readonly reported = inject(ReportedService);
   private readonly today = inject(TodayService);
   private readonly announcer = inject(AnnouncerService);
   private readonly injector = inject(Injector);
@@ -184,7 +186,7 @@ export class UpNextComponent {
   readonly link = (card: UpNextCard) => actionLink(card.action);
 
   constructor() {
-    void Promise.all([this.bank.load().catch(() => undefined), this.work.load().catch(() => undefined)]).then(() => {
+    void Promise.all([this.bank.load().catch(() => undefined), this.work.load().catch(() => undefined), this.reported.ready()]).then(() => {
       this.readFor = untracked(this.today.visit);
       this.loaded.set(true);
     });
@@ -241,8 +243,12 @@ export class UpNextComponent {
     const now = this.progress.now();
     const stories = this.bank.stories();
     const { target } = currentTarget(state);
-    const plan = state.plan ? buildStudyPlan(state.plan, state, { now, tzOffsetMinutes: now.getTimezoneOffset(), stories, target }) : null;
+    const reported = this.reported.items();
+    const plan = state.plan
+      ? buildStudyPlan(state.plan, state, { now, tzOffsetMinutes: now.getTimezoneOffset(), stories, target, reported })
+      : null;
     const input = {
+      reported,
       state,
       stories,
       now,

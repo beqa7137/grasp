@@ -14,7 +14,15 @@ import {
 } from '@angular/core';
 import { Router } from '@angular/router';
 import { IonSpinner } from '@ionic/angular';
-import { COMPETENCY_CATALOG, MOCK_PROBLEMS, QUESTIONS_PER_COMPETENCY, TRACK_NAMES, getMockProblem, type Seniority } from '@grasp/engine';
+import {
+  COMPETENCY_CATALOG,
+  MOCK_PROBLEMS,
+  QUESTIONS_PER_COMPETENCY,
+  TRACK_NAMES,
+  getMockProblem,
+  type Seniority,
+  type TargetCompany,
+} from '@grasp/engine';
 import { ApiError, ApiService } from '../../core/api.service';
 import { SignInOptionsComponent } from '../../core/sign-in-options.component';
 import { uniqueId } from '../../core/unique-id';
@@ -172,6 +180,8 @@ export class MockStartSheetComponent {
   readonly track = input.required<InterviewTrack>();
   readonly level = input.required<Seniority>();
   readonly levelLabel = input.required<string>();
+  /** The Target's company when this client offers it: a behavioral round then probes its culture. */
+  readonly company = input<TargetCompany | null>(null);
   /** Null until the hub has reached the server. */
   readonly catalog = input<InterviewCatalog | null>(null);
   readonly offline = input(false);
@@ -230,7 +240,7 @@ export class MockStartSheetComponent {
         track,
         ...(this.choice() ? { problemId: this.choice() } : {}),
         mode: this.mode(),
-        ...(track === 'behavioral' ? { level: this.level() } : {}),
+        ...(track === 'behavioral' ? { level: this.level(), ...(this.company() && { company: this.company() }) } : {}),
       });
       // Ionic stops rendering the page it leaves, so the sheet closes now, and hands focus back before the session shows.
       this.open.set(false);

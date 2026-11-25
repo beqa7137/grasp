@@ -291,3 +291,48 @@ describe('Up next', () => {
     });
   });
 });
+
+describe('Up next with a target company', () => {
+  const reported = (problems: readonly string[], cases: readonly string[] = []) => ({
+    company: 'microsoft' as const,
+    problems: new Set(problems),
+    cases: new Set(cases),
+  });
+  const atBar = problemsAtBar('hashing', 'medium');
+  const [first, ...rest] = atBar;
+  const later = rest.slice(1).find((p) => p.difficulty === rest[0].difficulty)!;
+
+  const flag = ev({ type: 'interview.scored', sessionId: 's', track: 'coding', verdict: 'no-hire', weakPatterns: ['hashing'] });
+
+  it('orders a pattern problems by difficulty first, then reported ones', () => {
+    const preferred = problemsAtBar('hashing', 'medium', new Set([later.id]));
+    expect(preferred.map((p) => p.difficulty)).toEqual(atBar.map((p) => p.difficulty));
+    expect(preferred.find((p) => p.difficulty === later.difficulty)).toBe(later);
+    expect(atBar.find((p) => p.difficulty === later.difficulty)).not.toBe(later);
+  });
+
+  it('picks a reported problem among those of the same difficulty, says so, and keeps the minutes', () => {
+    const events = [solve(first.id), flag];
+    const plain = upNext(input(events), 'coding')!;
+    expect(plain.action).toMatchObject({ kind: 'problem', problemId: rest[0].id });
+    const card = upNext(input(events, { reported: reported([later.id]) }), 'coding')!;
+    expect(card.action).toMatchObject({ kind: 'problem', problemId: later.id });
+    expect(card.minutes).toBe(plain.minutes);
+    expect(card.reason.endsWith('Reported in a Microsoft interview write-up.')).toBe(true);
+    expect(plain.reason).not.toMatch(/Microsoft/);
+  });
+
+  it('leaves the card alone when no reported problem ties', () => {
+    const events = [solve(first.id), flag];
+    expect(upNext(input(events, { reported: reported(['not-a-problem']) }), 'coding')).toEqual(upNext(input(events), 'coding'));
+  });
+
+  it('never moves a reported case ahead of a topic in the same state', () => {
+    const cases = LEVEL_PROFILES.mid.cases.required;
+    const plain = upNext(input([]), 'design')!;
+    const card = upNext(input([], { reported: reported([], cases) }), 'design')!;
+    expect(card.action.kind).toBe(plain.action.kind);
+    expect(card.id).toBe(plain.id);
+    expect(card.minutes).toBe(plain.minutes);
+  });
+});

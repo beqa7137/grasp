@@ -59,7 +59,7 @@ describe('InterviewReportsComponent', () => {
     const { fixture, today, el } = setup('problem', 'two-sum');
     expect(lines(el)).toEqual(['Microsoft Published Jun 2025']);
     expect(el.hidden).toBe(false);
-    today.set('2027-01-26');
+    today.set('2027-03-05');
     fixture.detectChanges();
     expect(el.querySelector('g-disclosure')).toBeNull();
     expect(el.hidden).toBe(true);

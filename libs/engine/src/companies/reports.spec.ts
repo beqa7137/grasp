@@ -1,9 +1,20 @@
 import { describe, expect, it } from 'vitest';
+import { FREQUENCY_WORDS } from './wording.js';
 import { CODING_CATALOG } from '../coding/catalog.js';
 import { TARGET_COMPANIES } from '../plan/options.js';
 import { CASE_CATALOG } from '../sysdesign/case-catalog.js';
 import { COMPANY_IDS, COMPANY_NAMES } from './companies.js';
-import { addMonths, lastDayOf, recheckBy, reportVisible, shownUntil, visibleReports, type InterviewReport } from './reports.js';
+import {
+  addMonths,
+  lastDayOf,
+  recheckBy,
+  reportVisible,
+  reportedItems,
+  shownUntil,
+  visibleReports,
+  type InterviewReport,
+} from './reports.js';
+import { reportedByAny } from './reported.js';
 import { INTERVIEW_REPORTS, LAST_REFRESH } from './reports.data.js';
 import { DENIED_HOSTS, PUBLISHERS, hostDenied, sourceRefusal, type PublisherId } from './source-policy.js';
 
@@ -156,7 +167,6 @@ describe('the shipped reports', () => {
   const cases = new Set(CASE_CATALOG.map((c) => c.id));
   const day = /^\d{4}-\d{2}-\d{2}$/;
   const validDay = (d: string) => day.test(d) && new Date(`${d}T00:00:00Z`).toISOString().slice(0, 10) === d;
-  const BANNED = /\b(frequency|frequently|most asked|popular|top|hot)\b|%/i;
 
   it('name a catalog item, a known company and an allowed source', () => {
     for (const r of INTERVIEW_REPORTS) {
@@ -186,7 +196,7 @@ describe('the shipped reports', () => {
       expect(r.note.length, where).toBeGreaterThan(0);
       expect(r.note.length, where).toBeLessThanOrEqual(200);
       expect(r.note, where).not.toMatch(/[\u2014\u00a0]/);
-      expect(r.note, where).not.toMatch(BANNED);
+      expect(r.note, where).not.toMatch(FREQUENCY_WORDS);
       expect(r.source.title, where).not.toMatch(/[\u2014\u00a0]/);
     }
   });
@@ -224,5 +234,38 @@ describe('the shipped reports', () => {
       expect(p.name, id).not.toBe('');
       expect(p.terms, id).toMatch(/^https:\/\//);
     }
+  });
+});
+
+describe('what a company reports name', () => {
+  it('lists the visible problems and cases of one company on the given day', () => {
+    const items = reportedItems('microsoft', '2026-11-24');
+    expect([...items.problems].sort()).toEqual([
+      'partition-equal-subset',
+      'rotting-oranges',
+      'sliding-window-maximum',
+      'two-sum',
+      'validate-bst',
+    ]);
+    expect([...items.cases].sort()).toEqual(['chat', 'collaborative-editor', 'job-scheduler', 'rate-limiter']);
+  });
+
+  it('follows the recheck window of that day, not of a release', () => {
+    const last = INTERVIEW_REPORTS.filter((r) => r.company === 'microsoft')
+      .map(recheckBy)
+      .sort()
+      .at(-1)!;
+    expect(reportedItems('microsoft', last).problems.size).toBeGreaterThan(0);
+    const after = new Date(Date.parse(`${last}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+    expect(reportedItems('microsoft', after).problems.size).toBe(0);
+    expect(reportedItems('microsoft', after).cases.size).toBe(0);
+  });
+
+  it('matches an item named by any chosen company', () => {
+    const sets = { microsoft: new Set(['two-sum']) };
+    expect(reportedByAny(['microsoft'], sets, 'two-sum')).toBe(true);
+    expect(reportedByAny(['microsoft'], sets, 'jump-game')).toBe(false);
+    expect(reportedByAny(['microsoft'], {}, 'two-sum')).toBe(false);
+    expect(reportedByAny([], sets, 'two-sum')).toBe(false);
   });
 });

@@ -5,7 +5,7 @@ import type { InterviewReport } from './reports.js';
  * opened as a single page and supports its row on the `checked` day.
  */
 /** The day of the last refresh: no row may claim a later check, so a typo cannot stretch a row's 100 days. */
-export const LAST_REFRESH = '2026-10-17';
+export const LAST_REFRESH = '2026-11-24';
 
 export const INTERVIEW_REPORTS: readonly InterviewReport[] = [
   {
@@ -278,7 +278,7 @@ export const INTERVIEW_REPORTS: readonly InterviewReport[] = [
       publisher: 'geeksforgeeks',
     },
     reported: { date: '2025-08', basis: 'interview' },
-    checked: '2026-10-17',
+    checked: '2026-11-24',
     note: 'Listed in the first coding round.',
   },
   {
@@ -291,7 +291,7 @@ export const INTERVIEW_REPORTS: readonly InterviewReport[] = [
       publisher: 'geeksforgeeks',
     },
     reported: { date: '2025-08', basis: 'interview' },
-    checked: '2026-10-17',
+    checked: '2026-11-24',
     note: 'Asked whether a binary tree is a binary search tree.',
   },
   {
@@ -304,7 +304,7 @@ export const INTERVIEW_REPORTS: readonly InterviewReport[] = [
       publisher: 'roundz',
     },
     reported: { date: '2025-06-05', basis: 'published' },
-    checked: '2026-10-17',
+    checked: '2026-11-24',
     note: 'Named in the first round, with Partition Equal Subset Sum next.',
   },
   {
@@ -317,7 +317,7 @@ export const INTERVIEW_REPORTS: readonly InterviewReport[] = [
       publisher: 'roundz',
     },
     reported: { date: '2025-06-05', basis: 'published' },
-    checked: '2026-10-17',
+    checked: '2026-11-24',
     note: 'Solved with recursion, then the interviewer asked for test cases.',
   },
   {
@@ -330,7 +330,7 @@ export const INTERVIEW_REPORTS: readonly InterviewReport[] = [
       publisher: 'roundz',
     },
     reported: { date: '2025-07-21', basis: 'published' },
-    checked: '2026-10-17',
+    checked: '2026-11-24',
     note: 'First round: a WhatsApp-style messenger, with presence and delivery status.',
   },
   {
@@ -343,7 +343,7 @@ export const INTERVIEW_REPORTS: readonly InterviewReport[] = [
       publisher: 'roundz',
     },
     reported: { date: '2025-05-13', basis: 'published' },
-    checked: '2026-10-17',
+    checked: '2026-11-24',
     note: 'Design round: a Google Docs-style editor with real-time sync and permissions.',
   },
   {
@@ -356,8 +356,34 @@ export const INTERVIEW_REPORTS: readonly InterviewReport[] = [
       publisher: 'roundz',
     },
     reported: { date: '2025-03-26', basis: 'published' },
-    checked: '2026-10-17',
+    checked: '2026-11-24',
     note: 'Bar raiser round: a cloud job scheduler for one-time and recurring jobs.',
+  },
+  {
+    kind: 'case',
+    itemId: 'rate-limiter',
+    company: 'microsoft',
+    source: {
+      url: 'https://roundz.substack.com/p/interview-experience-136-microsoft',
+      title: 'Interview Experience - 136 - Microsoft | Software Development Engineer | II (Level 62)',
+      publisher: 'roundz',
+    },
+    reported: { date: '2025-07-21', basis: 'published' },
+    checked: '2026-11-24',
+    note: 'Last round: design an API rate limiter.',
+  },
+  {
+    kind: 'problem',
+    itemId: 'sliding-window-maximum',
+    company: 'microsoft',
+    source: {
+      url: 'https://www.geeksforgeeks.org/interview-experiences/microsoft-software-engineer-l60-interview-experience-december-2025-off-campus/',
+      title: 'Microsoft Software Engineer (L60) Interview Experience – December 2025 (Off-Campus)',
+      publisher: 'geeksforgeeks',
+    },
+    reported: { date: '2025-12-12', basis: 'interview' },
+    checked: '2026-11-24',
+    note: 'Online assessment: the maximum or minimum of every window of size k.',
   },
   {
     kind: 'problem',

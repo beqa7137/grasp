@@ -18,7 +18,13 @@ const told = (id: string, competencyIds: string[]): Story =>
 
 function render(
   card: Partial<Scorecard> = {},
-  options: { fromStory?: boolean; stories?: Story[]; weakSince?: string; mode?: InterviewSession['mode'] } = {},
+  options: {
+    fromStory?: boolean;
+    stories?: Story[];
+    weakSince?: string;
+    mode?: InterviewSession['mode'];
+    company?: InterviewSession['company'];
+  } = {},
 ) {
   const session: InterviewSession = {
     id: 'session',
@@ -34,6 +40,7 @@ function render(
     mode: options.mode ?? 'ai',
     aiAccess: 'available',
     level: 'senior',
+    ...(options.company ? { company: options.company } : {}),
     scorecard: {
       verdict: 'lean-no-hire',
       summary: 'Say what you did.',
@@ -154,6 +161,16 @@ describe('BehavioralScorecardComponent', () => {
     expect(asked).toMatch(/^conflict-\d+$/);
     expect(asked).not.toBe('conflict-1');
     expect(navigate).toHaveBeenCalledWith('/mock/next', expect.anything());
+  });
+
+  it("keeps the session's company on the next round, so its culture follow-up stays", async () => {
+    const { fixture, button, api } = render({ mode: 'offline' }, { mode: 'offline', company: 'microsoft' });
+    button('Try another question')!.click();
+    await fixture.whenStable();
+    expect(api.post.mock.calls[0]).toEqual([
+      '/interview/sessions',
+      expect.objectContaining({ track: 'behavioral', mode: 'offline', level: 'senior', company: 'microsoft' }),
+    ]);
   });
 
   it('starts another scripted question as an API round, not the client-only STAR drill', async () => {

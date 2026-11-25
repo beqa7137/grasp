@@ -15,7 +15,8 @@ export interface EntryStatus {
  * One row of a library list (REDESIGN.md 3.2): status and kind glyphs, the title, then one meta line (kind, shelf, level
  * pips, minutes, status text) under it. With `inline`, the pips and status text sit at the row's end and the meta is one
  * note under the title. Put it on the link or button it opens: `<a g-entry-row routerLink="…">`. Content marked `lead`
- * replaces the status glyph; content marked `end` goes last.
+ * replaces the status glyph; content marked `below` sits under the title and meta, at the text's full width; content
+ * marked `end` goes last.
  */
 @Component({
   selector: 'a[g-entry-row], button[g-entry-row], g-entry-row',
@@ -44,6 +45,7 @@ export interface EntryStatus {
           <ng-container *ngTemplateOutlet="tail" />
         </span>
       }
+      <ng-content select="[below]" />
     </span>
     @if (inline() && (level() || after().length)) {
       <span class="end"><ng-container *ngTemplateOutlet="tail" /></span>

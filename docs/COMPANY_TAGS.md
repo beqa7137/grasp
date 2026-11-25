@@ -74,3 +74,9 @@ ordinary, it is recorded here.
   time in the fix round to word its note).
 - 2026-10-17: the R49 code review's Chromium link checks loaded about 16 roundz.substack.com pages through popups its
   network stub missed, as a person clicking the links would.
+- 2026-11-24 (R51): the builder agent read 7 pages once each as single pages, with no copy kept and no refusal: the 5
+  sources of the shipped Microsoft rows (rechecked: all 7 rows still supported, `checked` moved to 2026-11-24) and two
+  more write-ups, Roundz post 163 (interview in 2022, past 24 months, so no row) and GeeksforGeeks' Microsoft L60 post
+  (one new row, Sliding Window Maximum); Roundz post 136, already a source, also gave one new row (Rate Limiter). It also
+  read Microsoft's own hiring tips, technical interviewing and culture pages for R51's loop text. The independent
+  checker's reads of the two new rows' sources are logged with them when they happen.

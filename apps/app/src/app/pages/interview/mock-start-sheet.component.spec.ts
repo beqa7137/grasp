@@ -45,6 +45,19 @@ describe('MockStartSheetComponent', () => {
     expect(sheet.choice()).toBe('');
   });
 
+  it("sends the Target's offered company with a behavioral round only", async () => {
+    const { sheet, api, fixture } = setup('behavioral');
+    fixture.componentRef.setInput('company', 'microsoft');
+    fixture.detectChanges();
+    await sheet.start();
+    expect(api.post).toHaveBeenLastCalledWith('/interview/sessions', {
+      track: 'behavioral',
+      mode: 'offline',
+      level: 'senior',
+      company: 'microsoft',
+    });
+  });
+
   it('starts a scripted behavioral round as an API session at the Target level, never the STAR drill', async () => {
     const { sheet, api, router } = setup('behavioral');
     expect(sheet.mode()).toBe('offline');

@@ -1,6 +1,7 @@
 import { addCalendarDays } from '../plan/options.js';
 import { COMPANY_IDS, type CompanyId } from './companies.js';
 import { INTERVIEW_REPORTS } from './reports.data.js';
+import type { ReportedItems } from './reported.js';
 import type { PublisherId } from './source-policy.js';
 
 export type ReportedItemKind = 'problem' | 'case';
@@ -68,4 +69,11 @@ export function visibleReports(
         COMPANY_IDS.indexOf(a.company) - COMPANY_IDS.indexOf(b.company) ||
         lastDayOf(b.reported.date).localeCompare(lastDayOf(a.reported.date)),
     );
+}
+
+/** What a company's reports name today, with the same expiry and recheck window as the item pages. */
+export function reportedItems(company: CompanyId, today: string, reports: readonly InterviewReport[] = INTERVIEW_REPORTS): ReportedItems {
+  const named = (kind: ReportedItemKind) =>
+    new Set(reports.filter((r) => r.company === company && r.kind === kind && reportVisible(r, today)).map((r) => r.itemId));
+  return { company, problems: named('problem'), cases: named('case') };
 }

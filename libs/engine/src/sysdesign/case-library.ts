@@ -2,6 +2,8 @@ import { SD_SHELVES, sdTopicShelf, type SdShelf } from '../curriculum/sd-shelves
 import { SD_TOPICS } from '../curriculum/sd-topics.js';
 import { CASE_CATALOG, type CaseSummary } from './case-catalog.js';
 import { paramText, paramValues, type UrlParams } from '../url-params.js';
+import { reportedByAny, type ReportedSets } from '../companies/reported.js';
+import { OFFERED_COMPANIES, offeredCompany, type OfferedCompany } from '../plan/options.js';
 
 /** A case study's place in the library: stages in progress live on the device, a finish in the progress log. */
 export const CASE_STATES = ['new', 'started', 'finished'] as const;
@@ -16,9 +18,11 @@ export interface CaseQuery {
   status: readonly CaseState[];
   shelf: readonly SdShelf[];
   topic: readonly string[];
+  /** Companies whose interview reports name the case. */
+  reported: readonly OfferedCompany[];
 }
 
-export const EMPTY_CASE_QUERY: CaseQuery = { q: '', level: [], status: [], shelf: [], topic: [] };
+export const EMPTY_CASE_QUERY: CaseQuery = { q: '', level: [], status: [], shelf: [], topic: [], reported: [] };
 
 export type CaseFacet = Exclude<keyof CaseQuery, 'q'>;
 const FACET_VALUES: Record<CaseFacet, readonly string[]> = {
@@ -26,6 +30,7 @@ const FACET_VALUES: Record<CaseFacet, readonly string[]> = {
   status: CASE_STATES,
   shelf: SD_SHELVES.map((s) => s.id),
   topic: SD_TOPICS.map((t) => t.id),
+  reported: OFFERED_COMPANIES,
 };
 export const CASE_FACETS = Object.keys(FACET_VALUES) as CaseFacet[];
 
@@ -41,6 +46,7 @@ export function parseCaseQuery(params: UrlParams): CaseQuery {
     status: list('status') as CaseState[],
     shelf: list('shelf') as SdShelf[],
     topic: list('topic'),
+    reported: list('reported') as OfferedCompany[],
   };
 }
 
@@ -53,6 +59,7 @@ export function caseQueryParams(query: CaseQuery): Record<keyof CaseQuery, strin
     status: join(query.status),
     shelf: join(query.shelf),
     topic: join(query.topic),
+    reported: join(query.reported),
   };
 }
 
@@ -64,15 +71,20 @@ export interface CaseLibraryResult {
   counts: Record<CaseFacet, Record<string, number>>;
 }
 
-const MATCHES: Record<CaseFacet, (c: CaseSummary, values: readonly string[], state: CaseState) => boolean> = {
-  level: (c, values) => values.includes(c.level),
-  status: (_, values, state) => values.includes(state),
-  shelf: (c, values) => c.topics.some((t) => values.includes(sdTopicShelf(t) ?? '')),
-  topic: (c, values) => c.topics.some((t) => values.includes(t)),
-};
-
 /** Filters the case catalog. A case is on a shelf when any of its topics is; several values of one facet widen it. */
-export function queryCases(query: CaseQuery, stateOf: (id: string) => CaseState): CaseLibraryResult {
+export function queryCases(query: CaseQuery, stateOf: (id: string) => CaseState, reportedSets: ReportedSets = {}): CaseLibraryResult {
+  const MATCHES: Record<CaseFacet, (c: CaseSummary, values: readonly string[], state: CaseState) => boolean> = {
+    level: (c, values) => values.includes(c.level),
+    status: (_, values, state) => values.includes(state),
+    shelf: (c, values) => c.topics.some((t) => values.includes(sdTopicShelf(t) ?? '')),
+    topic: (c, values) => c.topics.some((t) => values.includes(t)),
+    reported: (c, values) =>
+      reportedByAny(
+        values.flatMap((v) => offeredCompany(v) ?? []),
+        reportedSets,
+        c.id,
+      ),
+  };
   const terms = query.q.toLowerCase().split(/\s+/).filter(Boolean);
   const base = CASE_CATALOG.filter((c) => terms.every((t) => c.title.toLowerCase().includes(t)));
   const keeps = (c: CaseSummary, except?: CaseFacet) =>

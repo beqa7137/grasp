@@ -13,6 +13,9 @@ import {
 import { RouterLink } from '@angular/router';
 import { AlertController, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
 import { PLAN_MINUTES, buildStudyPlan, currentTarget, type PlanStatus, type StudyPlanInput } from '@grasp/engine';
+import { CompanyLoopComponent } from '../../companies/company-loop.component';
+import { ReportedService } from '../../companies/reported.service';
+import { TargetCompanyService } from '../../companies/target-company.service';
 import { AnnouncerService } from '../../core/announcer.service';
 import { refocusAfterRender } from '../../core/focus';
 import { ProgressService } from '../../core/progress.service';
@@ -56,6 +59,7 @@ const STATUS_CHIPS: Partial<Record<PlanStatus, { text: string; tone: ChipTone }>
     PlanDaysComponent,
     PlanRoundsComponent,
     ChipComponent,
+    CompanyLoopComponent,
   ],
   template: `
     <ion-header [translucent]="true">
@@ -103,6 +107,9 @@ const STATUS_CHIPS: Partial<Record<PlanStatus, { text: string; tone: ChipTone }>
                   </button>
                 }
               </div>
+            }
+            @if (company(); as c) {
+              <app-company-loop class="company" [company]="c" [level]="target().level" />
             }
           </section>
 
@@ -174,6 +181,9 @@ const STATUS_CHIPS: Partial<Record<PlanStatus, { text: string; tone: ChipTone }>
       text-underline-offset: 3px;
       cursor: pointer;
     }
+    .company {
+      margin-top: var(--g-space-3);
+    }
     .fit {
       display: flex;
       flex-wrap: wrap;
@@ -230,6 +240,7 @@ export class PlanPage {
   readonly reviewIcon = reviewIcon;
   private readonly progress = inject(ProgressService);
   private readonly bank = inject(StoryBankService);
+  private readonly reported = inject(ReportedService);
   private readonly injector = inject(Injector);
   private readonly heading = viewChild<ElementRef<HTMLElement>>('heading');
   private readonly undoRow = viewChild<ElementRef<HTMLElement>>('undoRow');
@@ -255,9 +266,11 @@ export class PlanPage {
           tzOffsetMinutes: now.getTimezoneOffset(),
           stories: this.bank.stories(),
           target: currentTarget(this.progress.state()).target,
+          reported: this.reported.items(),
         })
       : null;
   });
+  readonly company = inject(TargetCompanyService).company;
   readonly minutesLabel = computed(() => formatMinutes(this.input()?.minutesPerDay ?? 0));
   readonly target = computed(() => currentTarget(this.progress.state()).target);
   readonly coverage = computed(() => {

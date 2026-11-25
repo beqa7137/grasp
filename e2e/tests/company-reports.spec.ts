@@ -41,7 +41,7 @@ test('an untagged problem or case shows no list', async ({ page }) => {
   const problem = await open(page, '/coding/problems/house-robber');
   await expect(page.getByText(/Reported in interviews/)).toHaveCount(0);
   await expect(problem).toBeHidden();
-  const caseStudy = await open(page, '/design/cases/rate-limiter');
+  const caseStudy = await open(page, '/design/cases/typeahead');
   await expect(page.getByText(/Reported in interviews/)).toHaveCount(0);
   await expect(caseStudy).toBeHidden();
 });

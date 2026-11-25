@@ -81,6 +81,18 @@ describe('OfflineInterviewer on a behavioral interview', () => {
     expect(await reply(behavioralSession(STRONG_STAR, [detailed, detailed], [followUps[0], followUps[1]]))).toBe(followUps[2]);
   });
 
+  it("ends with the probe of the target company's culture attribute in place of the last follow-up", async () => {
+    const microsoft = (answers: string[], asked: string[]) => ({
+      ...behavioralSession(STRONG_STAR, answers, asked),
+      company: 'microsoft' as const,
+    });
+    expect(await reply(microsoft([], []))).toBe(followUps[0]);
+    expect(await reply(microsoft([detailed], [followUps[0]]))).toBe(followUps[1]);
+    expect(await reply(microsoft([detailed, detailed], [followUps[0], followUps[1]]))).toBe(
+      'Who was better off because of this, and how do you know?',
+    );
+  });
+
   it(`asks for more when an answer is under ${FOLLOW_UP_MIN_WORDS} words`, async () => {
     expect(await reply(behavioralSession(STRONG_STAR, ['I just did it.'], [followUps[0]]))).toBe(SAY_MORE);
     expect(await reply(behavioralSession({ ...EMPTY_STAR_DRAFT, action: 'I fixed it.' }))).toBe(SAY_MORE);

@@ -7,6 +7,7 @@ import {
   type RoundCounts,
   type Seniority,
   type StudyPlanInput,
+  type TargetCompany,
   type TargetInput,
 } from '@grasp/engine';
 import type { NewEvent } from '../../core/progress.service';
@@ -24,9 +25,12 @@ export interface LoopForm {
   date: string | null;
   minutesPerDay: number;
   startingPoint: StudyPlanInput['level'];
+  /** None when absent; a stored company this client does not offer comes back here unchanged, so saving keeps it. */
+  company?: TargetCompany;
 }
 
-const sameTarget = (a: TargetInput | null, b: TargetInput) => a?.level === b.level && PLAN_ROUNDS.every((r) => a.rounds[r] === b.rounds[r]);
+const sameTarget = (a: TargetInput | null, b: TargetInput) =>
+  a?.level === b.level && a.company === b.company && PLAN_ROUNDS.every((r) => a.rounds[r] === b.rounds[r]);
 
 const samePlan = (a: StudyPlanInput | null, b: StudyPlanInput) =>
   a?.interviewDate === b.interviewDate &&
@@ -36,11 +40,11 @@ const samePlan = (a: StudyPlanInput | null, b: StudyPlanInput) =>
   a.rounds.every((r) => b.rounds.includes(r));
 
 /**
- * What saving "Your loop" writes (REDESIGN.md 2.1): `target.set`, and `plan.set` when the date, time, starting point or
- * rounds changed; "No date yet" clears a plan and keeps the Target. Unchanged parts write nothing.
+ * What saving "Your loop" writes (REDESIGN.md 2.1): `target.set` when the level, rounds or company changed, and `plan.set`
+ * when the date, time, starting point or rounds changed; "No date yet" clears a plan and keeps the Target. Unchanged parts write nothing.
  */
 export function loopEvents(form: LoopForm, state: Pick<ProgressState, 'target' | 'plan'>): NewEvent[] {
-  const target: TargetInput = { level: form.level, rounds: form.rounds, ...(state.target?.company && { company: state.target.company }) };
+  const target: TargetInput = { level: form.level, rounds: form.rounds, ...(form.company && { company: form.company }) };
   const events: NewEvent[] = sameTarget(state.target, target) ? [] : [{ type: 'target.set', target }];
   if (form.date === null) {
     if (state.plan) events.push({ type: 'plan.set', plan: null });

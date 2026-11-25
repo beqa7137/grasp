@@ -11,10 +11,11 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
-import { PLAN_ROUNDS, ROUND_NAMES, SENIORITY_LEVELS, calendarDaysBetween, currentTarget, daysLeftLabel } from '@grasp/engine';
+import { PLAN_ROUNDS, ROUND_NAMES, calendarDaysBetween, currentTarget, daysLeftLabel, targetLoopName } from '@grasp/engine';
 import { AnnouncerService } from '../../core/announcer.service';
 import { refocusAfterRender } from '../../core/focus';
 import { ProgressService } from '../../core/progress.service';
+import { TargetCompanyService } from '../../companies/target-company.service';
 import { SectionComponent } from '../../ui/section.component';
 import { formatMinutes } from '../plan/duration';
 import { STARTING_POINT_NAMES } from '../plan/plan-form.component';
@@ -61,6 +62,7 @@ import { TodayService, dayLabel, SHORT_DAY } from '../today/today.service';
 })
 export class LoopSettingsComponent {
   private readonly progress = inject(ProgressService);
+  private readonly company = inject(TargetCompanyService).company;
   private readonly today = inject(TodayService);
   readonly announcer = inject(AnnouncerService);
   private readonly injector = inject(Injector);
@@ -72,9 +74,8 @@ export class LoopSettingsComponent {
   readonly line = computed(() => {
     const state = this.progress.state();
     const { target, source } = currentTarget(state);
-    const level = SENIORITY_LEVELS.find((l) => l.level === target.level)!.label;
-    if (source === 'assumed') return `Assuming a ${level} loop`;
-    const parts = [`${level} loop${source === 'derived' ? ' (assumed)' : ''}`];
+    if (source === 'assumed') return `Assuming a ${targetLoopName(target.level, null)}`;
+    const parts = [`${targetLoopName(target.level, this.company())}${source === 'derived' ? ' (assumed)' : ''}`];
     const plan = state.plan;
     if (!plan) return [...parts, 'no date yet'].join(' · ');
     const days = calendarDaysBetween(this.progress.day(), plan.interviewDate);

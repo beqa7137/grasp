@@ -201,12 +201,13 @@ export class BehavioralScorecardComponent {
     this.error.set(null);
     this.signInOpen.set(false);
     try {
-      const level = this.session().level;
+      const { level, company } = this.session();
       await startInterview(this.api, this.router, {
         track: 'behavioral',
         problemId: this.next() || this.session().problem.id,
         mode,
         ...(level ? { level } : {}),
+        ...(company ? { company } : {}),
       });
     } catch (error) {
       if (needsSignIn(error)) this.signInOpen.set(true);

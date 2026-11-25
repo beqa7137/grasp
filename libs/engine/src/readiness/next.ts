@@ -2,6 +2,8 @@ import { getCompetencySummary } from '../behavioral/catalog.js';
 import { isRehearsable } from '../behavioral/rehearsal.js';
 import type { Story } from '../behavioral/stories.js';
 import { getProblemSummary, problemsForPattern, type CodingProblemSummary } from '../coding/catalog.js';
+import { COMPANY_NAMES } from '../companies/companies.js';
+import type { ReportedItems } from '../companies/reported.js';
 import { getPatternSummary } from '../curriculum/catalog.js';
 import { getSdTopic } from '../curriculum/sd-topics.js';
 import { LOOP_FRESH_DAYS, PLAN_ROUND_TRACK } from '../interview/loop.js';
@@ -81,6 +83,8 @@ export interface UpNextInput {
   deviceWork?: readonly DeviceWork[];
   /** Card ids hidden with "Not today". */
   hidden?: ReadonlySet<string>;
+  /** What the Target company's interview reports name today: preferred among equally due work, never added to it. */
+  reported?: ReportedItems | null;
 }
 
 const STATE_NAMES: Record<SkillState, string> = { new: 'New', learning: 'Learning', practiced: 'Practiced', ready: 'Ready' };
@@ -105,7 +109,7 @@ export function upNext(input: UpNextInput, only?: PlanRound): UpNextCard | null 
   const hidden = input.hidden ?? new Set<string>();
   const readiness = loopReadiness(state, stories, now);
   const profile = LEVEL_PROFILES[readiness.target.level];
-  const ctx: StepContext = { state, stories, now, profile, pace: state.plan?.level ?? 'new' };
+  const ctx: StepContext = { state, stories, now, profile, pace: state.plan?.level ?? 'new', reported: input.reported ?? null };
   const rounds = roundsByWeakness(readiness).filter((r) => !only || r === only);
   const visible = (card: UpNextCard | null) => (card && !hidden.has(card.id) ? card : null);
   const firstInRounds = (rule: (round: PlanRound) => UpNextCard | null) => {
@@ -158,7 +162,12 @@ function planSlice(plan: StudyPlan | null, hidden: ReadonlySet<string>, ctx: Ste
     rule: 2,
     round: unit.round,
     title: unit.title,
-    reason: [place, skill?.sentence].filter(Boolean).join(' '),
+    reason: withReported(
+      [place, skill?.sentence].filter(Boolean).join(' '),
+      ctx.reported,
+      unit.problemId ?? unit.caseId,
+      unit.caseId ? 'cases' : 'problems',
+    ),
     minutes,
     fromState: skill?.state ?? null,
     toState: null,
@@ -239,7 +248,7 @@ function flagged(round: PlanRound, ctx: StepContext, hidden: ReadonlySet<string>
       hidden,
     );
     if (patternId) {
-      const atBar = problemsAtBar(patternId, profile.bar);
+      const atBar = problemsAtBar(patternId, profile.bar, ctx.reported?.problems);
       const problem = atBar.find((p) => !solved(state, p)) ?? problemsForPattern(patternId).find((p) => !solved(state, p)) ?? atBar[0];
       const name = getPatternSummary(patternId)?.name ?? patternId;
       const from = skillStatus('pattern', patternId, ctx).state;
@@ -248,7 +257,7 @@ function flagged(round: PlanRound, ctx: StepContext, hidden: ReadonlySet<string>
         rule: 3,
         round,
         title: `Solve ${problem.title}`,
-        reason: `An interview flagged ${name}. A fresh solve clears the flag.`,
+        reason: withReported(`An interview flagged ${name}. A fresh solve clears the flag.`, ctx.reported, problem.id, 'problems'),
         minutes: minutesFor({ kind: 'retry', difficulty: problem.difficulty }, ctx.pace),
         fromState: from,
         toState: up(from),
@@ -366,9 +375,10 @@ function lowestSkill(
   hidden: ReadonlySet<string>,
 ): UpNextCard | null {
   const rank = (s: SkillState) => SKILL_STATES.indexOf(s);
-  const ranked = skills
-    .filter((s) => s.state !== 'ready' && !hidden.has(`${s.kind}:${s.id}`))
-    .sort((a, b) => rank(a.state) - rank(b.state));
+  const ranked = preferReportedCases(
+    skills.filter((s) => s.state !== 'ready' && !hidden.has(`${s.kind}:${s.id}`)).sort((a, b) => rank(a.state) - rank(b.state)),
+    ctx.reported,
+  );
   const count = readiness.rounds.find((r) => r.round === round)?.count ?? 0;
   for (const skill of ranked) {
     const step = nextStep(skill, ctx);
@@ -387,7 +397,12 @@ function lowestSkill(
       rule: 6,
       round,
       title: step.title,
-      reason: `${why} ${step.effect.replace('{state}', STATE_NAMES[toState])}`,
+      reason: withReported(
+        `${why} ${step.effect.replace('{state}', STATE_NAMES[toState])}`,
+        ctx.reported,
+        step.reportedId,
+        step.reportedKind,
+      ),
       minutes: step.minutes,
       fromState: skill.state,
       toState,
@@ -397,9 +412,33 @@ function lowestSkill(
   return null;
 }
 
-/** What the steps read: the learner's state, plus the pace their plan's starting point sets for minutes. */
+/**
+ * Among skills of one state, a reported case moves ahead of the other cases only: each case keeps the slot a case held, so
+ * a topic or pattern is never pushed behind one.
+ */
+function preferReportedCases<T extends RequiredSkill & { state: SkillState }>(skills: T[], reported: ReportedItems | null): T[] {
+  if (!reported?.cases.size) return skills;
+  const out = [...skills];
+  for (const state of SKILL_STATES) {
+    const slots = out.flatMap((s, i) => (s.kind === 'case' && s.state === state ? [i] : []));
+    const cases = slots.map((i) => out[i]);
+    const ordered = [...cases.filter((c) => reported.cases.has(c.id)), ...cases.filter((c) => !reported.cases.has(c.id))];
+    slots.forEach((slot, i) => (out[slot] = ordered[i]));
+  }
+  return out;
+}
+
+type ReportedKind = 'problems' | 'cases';
+
+const withReported = (reason: string, reported: ReportedItems | null, id: string | undefined, kind: ReportedKind | undefined) =>
+  reported && id && kind && reported[kind].has(id)
+    ? [reason, `Reported in a ${COMPANY_NAMES[reported.company]} interview write-up.`].filter(Boolean).join(' ')
+    : reason;
+
+/** What the steps read: the learner's state, the pace their plan's starting point sets for minutes, and the reports. */
 interface StepContext extends StatusContext {
   pace: PlanLevel;
+  reported: ReportedItems | null;
 }
 
 interface Step {
@@ -409,6 +448,9 @@ interface Step {
   effect: string;
   minutes: number;
   action: UpNextAction;
+  /** The problem or case the step works on, so the card can say when the Target company's reports name it. */
+  reportedId?: string;
+  reportedKind?: ReportedKind;
 }
 
 function nextStep(skill: RequiredSkill & { state: SkillState }, ctx: StepContext): Step | null {
@@ -427,6 +469,8 @@ function nextStep(skill: RequiredSkill & { state: SkillState }, ctx: StepContext
         effect: redo ? `Ready needs ${CASE_READY_RULE[0].toLowerCase()}${CASE_READY_RULE.slice(1)}` : 'Finishing it makes it {state}.',
         minutes: minutesFor({ kind: 'case', stages: c.stages }, ctx.pace),
         action: { kind: 'case', caseId: c.id },
+        reportedId: c.id,
+        reportedKind: 'cases',
       };
     }
     case 'competency': {
@@ -453,6 +497,7 @@ const towardReady = (done: string, short: number) =>
 
 function patternStep(id: string, state: SkillState, ctx: StepContext): Step | null {
   const { state: progress, profile, now, pace } = ctx;
+  const prefer = ctx.reported?.problems;
   const name = getPatternSummary(id)?.name ?? id;
   if (state === 'new')
     return {
@@ -468,14 +513,16 @@ function patternStep(id: string, state: SkillState, ctx: StepContext): Step | nu
     effect,
     minutes: minutesFor({ kind: 'problem', difficulty: problem.difficulty }, pace),
     action: { kind: 'problem', problemId: problem.id, patternId: id },
+    reportedId: problem.id,
+    reportedKind: 'problems',
   });
   if (state === 'learning') {
-    const start = problemsAtBar(id, pace === 'new' ? profile.startBar : profile.bar).find((p) => !solved(progress, p));
+    const start = problemsAtBar(id, pace === 'new' ? profile.startBar : profile.bar, prefer).find((p) => !solved(progress, p));
     return start ? solve(start, `One ${start.difficulty} solve makes it {state}.`) : null;
   }
   const short = recallShort(recallSummary(id, progress, now), READY_RULES.patternPassing);
   if (!solvesReady(id, progress, profile)) {
-    const problem = problemsAtBar(id, profile.bar).find((p) => !solved(progress, p));
+    const problem = problemsAtBar(id, profile.bar, prefer).find((p) => !solved(progress, p));
     return problem ? solve(problem, towardReady(`A ${problem.difficulty} solve on another day`, short)) : null;
   }
   return {
@@ -516,7 +563,8 @@ function topicStep(id: string, state: SkillState, ctx: StepContext): Step | null
         minutes: minutesFor({ kind: 'mission' }, pace),
         action: { kind: 'mission', scenarioId: mission },
       };
-    const c = CASE_CATALOG.find((x) => profile.cases.required.includes(x.id) && x.topics.includes(id) && !progress.cases[x.id]);
+    const open = CASE_CATALOG.filter((x) => profile.cases.required.includes(x.id) && x.topics.includes(id) && !progress.cases[x.id]);
+    const c = open.find((x) => ctx.reported?.cases.has(x.id)) ?? open[0];
     if (!c) return null;
     return {
       name,
@@ -524,6 +572,8 @@ function topicStep(id: string, state: SkillState, ctx: StepContext): Step | null
       effect: covers('Finishing the case'),
       minutes: minutesFor({ kind: 'case', stages: c.stages }, pace),
       action: { kind: 'case', caseId: c.id },
+      reportedId: c.id,
+      reportedKind: 'cases',
     };
   }
   return {

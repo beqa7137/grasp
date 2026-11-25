@@ -2,9 +2,13 @@ import { ChangeDetectionStrategy, Component, ElementRef, computed, inject, input
 import { RouterLink } from '@angular/router';
 import {
   COMPETENCY_CATALOG,
+  OFFERED_COMPANIES,
   QUESTION_COUNT,
+  QUESTION_PROMPTS,
   QUESTION_STATUSES,
   EMPTY_QUESTION_QUERY,
+  attributesOfQuestion,
+  cultureFor,
   isQuestionQueryFiltered,
   parseQuestionQuery,
   queryQuestions,
@@ -16,6 +20,8 @@ import {
 } from '@grasp/engine';
 import { SearchEverythingComponent } from '../../search/search-everything.component';
 import { LibraryState, matchedWhat, resultLine, type UrlParam } from '../../core/library-state';
+import { ProgressService } from '../../core/progress.service';
+import { TargetCompanyService } from '../../companies/target-company.service';
 import { ChipComponent } from '../../ui/chip.component';
 import { EmptyStateComponent } from '../../ui/empty-state.component';
 import { EntryRowComponent, type EntryStatus } from '../../ui/entry-row.component';
@@ -105,6 +111,25 @@ const NOT_DRAFTED: EntryStatus = { icon: notStartedStateIcon, label: 'Not drafte
           }
         </div>
       </div>
+      @if (attributes().length) {
+        <div class="facet" role="group" aria-labelledby="question-culture">
+          <span class="label" id="question-culture">Culture</span>
+          <div class="options">
+            @for (a of attributes(); track a.id) {
+              @let n = result().counts.culture[a.id];
+              <button
+                type="button"
+                g-chip
+                [attr.aria-pressed]="lib.isOn('culture', a.id)"
+                [attr.aria-disabled]="lib.dimmed('culture', a.id, n)"
+                (click)="toggle('culture', a.id, n)"
+              >
+                {{ a.name }} <span class="count">{{ n }}</span>
+              </button>
+            }
+          </div>
+        </div>
+      }
       <div class="results">
         <p role="status">{{ resultLine() }}</p>
         @if (filtered()) {
@@ -134,7 +159,16 @@ const NOT_DRAFTED: EntryStatus = { icon: notStartedStateIcon, label: 'Not drafte
                     [status]="drafts.isDrafted(q.id) ? drafted : notDrafted"
                     [meta]="covered().has(q.competencyId) ? ['Covered by a story'] : []"
                     [routerLink]="['/behavioral/question', q.id]"
-                  ></a>
+                  >
+                    @let names = cultureNames().get(q.id) ?? [];
+                    @if (names.length) {
+                      <span below class="marks">
+                        @for (name of names; track name) {
+                          <g-chip tone="accent">{{ name }}</g-chip>
+                        }
+                      </span>
+                    }
+                  </a>
                 </li>
               }
             </ul>
@@ -224,6 +258,11 @@ const NOT_DRAFTED: EntryStatus = { icon: notStartedStateIcon, label: 'Not drafte
       padding: 0;
       list-style: none;
     }
+    .marks {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--g-space-1);
+    }
     /* Each prompt keeps to two lines, so the 91 rows stay a list to scan; the row's name is the whole prompt. */
     .rows ::ng-deep .title {
       display: -webkit-box;
@@ -237,6 +276,7 @@ const NOT_DRAFTED: EntryStatus = { icon: notStartedStateIcon, label: 'Not drafte
 export class QuestionLibraryPage {
   readonly drafts = inject(StarDraftsService);
   private readonly bank = inject(StoryBankService);
+  private readonly progress = inject(ProgressService);
 
   readonly total = QUESTION_COUNT;
   readonly drafted = DRAFTED;
@@ -248,10 +288,11 @@ export class QuestionLibraryPage {
   readonly q = input<UrlParam>();
   readonly competency = input<UrlParam>();
   readonly status = input<UrlParam>();
-  readonly lib = new LibraryState<QuestionQuery>(() => ({ q: this.q(), competency: this.competency(), status: this.status() }), {
-    parse: parseQuestionQuery,
-    params: questionQueryParams,
-  });
+  readonly culture = input<UrlParam>();
+  readonly lib = new LibraryState<QuestionQuery>(
+    () => ({ q: this.q(), competency: this.competency(), status: this.status(), culture: this.culture() }),
+    { parse: parseQuestionQuery, params: questionQueryParams },
+  );
   readonly query = this.lib.query;
   readonly filtered = computed(() => isQuestionQueryFiltered(this.query()));
   /** Statuses read the drafts and the stories, so counts and "No questions match" wait for both. */
@@ -267,13 +308,33 @@ export class QuestionLibraryPage {
           .map((c) => c.competencyId),
       ),
   );
+  private readonly company = inject(TargetCompanyService).company;
+  /** Whose culture the facet offers: the Target company's, or every offered company's from a link that names one. */
+  private readonly cultures = computed(() => {
+    const company = this.company();
+    return company ? [company] : this.query().culture.length ? OFFERED_COMPANIES : [];
+  });
+  readonly attributes = computed(() => this.cultures().flatMap((c) => cultureFor(c)));
+  private readonly cultureOf = computed(() => {
+    const cultures = this.cultures();
+    return new Map(
+      cultures.length ? QUESTION_PROMPTS.map((q) => [q.id, cultures.flatMap((c) => attributesOfQuestion(c, q.id, q.competencyId))]) : [],
+    );
+  });
+  /** The chips each row shows: only at a Target company, though a link can name another company's culture facet. */
+  readonly cultureNames = computed(() =>
+    this.company()
+      ? new Map([...this.cultureOf()].map(([id, attributes]) => [id, attributes.map((a) => a.name)]))
+      : new Map<string, string[]>(),
+  );
   readonly result = computed(() => {
     const covered = this.covered();
     const statusesOf = (q: QuestionPrompt): QuestionStatus[] => [
       this.drafts.isDrafted(q.id) ? 'drafted' : 'not-drafted',
       ...(covered.has(q.competencyId) ? (['story'] as const) : []),
     ];
-    return queryQuestions(this.query(), statusesOf);
+    const cultureOf = this.cultureOf();
+    return queryQuestions(this.query(), statusesOf, (q) => cultureOf.get(q.id)?.map((a) => a.id) ?? []);
   });
   readonly resultLine = computed(() => (this.loaded() ? resultLine(this.result().total, this.total, this.filtered(), 'question') : ''));
   readonly emptyText = computed(() => `No question matches ${matchedWhat(this.query())}.`);

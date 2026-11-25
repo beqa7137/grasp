@@ -4,6 +4,8 @@ import { startHerePattern, type Placement } from '../srs/diagnostic.js';
 import type { CodingRecord } from '../srs/progress.js';
 import { CODING_CATALOG, problemsForPattern, type CodingProblemSummary } from './catalog.js';
 import { paramText, paramValues, type UrlParams } from '../url-params.js';
+import { reportedByAny, type ReportedSets } from '../companies/reported.js';
+import { OFFERED_COMPANIES, type OfferedCompany } from '../plan/options.js';
 
 /** A problem's place in the library (REDESIGN.md 2.3): one of three, so the Status facet's counts add up to the catalog. */
 export const PROBLEM_STATES = ['unsolved', 'attempted', 'solved'] as const;
@@ -22,9 +24,11 @@ export interface LibraryQuery {
   difficulty: readonly Difficulty[];
   track: readonly Track[];
   pattern: readonly string[];
+  /** Companies whose interview reports name the problem. */
+  reported: readonly OfferedCompany[];
 }
 
-export const EMPTY_LIBRARY_QUERY: LibraryQuery = { q: '', status: [], difficulty: [], track: [], pattern: [] };
+export const EMPTY_LIBRARY_QUERY: LibraryQuery = { q: '', status: [], difficulty: [], track: [], pattern: [], reported: [] };
 
 /** The facets that hold lists of values: every filter but the search. */
 export type ListFacet = Exclude<keyof LibraryQuery, 'q'>;
@@ -33,6 +37,7 @@ const FACET_VALUES: Record<ListFacet, readonly string[]> = {
   difficulty: DIFFICULTIES,
   track: PATTERN_TRACKS.map((t) => t.id),
   pattern: PATTERN_CATALOG.map((p) => p.id),
+  reported: OFFERED_COMPANIES,
 };
 const FACETS = Object.keys(FACET_VALUES) as ListFacet[];
 
@@ -48,6 +53,7 @@ export function parseLibraryQuery(params: UrlParams): LibraryQuery {
     difficulty: list('difficulty') as Difficulty[],
     track: list('track') as Track[],
     pattern: list('pattern'),
+    reported: list('reported') as OfferedCompany[],
   };
 }
 
@@ -60,6 +66,7 @@ export function libraryQueryParams(query: LibraryQuery): Record<keyof LibraryQue
     difficulty: join(query.difficulty),
     track: join(query.track),
     pattern: join(query.pattern),
+    reported: join(query.reported),
   };
 }
 
@@ -78,6 +85,7 @@ export interface FacetCounts {
   difficulty: Record<Difficulty, number>;
   track: Record<Track, number>;
   pattern: Record<string, number>;
+  reported: Record<string, number>;
 }
 
 export interface LibraryResult {
@@ -103,7 +111,11 @@ function patternsShown(tracks: readonly Track[], patterns: readonly string[]): S
  * Filters the catalog by membership (REDESIGN.md 4.2): a problem is in every pattern it lists and in each of their tracks,
  * so Graphs & trees holds 51 distinct problems in 57 rows. Track counts are distinct problems; pattern counts are members.
  */
-export function queryLibrary(query: LibraryQuery, coding: Readonly<Record<string, CodingRecord>>): LibraryResult {
+export function queryLibrary(
+  query: LibraryQuery,
+  coding: Readonly<Record<string, CodingRecord>>,
+  reportedSets: ReportedSets = {},
+): LibraryResult {
   const terms = words(query.q);
   const state = (p: CodingProblemSummary) => problemState(coding[p.id]);
   const text = (p: CodingProblemSummary) => {
@@ -112,19 +124,20 @@ export function queryLibrary(query: LibraryQuery, coding: Readonly<Record<string
   };
   const status = (p: CodingProblemSummary) => !query.status.length || query.status.includes(state(p));
   const difficulty = (p: CodingProblemSummary) => !query.difficulty.length || query.difficulty.includes(p.difficulty);
+  const reported = (p: CodingProblemSummary) => !query.reported.length || reportedByAny(query.reported, reportedSets, p.id);
   const shown = patternsShown(query.track, query.pattern);
   const inShown = (p: CodingProblemSummary, patterns: Set<string>) => p.patternIds.some((id) => patterns.has(id));
 
   const base = CODING_CATALOG.filter(text);
-  const problems = base.filter((p) => status(p) && difficulty(p) && inShown(p, shown));
+  const problems = base.filter((p) => status(p) && difficulty(p) && reported(p) && inShown(p, shown));
 
-  const byPattern = base.filter((p) => status(p) && difficulty(p));
+  const byPattern = base.filter((p) => status(p) && difficulty(p) && reported(p));
   const counts: FacetCounts = {
     status: Object.fromEntries(
-      PROBLEM_STATES.map((s) => [s, base.filter((p) => difficulty(p) && inShown(p, shown) && state(p) === s).length]),
+      PROBLEM_STATES.map((s) => [s, base.filter((p) => difficulty(p) && reported(p) && inShown(p, shown) && state(p) === s).length]),
     ) as Record<ProblemState, number>,
     difficulty: Object.fromEntries(
-      DIFFICULTIES.map((d) => [d, base.filter((p) => status(p) && inShown(p, shown) && p.difficulty === d).length]),
+      DIFFICULTIES.map((d) => [d, base.filter((p) => status(p) && reported(p) && inShown(p, shown) && p.difficulty === d).length]),
     ) as Record<Difficulty, number>,
     track: Object.fromEntries(
       PATTERN_TRACKS.map((t) => [t.id, byPattern.filter((p) => inShown(p, patternsShown([t.id], query.pattern))).length]),
@@ -134,6 +147,12 @@ export function queryLibrary(query: LibraryQuery, coding: Readonly<Record<string
         const visible = !query.track.length || query.track.includes(pattern.track);
         return [pattern.id, visible ? byPattern.filter((p) => p.patternIds.includes(pattern.id)).length : 0];
       }),
+    ),
+    reported: Object.fromEntries(
+      OFFERED_COMPANIES.map((c) => [
+        c,
+        base.filter((p) => status(p) && difficulty(p) && inShown(p, shown) && reportedByAny([c], reportedSets, p.id)).length,
+      ]),
     ),
   };
 

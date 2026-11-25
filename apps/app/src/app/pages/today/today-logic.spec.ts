@@ -1,7 +1,14 @@
-import type { PlanCoverage, ProgressState, StudyPlan, StudyPlanInput } from '@grasp/engine';
+import {
+  COMPANY_NAMES,
+  OFFERED_COMPANIES,
+  type PlanCoverage,
+  type ProgressState,
+  type StudyPlan,
+  type StudyPlanInput,
+} from '@grasp/engine';
 import { coverageLine, shareWords } from './coverage-line';
 import { levelCounts, loopEvents, type LoopForm } from './loop-events';
-import { loopLine as lineParts, loopSource } from './loop-line';
+import { COMPANY_LINE_NAMES, loopLine as lineParts, loopSource } from './loop-line';
 
 const loopLine = (...args: Parameters<typeof lineParts>) => lineParts(...args).join(' · ');
 
@@ -18,8 +25,17 @@ describe('the target line', () => {
       'Senior loop · on 2026-11-04 · interview tomorrow · 1 h 30 min a day',
     );
     expect(loopLine(state({ target: mid, plan }), '2026-11-04', day)).toBe('Mid-level loop · on 2026-11-04 · interview today');
+    expect(loopLine(state({ target: { ...mid, company: 'microsoft' }, plan }), '2026-10-14', day)).toBe(
+      'Mid-level Microsoft loop · on 2026-11-04 · 21 days left · 45 min a day',
+    );
+    expect(loopLine(state({ target: { ...mid, company: 'amazon' } }), '2026-10-14', day)).toBe('Mid-level loop · no date yet');
     expect(loopLine(state({ target: mid, plan }), '2026-11-05', day)).toBe('Mid-level loop · on 2026-11-04 · date passed');
     expect(loopLine(state({ target: mid }), '2026-10-14', day)).toBe('Mid-level loop · no date yet');
+  });
+
+  it("spells each offered company's name as the engine does", () => {
+    expect(Object.keys(COMPANY_LINE_NAMES)).toEqual([...OFFERED_COMPANIES]);
+    for (const c of OFFERED_COMPANIES) expect(COMPANY_LINE_NAMES[c]).toBe(COMPANY_NAMES[c]);
   });
 
   it('marks a loop derived from a plan as assumed, and says what it assumes without either', () => {
@@ -45,11 +61,20 @@ describe('saving the loop', () => {
     expect(loopEvents({ ...form, minutesPerDay: 60 }, state({ target: mid, plan }))).toEqual([
       { type: 'plan.set', plan: { ...plan, minutesPerDay: 60 } },
     ]);
-    expect(loopEvents({ ...form, level: 'senior', date: null }, state({ target: { ...mid, company: 'amazon' }, plan }))).toEqual([
+    const amazon = { ...mid, company: 'amazon' as const };
+    expect(loopEvents({ ...form, level: 'senior', date: null, company: 'amazon' }, state({ target: amazon, plan }))).toEqual([
       { type: 'target.set', target: { level: 'senior', rounds: mid.rounds, company: 'amazon' } },
       { type: 'plan.set', plan: null },
     ]);
+    expect(loopEvents({ ...form, company: 'amazon' }, state({ target: amazon, plan }))).toEqual([]);
+    expect(loopEvents(form, state({ target: amazon, plan }))).toEqual([{ type: 'target.set', target: mid }]);
     expect(loopEvents({ ...form, date: null }, state({ target: mid }))).toEqual([]);
+  });
+
+  it('writes only the Target when only the company changed', () => {
+    expect(loopEvents({ ...form, company: 'microsoft' }, state({ target: mid, plan }))).toEqual([
+      { type: 'target.set', target: { ...mid, company: 'microsoft' } },
+    ]);
   });
 
   it("gives the pilot level row the plan's rounds at the level's counts, at least one each", () => {
