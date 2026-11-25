@@ -1,0 +1,206 @@
+<div class="controls">
+  <div class="controls-grid">
+    <fieldset class="group scheme-control" [disabled]="locked()">
+      <legend class="control-label">Stored as</legend>
+      <div class="segments segments4">
+        @for (o of schemes; track o.value) {
+          <label class="segment">
+            <input
+              type="radio"
+              name="durability-scheme"
+              [attr.aria-label]="o.name"
+              [checked]="o.value === settings().scheme"
+              (change)="set('scheme', o.value)"
+            />
+            <span>{{ o.label }}</span>
+          </label>
+        }
+      </div>
+    </fieldset>
+    <fieldset class="group" [disabled]="locked()">
+      <legend class="control-label">
+        Disks failing a year
+        @if (afrKept()) {
+          <span class="why">· the goal keeps 5%</span>
+        }
+      </legend>
+      <div class="segments segments4">
+        @for (o of afrs; track o.value) {
+          <label class="segment">
+            <input
+              type="radio"
+              name="durability-afr"
+              [attr.aria-label]="o.name"
+              [checked]="o.value === settings().afr"
+              [disabled]="afrKept()"
+              (change)="set('afr', o.value)"
+            />
+            <span>{{ o.label }}</span>
+          </label>
+        }
+      </div>
+    </fieldset>
+    <fieldset class="group repair-control" aria-describedby="durability-repair-why" [disabled]="locked()">
+      <legend class="control-label">Repair time</legend>
+      <span id="durability-repair-why" class="visually-hidden">Time to full redundancy: detect and rebuild</span>
+      <div class="segments segments5">
+        @for (o of repairs; track o.value) {
+          <label class="segment">
+            <input
+              type="radio"
+              name="durability-repair"
+              [attr.aria-label]="o.name"
+              [checked]="o.value === settings().repair"
+              (change)="set('repair', o.value)"
+            />
+            <span>{{ o.label }}</span>
+          </label>
+        }
+      </div>
+    </fieldset>
+    <fieldset class="group" [disabled]="locked()">
+      <legend class="control-label">Placement</legend>
+      <div class="segments segments2">
+        @for (o of racks(); track o.value) {
+          <label class="segment">
+            <input
+              type="radio"
+              name="durability-rack"
+              [attr.aria-label]="o.name"
+              [checked]="o.value === settings().rack"
+              (change)="set('rack', o.value)"
+            />
+            <span>{{ o.label }}</span>
+          </label>
+        }
+      </div>
+    </fieldset>
+  </div>
+  <p class="readout"><g-code-text [text]="readout()" /></p>
+  <p class="notice" aria-live="polite" aria-atomic="true"><g-code-text [text]="notice()" /></p>
+</div>
+
+<div class="main">
+  <g-stage
+    class="durability-stage"
+    [height]="stage().H"
+    label="Durability: one object's pieces on their disks, a repair racing further failures, and the model's yearly chance of a loss"
+  >
+    @if (ready()) {
+      @let st = stage();
+      <svg
+        class="draw"
+        [attr.viewBox]="'0 0 ' + st.D.W + ' ' + st.H"
+        [attr.width]="st.D.W"
+        [attr.height]="st.H"
+        role="img"
+        [attr.aria-label]="st.summary"
+      >
+        <defs>
+          <pattern id="durability-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <rect class="hatch-fill" width="6" height="6" />
+            <line class="hatch-line" x1="0" y1="0" x2="0" y2="6" />
+          </pattern>
+        </defs>
+        <g app-durability-prims [prims]="under()" />
+        @if (live(); as l) {
+          @if (l.band; as b) {
+            <rect
+              class="band-fill live"
+              [attr.width]="b.w"
+              [attr.height]="b.h"
+              [attr.transform]="'translate(' + b.x + ' ' + b.y + ') scale(' + b.scale + ' 1)'"
+            />
+          }
+        }
+        <g app-durability-prims [prims]="over()" />
+        @if (live(); as l) {
+          @if (l.disk; as d) {
+            <rect
+              class="fill-rebuild live"
+              [attr.y]="-d.h"
+              [attr.width]="d.w"
+              [attr.height]="d.h"
+              [attr.transform]="'translate(' + d.x + ' ' + (d.y + d.h) + ') scale(1 ' + d.scale + ')'"
+            />
+          }
+          @if (l.playhead; as p) {
+            <g class="live" [attr.transform]="'translate(' + p.x + ' 0)'">
+              <line class="playhead" x1="0" x2="0" [attr.y1]="p.y0" [attr.y2]="p.y1" />
+              <line class="playhead" x1="0" x2="0" [attr.y1]="p.y2" [attr.y2]="p.y3" />
+            </g>
+          }
+          @for (d of l.dots; track d.id) {
+            <circle class="read-dot live" r="2.6" [attr.data-source]="d.id" [attr.transform]="'translate(' + d.x + ' ' + d.y + ')'" />
+          }
+        }
+        @for (f of st.focus; track f.id) {
+          <g app-focus [box]="f" [on]="focused(f.region)" />
+        }
+      </svg>
+      @let ph = hitOf('play');
+      <button type="button" class="play" [attr.aria-label]="playName()" [style]="hitStyle(ph)" [disabled]="locked()" (click)="togglePlay()">
+        <svg viewBox="0 0 36 36" aria-hidden="true">
+          <circle cx="18" cy="18" r="16" />
+          @if (stopping()) {
+            <path d="M12.5 11h4v14h-4zM19.5 11h4v14h-4z" />
+          } @else {
+            <path d="M14 11v14l11-7z" />
+          }
+        </svg>
+      </button>
+      @let sh = hitOf('stage');
+      <button
+        type="button"
+        class="pill"
+        [attr.aria-label]="stageName()"
+        [attr.aria-pressed]="kind() === 'staged'"
+        [style]="hitStyle(sh)"
+        [disabled]="locked()"
+        (click)="toggleStaged()"
+      >
+        <span aria-hidden="true">{{ sh.text }}</span>
+      </button>
+    }
+  </g-stage>
+  <p class="model-note"><g-code-text [text]="note()" /></p>
+
+  <div class="describe">
+    <button type="button" class="g-btn" [attr.aria-expanded]="describe()" [disabled]="describeWaits()" (click)="toggleDescribe()">
+      {{ describe() && !describeWaits() ? 'Hide the description' : 'Describe' }}
+    </button>
+    @if (describeWaits()) {
+      <span class="muted">{{ describeWaitsWhy() }}</span>
+    }
+    @if (describe() && !describeWaits()) {
+      @let d = describeTable();
+      @for (p of describeSaid(); track $index) {
+        <p class="said"><g-code-text [text]="p" /></p>
+      }
+      <g-data-table
+        label="The model's steps to the yearly loss"
+        [head]="d.head"
+        [rows]="d.rows"
+        [active]="d.active"
+        [compact]="d.compact"
+        [rowHeads]="true"
+        [height]="null"
+      />
+    }
+  </div>
+</div>
+
+@if (experiments().length) {
+  <app-experiment-dock
+    class="experiments"
+    [experiments]="experiments()"
+    [active]="exp.active()"
+    [phase]="exp.phase()"
+    [done]="exp.done()"
+    [goalStatus]="goalStatus()"
+    [goalChecks]="goalChecks()"
+    [chosen]="exp.chosen()"
+    (chosenChange)="exp.answer($event)"
+    (start)="start($event)"
+  />
+}

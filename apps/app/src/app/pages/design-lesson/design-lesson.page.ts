@@ -24,7 +24,6 @@ import { CrackWidgetComponent } from './crack-widget.component';
 import { DeliveryWidgetComponent } from './delivery-widget.component';
 import { ClocksWidgetComponent } from './clocks-widget.component';
 import { DiscoveryWidgetComponent } from './discovery-widget.component';
-import { DurabilityWidgetComponent } from './durability-widget.component';
 import { RecoveryWidgetComponent } from './recovery-widget.component';
 import { TenancyWidgetComponent } from './tenancy-widget.component';
 import { GatewayWidgetComponent } from './gateway-widget.component';
@@ -45,7 +44,17 @@ import { LazyWidgetComponent } from './lazy-widget.component';
 
 /** A system design topic taught hands-on: a widget to experiment with, the ideas to name, worked examples and a quick check. */
 /** Widgets that leave the reading column at container wide, to sit beside their controls and experiments. */
-const BREAKOUT = new Set(['balancer', 'feed-model', 'quorum', 'queue-latency', 'availability', 'storage-engine', 'pipeline', 'hash-ring']);
+const BREAKOUT = new Set([
+  'balancer',
+  'feed-model',
+  'quorum',
+  'queue-latency',
+  'availability',
+  'storage-engine',
+  'pipeline',
+  'hash-ring',
+  'durability',
+]);
 
 @Component({
   selector: 'app-design-lesson',
@@ -80,7 +89,6 @@ const BREAKOUT = new Set(['balancer', 'feed-model', 'quorum', 'queue-latency', '
     DeliveryWidgetComponent,
     ClocksWidgetComponent,
     DiscoveryWidgetComponent,
-    DurabilityWidgetComponent,
     RecoveryWidgetComponent,
     TenancyWidgetComponent,
     GatewayWidgetComponent,
@@ -243,7 +251,11 @@ const BREAKOUT = new Set(['balancer', 'feed-model', 'quorum', 'queue-latency', '
                     <app-discovery-widget />
                   }
                   @case ('durability') {
-                    <app-durability-widget />
+                    <app-lazy-widget
+                      [load]="loadDurabilityWidget"
+                      [inputs]="{ experiments: l.widget.experiments ?? [] }"
+                      [placeholder]="heights.durability"
+                    />
                   }
                   @case ('recovery') {
                     <app-recovery-widget />
@@ -471,6 +483,7 @@ export class DesignLessonPage {
   readonly heights = WIDGET_HEIGHTS;
   readonly loadLatencyWidget = () => import('./latency-widget.component').then((m) => m.LatencyWidgetComponent);
   readonly loadStorageWidget = () => import('./storage-widget.component').then((m) => m.StorageWidgetComponent);
+  readonly loadDurabilityWidget = () => import('./durability-widget.component').then((m) => m.DurabilityWidgetComponent);
   readonly loadCapacityWidget = () => import('./capacity-widget.component').then((m) => m.CapacityWidgetComponent);
   readonly loadRingWidget = () => import('./ring-widget.component').then((m) => m.RingWidgetComponent);
   readonly loadQueueWidget = () => import('./queue-widget.component').then((m) => m.QueueWidgetComponent);

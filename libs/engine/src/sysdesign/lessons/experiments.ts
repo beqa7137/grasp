@@ -1,4 +1,15 @@
 import { formatAvailability, formatDown, formatHours, formatOneIn } from './format-time.js';
+import {
+  bigCount,
+  formatBillion,
+  formatGbps,
+  formatNinesCount,
+  formatOverhead,
+  formatPerYear,
+  formatRatio,
+  formatTB,
+  oneIn,
+} from './widgets/durability-format.js';
 import { formatAmp, formatBytes, formatGb, formatKb, formatLevels, formatRate, formatReads, formatSize } from './widgets/storage-format.js';
 
 /**
@@ -30,6 +41,15 @@ export type SlotUnit =
   | 'avail'
   | 'hours'
   | 'oneIn'
+  | 'ninesCount'
+  | 'chance'
+  | 'ratio'
+  | 'overhead'
+  | 'perYear'
+  | 'tb'
+  | 'gbps'
+  | 'billion'
+  | 'big'
   | 'word';
 
 /** A model value with its unit, or a `word` the model chose ("The old value"), which may carry no digits. */
@@ -48,10 +68,11 @@ export type ExperimentSettings = Readonly<Record<string, number>>;
 
 /**
  * A play a widget runs on the picture, such as loading a page, renaming an author, a write then a read, a sample of
- * requests, a simulated year, a ramp of the traffic, the stream flowing through the tiers or keys moving between
- * nodes.
+ * requests, a simulated year, a ramp of the traffic, the stream flowing through the tiers, keys moving between
+ * nodes, or a disk's repair, typical or staged as a loss.
  */
-export type ExperimentRun = 'load' | 'rename' | 'write-read' | 'read' | 'sample' | 'btree' | 'lsm' | 'year' | 'ramp' | 'flow' | 'move';
+export type ExperimentRun =
+  'load' | 'rename' | 'write-read' | 'read' | 'sample' | 'btree' | 'lsm' | 'year' | 'ramp' | 'flow' | 'move' | 'repair' | 'staged';
 
 /** What answering plays: new settings (then, if named, a run), a run on its own, or the widget's flush. */
 export type ExperimentAct = { set: ExperimentSettings; run?: ExperimentRun } | { run: ExperimentRun } | { flush: true };
@@ -112,6 +133,20 @@ export const TEMPLATE_DIGITS_ALLOWED = [
   'hash mod N',
   'N / (N + 1)',
   'N + 1',
+  '6 + 3',
+  '10 + 4',
+  'any 6',
+  'any 10',
+  'of its 14',
+  'of the 13',
+  'groups of 6',
+  'the 6 of its group',
+  '12 data pieces',
+  '3 zones',
+  '3 pieces each',
+  '5 times',
+  '1 MB',
+  'of the 8',
 ] as const;
 
 const trim = (v: number, decimals: number) => String(Number(v.toFixed(decimals)));
@@ -172,6 +207,15 @@ const FORMAT: Record<Exclude<SlotUnit, 'word'>, (v: number) => string> = {
   avail: formatAvailability,
   hours: formatHours,
   oneIn: formatOneIn,
+  ninesCount: formatNinesCount,
+  chance: oneIn,
+  ratio: formatRatio,
+  overhead: formatOverhead,
+  perYear: formatPerYear,
+  tb: formatTB,
+  gbps: formatGbps,
+  billion: formatBillion,
+  big: bigCount,
 };
 
 export const formatSlot = (slot: Slot) => (slot.unit === 'word' ? slot.value : FORMAT[slot.unit](slot.value));

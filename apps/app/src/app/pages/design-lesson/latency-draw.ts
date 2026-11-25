@@ -117,11 +117,16 @@ export function dot(D: Draw, id: string, cx: number, cy: number, r: number, cls:
  * Each region's outline with its "Look here" tag. The outline takes in the texts its region holds with 6 px to spare
  * (3 at least); a text outside that would come within 4 px of the stroke moves that side in or, when it cannot, is taken
  * in too. The tag goes on the outline's edge first, 16 px off its corners, then just inside, then two inner rows, outside
- * last; a region with no free place for it is counted in `D.missing`.
+ * last, never across another outline's stroke; a region with no free place for it is counted in `D.missing`.
  */
-export function focusOutlines(D: Draw, ids: readonly string[], H: number): (Focus & { region: string })[] {
+export function focusOutlines(
+  D: Pick<Draw, 'W' | 'regions' | 'texts' | 'free' | 'mark' | 'missing' | 'marks'>,
+  ids: readonly string[],
+  H: number,
+): (Focus & { region: string })[] {
   const { width: tagW, height: tagH } = TAG;
   const out: (Focus & { region: string })[] = [];
+  const boxes: { id: string; k: number; x: number; y: number; w: number; h: number }[] = [];
   for (const id of ids)
     (D.regions[id] ?? []).forEach((b, k) => {
       const inside = new Set(
@@ -163,24 +168,35 @@ export function focusOutlines(D: Draw, ids: readonly string[], H: number): (Focu
       const y = Math.max(3, box.y0);
       const w = Math.min(D.W - 3, box.x1) - x;
       const h = Math.min(H - 3, box.y1) - y;
-      const across: number[] = [];
-      for (let ax = x + w - tagW - 16; ax >= x + 16; ax -= 8) across.push(ax);
-      const xs = [x + w - tagW - 16, x + 16, ...across];
-      const ys = [y - tagH / 2, y + h - tagH / 2, y + 4, y + h - tagH - 4, y + 24, y + 44, y - tagH - 2, y + h + 2];
-      const tag = ys
-        .flatMap((ty) => xs.map((tx) => [tx, ty] as const))
-        .find(
-          ([tx, ty]) =>
-            tx >= 3 &&
-            tx + tagW <= D.W - 3 &&
-            ty >= 3 &&
-            ty + tagH <= H - 3 &&
-            D.free({ x0: tx, x1: tx + tagW, y0: ty, y1: ty + tagH }, '', 1),
-        );
-      if (!tag) D.missing.push(`a tag for ${id}`);
-      const [tx, ty] = tag ?? [xs[0], ys[0]];
-      D.mark({ x0: tx, x1: tx + tagW, y0: ty, y1: ty + tagH }, 'look');
-      out.push({ id: k ? `${id}${k}` : id, region: id, x: r1(x), y: r1(y), width: r1(w), height: r1(h), tag: { x: r1(tx), y: r1(ty) } });
+      boxes.push({ id, k, x, y, w, h });
     });
+  const stroke = (b: (typeof boxes)[number], owner: string) => {
+    D.mark({ x0: b.x - 1, x1: b.x + b.w + 1, y0: b.y - 1, y1: b.y + 1 }, owner);
+    D.mark({ x0: b.x - 1, x1: b.x + b.w + 1, y0: b.y + b.h - 1, y1: b.y + b.h + 1 }, owner);
+    D.mark({ x0: b.x - 1, x1: b.x + 1, y0: b.y - 1, y1: b.y + b.h + 1 }, owner);
+    D.mark({ x0: b.x + b.w - 1, x1: b.x + b.w + 1, y0: b.y - 1, y1: b.y + b.h + 1 }, owner);
+  };
+  if (boxes.length > 1) boxes.forEach((b, i) => stroke(b, `outline-${i}`));
+  boxes.forEach(({ id, k, x, y, w, h }, i) => {
+    const across: number[] = [];
+    for (let ax = x + w - tagW - 16; ax >= x + 16; ax -= 8) across.push(ax);
+    const xs = [x + w - tagW - 16, x + 16, ...across];
+    const ys = [y - tagH / 2, y + h - tagH / 2, y + 4, y + h - tagH - 4, y + 24, y + 44, y - tagH - 2, y + h + 2];
+    const tag = ys
+      .flatMap((ty) => xs.map((tx) => [tx, ty] as const))
+      .find(
+        ([tx, ty]) =>
+          tx >= 3 &&
+          tx + tagW <= D.W - 3 &&
+          ty >= 3 &&
+          ty + tagH <= H - 3 &&
+          D.free({ x0: tx, x1: tx + tagW, y0: ty, y1: ty + tagH }, `outline-${i}`, 1),
+      );
+    if (!tag) D.missing.push(`a tag for ${id}`);
+    const [tx, ty] = tag ?? [xs[0], ys[0]];
+    D.mark({ x0: tx, x1: tx + tagW, y0: ty, y1: ty + tagH }, 'look');
+    out.push({ id: k ? `${id}${k}` : id, region: id, x: r1(x), y: r1(y), width: r1(w), height: r1(h), tag: { x: r1(tx), y: r1(ty) } });
+  });
+  for (let j = D.marks.length - 1; j >= 0; j--) if (D.marks[j].owner.startsWith('outline-')) D.marks.splice(j, 1);
   return out;
 }

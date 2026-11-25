@@ -1,0 +1,297 @@
+@use '../../../type' as *;
+
+// The Durability stage's drawing roles; `durability-text.ts` measures text by these sizes, so a size changed here
+// changes its checks. Stage text keeps proportional digits, as measured.
+text {
+  paint-order: stroke;
+  stroke: var(--g-viz-stage);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  &.on-box {
+    stroke: var(--g-raised);
+  }
+  &.on-chip {
+    stroke: none;
+  }
+}
+.t-label {
+  @include label;
+  fill: var(--g-muted);
+}
+.t-unit {
+  text-transform: none;
+}
+.t-cap {
+  font: 500 var(--g-text-body-s) var(--ion-font-family);
+  fill: var(--g-muted);
+}
+.t-capB {
+  font: 600 var(--g-text-body-s) var(--ion-font-family);
+  fill: var(--g-text);
+}
+.t-small {
+  font: 500 var(--g-text-label) var(--ion-font-family);
+  fill: var(--g-muted);
+}
+.t-smallB {
+  font: 700 var(--g-text-label) var(--ion-font-family);
+  fill: var(--g-text);
+}
+.t-mono {
+  font: 600 var(--g-text-label) var(--g-font-mono);
+  fill: var(--g-text);
+}
+.t-head {
+  font: 600 var(--g-text-title-m) var(--g-font-mono);
+  fill: var(--g-text);
+}
+.ink {
+  fill: var(--g-text);
+}
+.muted,
+.t-head.muted {
+  fill: var(--g-muted);
+}
+.t-tiny {
+  font: 600 var(--g-text-label) var(--g-font-mono);
+  fill: var(--g-text);
+}
+.t-tiny.muted {
+  fill: var(--g-muted);
+}
+.ok-ink {
+  fill: var(--g-viz-final-ink);
+}
+.lost-ink {
+  fill: var(--g-danger-ink);
+}
+.on-bar {
+  fill: var(--g-viz-stage);
+}
+.rule {
+  stroke: var(--g-line);
+}
+.axis {
+  stroke: var(--g-line-strong);
+}
+.gridline {
+  stroke: var(--g-line);
+  &.nine {
+    stroke: var(--g-line-strong);
+    stroke-width: 1.25;
+  }
+}
+.track {
+  stroke: var(--g-line-strong);
+}
+.playhead {
+  stroke: var(--g-text);
+  stroke-width: 1.5;
+}
+.xmark {
+  stroke: var(--g-viz-critical);
+  stroke-width: 2;
+  stroke-linecap: round;
+  fill: none;
+}
+.xground {
+  fill: var(--g-viz-stage);
+  &.on-box {
+    fill: var(--g-raised);
+  }
+}
+.ok-ring {
+  fill: var(--g-viz-stage);
+  stroke: var(--g-viz-final);
+  stroke-width: 1.75;
+}
+.ok-mark {
+  fill: none;
+  stroke: var(--g-viz-final);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+// Dashed means hidden until you answer, and nothing else.
+.bar-hidden {
+  fill: none;
+  stroke: var(--g-stroke);
+  stroke-dasharray: 4 3;
+}
+// The object and its stored pieces, to scale; kind never rests on colour: brackets name it, parity disks carry a cap.
+.obj {
+  fill: var(--g-text);
+  fill-opacity: 0.78;
+}
+.seg-copy,
+.seg-data {
+  fill: var(--g-viz-current);
+}
+.seg-parity {
+  fill: var(--g-viz-considering);
+}
+.seg-down {
+  fill: url(#durability-hatch);
+  stroke: var(--g-viz-discarded-ink);
+  stroke-width: 1;
+}
+.bracket {
+  fill: none;
+  stroke: var(--g-stroke);
+  stroke-width: 1;
+}
+.disk {
+  fill: var(--g-raised);
+  stroke: var(--g-line-strong);
+  stroke-width: 1.25;
+  &.copy,
+  &.data {
+    fill: var(--g-viz-current-soft);
+    stroke: var(--g-viz-current);
+  }
+  &.parity {
+    fill: var(--g-viz-considering-soft);
+    stroke: var(--g-viz-considering);
+  }
+  &.down {
+    fill: url(#durability-hatch);
+    stroke: var(--g-viz-discarded-ink);
+  }
+  // The free disk is a solid empty disk: dashed would say hidden.
+  &.spare {
+    fill: var(--g-raised);
+    stroke: var(--g-stroke);
+  }
+  &.rebuilt {
+    fill: var(--g-viz-final-soft);
+    stroke: var(--g-viz-final);
+    stroke-width: 2;
+  }
+}
+.cap-parity {
+  fill: var(--g-viz-considering);
+}
+.fill-rebuild {
+  fill: var(--g-viz-final);
+  fill-opacity: 0.55;
+}
+.rack {
+  fill: none;
+  stroke: var(--g-stroke);
+  stroke-width: 1.25;
+  &.struck {
+    stroke: var(--g-viz-critical);
+    stroke-width: 1.75;
+  }
+}
+.read {
+  fill: none;
+  stroke: var(--g-viz-current);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+.read-head {
+  fill: var(--g-viz-current);
+}
+.read-dot {
+  fill: var(--g-viz-current);
+  stroke: var(--g-viz-stage);
+  stroke-width: 1.5;
+}
+.read-block {
+  fill: var(--g-viz-current-soft);
+  stroke: var(--g-viz-current);
+  stroke-width: 1;
+}
+// The race: the window on a fixed week, its fill the rebuild.
+.band {
+  fill: var(--g-viz-current-soft);
+  stroke: var(--g-viz-current);
+  stroke-width: 1;
+  &.lost {
+    fill: var(--g-danger-soft);
+    stroke: var(--g-viz-critical);
+  }
+}
+.band-fill {
+  fill: var(--g-viz-current);
+}
+.staged-tag {
+  fill: var(--g-danger-soft);
+  stroke: var(--g-viz-critical);
+  stroke-width: 1;
+}
+text.on-tag {
+  stroke: none;
+}
+// The walk along the nines scale.
+.step-arrow {
+  stroke: var(--g-viz-current);
+  stroke-width: 2;
+  fill: none;
+  &.up {
+    stroke: var(--g-viz-considering);
+  }
+  &.first {
+    stroke: var(--g-text);
+    stroke-opacity: 0.7;
+  }
+}
+.head-cur {
+  fill: var(--g-viz-current);
+}
+.head-up {
+  fill: var(--g-viz-considering);
+}
+.head-first {
+  fill: var(--g-text);
+  fill-opacity: 0.7;
+}
+.from-tick {
+  stroke: var(--g-text);
+  stroke-opacity: 0.55;
+  stroke-width: 1.25;
+}
+.step-arrow.rack {
+  stroke: var(--g-viz-critical);
+}
+.head-rack {
+  fill: var(--g-viz-critical);
+}
+// The independent path a rack event overrides.
+.overridden {
+  opacity: 0.4;
+}
+.dot-final {
+  fill: var(--g-text);
+}
+.bar-final {
+  fill: var(--g-text);
+  fill-opacity: 0.82;
+  &.rack {
+    fill: var(--g-viz-critical);
+  }
+}
+.ghost-step,
+.ghost-bracket {
+  fill: none;
+  stroke: var(--g-stroke);
+  stroke-width: 1;
+}
+.ghost-tip,
+.ghost-caret {
+  fill: none;
+  stroke: var(--g-stroke);
+  stroke-width: 1.25;
+  stroke-linejoin: round;
+}
+.ghost-caret {
+  stroke: var(--g-text);
+}
+.goal-line {
+  stroke: var(--g-muted);
+  stroke-width: 1.5;
+  &.met {
+    stroke: var(--g-viz-final);
+  }
+}

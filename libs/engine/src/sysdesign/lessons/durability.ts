@@ -1,14 +1,11 @@
+import { DURABILITY_EXPERIMENTS } from './durability-experiments.js';
 import type { SdLesson } from './types.js';
 
 export const DURABILITY_LESSON: SdLesson = {
   why: 'Disks die every day in any large fleet, so a storage system survives only by keeping redundant pieces and rebuilding them faster than the next failures arrive. The choice between replicas and erasure codes sets how much raw storage you buy, how much network a repair burns and how many nines you can honestly claim. Interviewers probe whether you can price that trade-off, explain what the nines assume, and say what durability does not protect against.',
   widget: {
     kind: 'durability',
-    tryThis: [
-      'Pick 3 copies with a 2% yearly failure rate and 24 hours of repair: 3x storage, 2 failures tolerated, 9.7 nines, about 1 in 5.6 billion objects lost a year. Switch to 6 + 3 erasure coding: 1.5x storage, 3 failures tolerated and 11.8 nines (1 in 600 billion). Half the space buys two more nines, but a repair now reads 6x the lost piece instead of 1x.',
-      'Keep 3 copies at 2% and move the repair time: 1 hour gives 12.5 nines, 24 hours 9.7, 168 hours 8.1. A week of repair costs 1.6 nines against a day, because both remaining copies must fail inside the window, so 7 times the window is about 49 times the loss. Try the same with 2 copies: 5.7 nines at 24 hours and 4.8 at 168, since one more failure is enough.',
-      'Pick 10 + 4 at 2% and 24 hours: 1.4x storage, 4 failures tolerated, 14.7 nines, but each repair reads 10x. Now raise the failure rate to 10% and the repair time to 168 hours: 7.9 nines. Two copies at the same settings keep only 3.4 nines (1 in 2,600 a year). Failing disks and slow repairs cost the 10 + 4 code almost seven nines, however much parity it has.',
-    ],
+    experiments: DURABILITY_EXPERIMENTS,
   },
   concepts: [
     {
@@ -29,11 +26,11 @@ export const DURABILITY_LESSON: SdLesson = {
     },
     {
       title: 'Repair speed is the main lever',
-      body: 'An object is lost only if enough further failures land while an earlier one is being repaired. The chance of one more failure in the window grows with the window, and a scheme that tolerates t losses needs t more in the same window, so the yearly loss grows roughly with the repair time to the power t. Halving the repair time of three copies cuts losses about four times; for 6 + 3 about eight times. Real systems rebuild from many disks in parallel, prioritize objects that have lost the most pieces, and scrub data in the background, because a latent bad sector that nobody has read is a failure you have not counted.',
+      body: 'An object is lost only if enough further failures land while an earlier one is being repaired. The chance of one more failure in the window grows with the window, and a scheme that tolerates t losses needs t more in the same window, so the yearly loss grows roughly with the repair time to the power t. Halving the repair time of three copies cuts losses about four times; for 6 + 3 about eight times; a week instead of a day costs three copies about 49 times. Real systems rebuild from many disks in parallel, prioritize objects that have lost the most pieces, and scrub data in the background, because a latent bad sector that nobody has read is a failure you have not counted. Each piece also carries a checksum, checked on every read and by the scrub, so silent corruption is repaired like a lost disk.',
     },
     {
       title: 'Correlated failures and failure domains',
-      body: 'The simple model, and the widget, assume disks fail independently. Real failures arrive together: a rack loses its switch or power, a batch of disks from one bad production run wears out in the same month, a firmware bug or a building power event takes many nodes at once. So place each copy or piece in a different failure domain: different disks, racks and power feeds, and different zones for anything that must survive a zone. Nines computed under independence are an upper bound, and real losses are likelier by a margin nobody can compute exactly.',
+      body: 'The simple model, and the widget, assume disks fail independently. The one-rack placement in the widget shows what a single shared cause does: with a rack event assumed once in 1,000 years, three copies in one rack keep 3 nines instead of 9.7. Real failures arrive together: a rack loses its switch or power, a batch of disks from one bad production run wears out in the same month, a firmware bug or a building power event takes many nodes at once. So place each copy or piece in a different failure domain: different disks, racks and power feeds, and different zones for anything that must survive a zone. Nines computed under independence are an upper bound, and real losses are likelier by a margin nobody can compute exactly.',
     },
     {
       title: 'Hot data replicated, cold data erasure coded',
@@ -88,7 +85,7 @@ export const DURABILITY_LESSON: SdLesson = {
     'Putting two replicas or pieces of one object in the same rack, power domain or zone, so one event takes out more than the scheme tolerates.',
     'Treating durability as backup: a delete, a buggy overwrite or a ransomware encryption is stored durably on every copy.',
     'Erasure coding hot, small objects: every read touches several disks, a missing piece means decoding, and a disk failure starts a repair that reads k times its size.',
-    'Letting repairs queue behind user traffic or skipping scrubs: every hour at reduced redundancy, and every unread bad sector, is durability quietly given up.',
+    'Letting repairs queue without a bound behind user traffic, or skipping scrubs: every hour at reduced redundancy, and every unread bad sector, is durability quietly given up.',
   ],
   followUps: [
     {

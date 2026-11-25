@@ -3493,6 +3493,64 @@ sample.ts`: the seeded year (seed 3282478, common random numbers, no two outages
     the write at every width, a Describe width check at every width for the default, the widest and a lookup setting,
     and a check that a level chip saying "model" has its gloss in the step line at every width.
 
+- **Durability note** (R42, the batch's third widget, `durability`; as built from the brief, mockup and critique round of
+  `design/r42-durability`, and where it differs):
+  - **Verdict.** The old widget (four scheme buttons, an AFR slider, five repair buttons and five number tiles over a
+    muted caveat) had every number right and nothing drawn: no object, piece, disk, failure, repair or window, so a
+    learner could read "6 + 3: 11.8 nines" without being able to say why half the storage loses less, why a week of
+    repair costs 49 times a day, or why the caveat about racks matters more than every tile. It is redrawn as one
+    object's pieces on their disks, one repair racing the other pieces' failures on a fixed week, and the model's yearly
+    loss as a walk along one nines scale read as objects lost a year among a billion.
+  - **Engine.** `widgets/durability.ts`: `durabilityScenario` (memoized over the 160 settings in
+    `DURABILITY_SETTINGS`): pieces, tolerance, p, first failures, ways, the exact binomial tail, the rack event
+    (`indep + rack - indep × rack`, so a tiny loss keeps its digits), the steps (the leading term, within 0.006 nines of
+    the exact model at every setting, never below it), the cost of a billion 1 MB objects, the rebuild's reads and write
+    rate, the objects one clustered loss takes; `durability()` keeps its formula and signature. `durability-format.ts`
+    says its numbers, `durability-plays.ts` holds the one clock of a play (`durabilityPlan`, `durabilityPlayState`),
+    the failed piece, the sources and the staged failures (prefixed names: `choose`, `playPlan` and `formatRate` are
+    other widgets' exports, and `choose` is reused from `quorum.ts`). Framework: `ExperimentRun` gains `'repair'` and
+    `'staged'`, slot units gain `ninesCount`, `chance`, `ratio`, `overhead`, `perYear`, `tb`, `gbps`, `billion` and
+    `big` (the existing `nines` and `oneIn` units mean other things), and `TEMPLATE_DIGITS_ALLOWED` gains the brief's
+    phrases and "the 6 of its group". `durability-experiments.ts`: the six experiments in the brief's wording, answers
+    at 1, 2, 3, 3, 1, the challenge ("Challenge: a billion objects", the house title form) passing at exactly one of 160
+    settings. `durability.spec.ts` pins today's formula at all 80 one-piece-a-rack settings, the binomial tail against
+    brute-force enumeration, the steps against the exact tail, the window's power, the cost, every format at every
+    setting, the plays' clock, and a discrete-event simulation of failing and repaired disks; the experiments spec
+    every rendered string, the word claims, the challenge's enumeration and the lesson's quoted nines. The lesson's
+    `tryThis` is gone, and its correlated-failures and repair-speed concepts gain the brief's two sentences.
+  - **Picture.** One stage from `buildStage` (`durability-layout.ts`: the header, the object and stored bar, the disks
+    and reads, the race; `durability-walk.ts`: the headline, the walk, the last row with its ghost and goal, the billion
+    axis and the facts; `durability-draw.ts`: the view, the context and the mark helpers), placed by the shared
+    `StageDraw` with the widget's own roles (`durability-text.ts`, which adds a 10 px mono `tiny` for disk names and the
+    stage and HTML keep rules), drawn by `durability-prims.component.ts`. The house `focusOutlines` takes any draw with
+    its fields. The mockup's geometry is ported as it stands; where the built text table measured a few px wider, the
+    narrowest stage (252 px) drops the race's title beside the staged tag and the others' row name beside named
+    crosses, rather than let them touch. A "(was …)" is said only beside an old arrow that is drawn; a change too
+    small to draw (three copies, 2% against 10 + 4 at 2% on the first row) is said in the facts alone.
+  - **Motion.** A play is one monotone clock (`durability-motion.ts`): the stage redraws only when the clock passes an
+    event, and the window's fill, the free disk's fill, the playhead and one read dot a source move every frame by
+    transform. Plays pause by the widget host's visibility. Under Reduced motion the rest state is the play's end, and
+    Play (or Stage a loss) steps the three moments, each said in the notice. An answer plays its act on the picture,
+    the disks' row brought to the top first on a phone.
+  - **Hiding.** One `hiding()` map (`durability-words.ts`) from the regions a question names (`steps`, `after`,
+    `reads`) and the ghost to the stage, the summary, the readout, the notice, the facts and Describe; while a question
+    asks and while its answer plays Play, Stage a loss and every setting wait and the notice says so. The component
+    spec's sweep checks text and structure with motion off and on, entering each question from seven other settings
+    and sampling the answer's play frame by frame, and catches a leak planted on each of its flags (the brief's six and
+    the controls), each against a clean run of the same question.
+  - **Fix round 1.** Reviews found the sweep's text check was a hand-picked list, so it now asks a counterfactual:
+    every frame is said twice, the second time with each value the hiding map hides moved, and nothing may change (a
+    yearly loss said as "lost a decade" is among its planted leaks). Every factor that sets the loss is a row: in one
+    rack the walk gains the rack event's row and dims the independent path it overrides. An old arrow keeps to its own
+    row's lane (pitch 37 px), regions closer than a tag share one outline, a tag never crosses another outline, the key
+    keeps each count under its own bracket, the challenge's storage goal stands clear of the key, and disks too narrow
+    to name are said in one line. Under Reduced motion each moment is its own sentence and a rack event is one moment;
+    every control's accessible name starts with its visible words. E1, E3 and E4 gain a choice beyond the answer.
+  - **Fix round 2.** Struck disks too narrow to name are said in the rack lane above the outlines, and no text may sit
+    inside a disk's outline unless it names that disk. The walk ends under the rows it draws; its free space falls
+    between the billion axis and the facts, and hidden steps keep a fixed two-row box. A finished staged loss names its
+    next press, a check's status keeps to its bound's line, and no answer is the most extreme number offered.
+
 **R46 Case widgets II.**
 
 - **Scope:**

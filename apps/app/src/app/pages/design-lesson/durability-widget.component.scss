@@ -1,0 +1,155 @@
+@use '../../../type' as *;
+@use '../../../breakpoints' as *;
+@use 'feed-controls';
+@use 'widget-controls';
+@use 'widget-layout' as *;
+
+@include stage-layout('.durability-stage');
+.controls-grid {
+  display: grid;
+  gap: var(--g-space-2);
+  container-type: inline-size;
+}
+.segments4,
+.segments5,
+.segments2 {
+  display: grid;
+  gap: var(--g-space-1);
+}
+.segments4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.segments5 {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+.segments2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+// Every segment keeps its label on one line, and a checked one keeps its weight, so nothing re-wraps or moves.
+.controls-grid .segment span {
+  padding: 0 var(--g-space-1);
+  white-space: nowrap;
+  font-size: var(--g-text-body-s);
+}
+.segment input:checked + span {
+  font-weight: 500;
+}
+// In the one-column layout Stored as takes two rows of two, so its labels keep clear of their borders, and the five
+// repair times keep 44 px each on a 320 px phone.
+@include container-narrow(lesson) {
+  .scheme-control .segments4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .segments5 {
+    gap: calc(var(--g-space-1) / 2);
+  }
+  .repair-control .segment span {
+    padding: 0;
+  }
+}
+.control-label .why {
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+}
+.readout {
+  margin: 0;
+  min-height: 3lh;
+  font-size: var(--g-text-body-s);
+  color: var(--g-text);
+}
+@include container-wide(lesson) {
+  .readout {
+    display: none;
+  }
+}
+.model-note {
+  order: 2;
+  margin: 0;
+  font-size: var(--g-text-body-s);
+  color: var(--g-muted);
+  text-wrap: pretty;
+}
+svg.draw {
+  display: block;
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+}
+.live {
+  pointer-events: none;
+}
+.band-fill {
+  fill: var(--g-viz-current);
+}
+.fill-rebuild {
+  fill: var(--g-viz-final);
+  fill-opacity: 0.55;
+}
+.playhead {
+  stroke: var(--g-text);
+  stroke-width: 1.5;
+}
+.read-dot {
+  fill: var(--g-viz-current);
+  stroke: var(--g-viz-stage);
+  stroke-width: 1.5;
+}
+.play {
+  top: auto;
+}
+// Stage a loss: a toggle pill over the stage, outlined in the critical tone while the staged loss shows.
+.pill {
+  position: absolute;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  z-index: 2;
+  font: 500 var(--g-text-body-s) var(--ion-font-family);
+  color: var(--g-text);
+  span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: calc(100% - 2 * var(--g-space-1));
+    margin: var(--g-space-1) 0;
+    padding: 0 var(--g-space-3);
+    border-radius: var(--g-radius-pill);
+    border: 1px solid var(--g-line-strong);
+    background: var(--g-raised);
+    box-shadow: var(--g-shadow-raised);
+    white-space: nowrap;
+  }
+  &[aria-pressed='true'] span {
+    border-color: var(--g-viz-critical);
+    box-shadow: inset 0 0 0 1px var(--g-viz-critical);
+  }
+  &:focus-visible {
+    outline: none;
+    span {
+      outline: var(--g-focus-ring);
+      outline-offset: 2px;
+    }
+  }
+  &:disabled {
+    cursor: default;
+    opacity: 0.55;
+  }
+}
+.describe {
+  .said {
+    flex: 1 0 100%;
+    margin: 0;
+    font-size: var(--g-text-body-s);
+  }
+}
+.hatch-fill {
+  fill: var(--g-sunken);
+}
+.hatch-line {
+  stroke: var(--g-viz-discarded-ink);
+  stroke-opacity: 0.4;
+  stroke-width: 1.5;
+}

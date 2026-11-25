@@ -1,5 +1,6 @@
 import { CASE_LABS, SCENARIO_CATALOG, getCaseStudy, itemsForTopic } from '@grasp/engine';
 import { BASE, answerFirst, openReports, settle } from '../lib.mjs';
+import { durabilityStates } from './durability.mjs';
 import { reliabilityStates } from './reliability.mjs';
 
 /** The authored index of a decision's recommended option: drafts name options by it, whatever order they are shown in. */
@@ -1103,14 +1104,6 @@ export function designStates() {
       },
     },
     {
-      id: 'lesson-durability-erasure',
-      path: '/design/topics/sd-durability',
-      setup: async (p) => {
-        await p.locator('#try').scrollIntoViewIfNeeded();
-        await p.getByRole('radio', { name: '6 + 3 erasure' }).click();
-      },
-    },
-    {
       id: 'lesson-recovery-delete',
       path: '/design/topics/sd-recovery',
       setup: async (p) => {
@@ -1197,5 +1190,6 @@ export function designStates() {
     },
   ];
   states.push(...reliabilityStates());
+  states.push(...durabilityStates());
   return [...states, ...everyBoard(states)];
 }

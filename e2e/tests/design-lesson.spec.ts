@@ -353,21 +353,6 @@ test('the discovery lesson shows how long each approach keeps sending to a dead 
   await expect(readout('Checks a second')).toHaveText('4');
 });
 
-test('the durability lesson shows erasure coding beating three copies on nines at half the space', async ({ page }) => {
-  await page.goto('/design/topics/sd-durability');
-  const readout = (label: string) =>
-    page
-      .locator('.readouts div')
-      .filter({ has: page.locator('dt', { hasText: new RegExp(`^${label}$`) }) })
-      .locator('dd');
-  await expect(readout('Storage overhead')).toHaveText('3x');
-  await expect(readout('Nines of durability')).toHaveText('9.7');
-  await page.getByRole('radio', { name: '6 + 3 erasure' }).click();
-  await expect(readout('Storage overhead')).toHaveText('1.5x');
-  await expect(readout('Nines of durability')).toHaveText('11.8');
-  await expect(readout('Read to repair one piece')).toHaveText('6x');
-});
-
 test('the recovery lesson shows what each plan loses, and a standby copying a bad delete', async ({ page }) => {
   await page.goto('/design/topics/sd-recovery');
   const readout = (label: string) =>

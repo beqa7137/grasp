@@ -92,10 +92,6 @@
     "font-size": 1,
     "spacing": 1
   },
-  "app/pages/design-lesson/durability-widget.component.ts": {
-    "font-size": 2,
-    "spacing": 1
-  },
   "app/pages/design-lesson/estimate-drill.component.ts": {
     "border-radius": 1,
     "font-size": 4,

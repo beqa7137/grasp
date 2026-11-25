@@ -9,6 +9,8 @@ export * from './widgets/clocks.js';
 export * from './widgets/data-modeling.js';
 export * from './widgets/discovery.js';
 export * from './widgets/durability.js';
+export * from './widgets/durability-format.js';
+export * from './widgets/durability-plays.js';
 export * from './widgets/gateway.js';
 export * from './widgets/latency-sample.js';
 export * from './widgets/leases.js';
