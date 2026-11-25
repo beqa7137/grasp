@@ -1,0 +1,2063 @@
+# Unique IDs widget: every string it prints
+
+Generated from the real strings: the experiments rendered by the engine build, then every string the widget shows by a browser walk of a production build (each control, Play, Older and Newer, Describe, every experiment asked and answered, the challenge) on desktop with reduced motion, desktop with motion, and 320 px.
+
+## Experiments (engine build)
+
+### One bit for the generators
+
+- Ask: Snowflake's timestamp has 41 bits of 1 ms ticks and lasts 69.7 years. Move one bit from it to the generators, for 2,048 generators. How long does the timestamp last now?
+- Choice 1: About 139.4 years
+- Choice 2: About 68.7 years: one year less
+- Choice 3 (right): About 34.8 years
+- Reveal: The timestamp now holds 2⁴⁰ ticks, and 2⁴⁰ × 1 ms is 34.8 years, ending on 3 November 2060 instead of 7 September 2095. A bit is a doubling, so every bit moved out of the timestamp halves its lifetime, and every bit moved in doubles it: on the ruler the marker steps one bit left of its ghost.
+
+### A burst in one tick
+
+- Ask: With 10 sequence bits a generator has 1,024 sequence numbers a tick. G0 gets 5,000 requests at 0.05 ms. How long does the last of them wait for its id?
+- Choice 1 (right): About 4 ms, four ticks later
+- Choice 2: None: they all fit in that tick
+- Choice 3: About 1 ms, until the next tick
+- Reveal: Each tick gives G0 only 1,024 ids, so the 5,000 requests take 5 ticks: four full gauges, then 904 ids in the last, and the last request waits 3.95 ms. The generator never repeats a sequence number; it waits for the clock. The other generators are not slowed at all.
+
+### Which id sorts first
+
+- Ask: G2's clock runs 2 ms ahead. G2 makes an id at 3.7 ms and G1 makes one at 4.4 ms, by true time. Which id is smaller, so it sorts first?
+- Choice 1: G2's: it was made first
+- Choice 2 (right): G1's: its timestamp is lower
+- Choice 3: Whichever has the lower sequence number
+- Reveal: G2's clock read 5.7 ms when it made its id, so its timestamp is the tick at 5 ms; G1's id carries the tick at 4 ms. The timestamp is the high bits, so G1's id sorts first although it was made 0.7 ms later. Each generator stamps ids with its own clock, so across machines ids are only as time-ordered as their clocks agree.
+
+### The clock steps back
+
+- Ask: G1 trusts its clock: it does not keep its last timestamp. At 5.5 ms its clock steps back 2 ms. What happens to the ids it makes after that?
+- Choice 1 (right): Some repeat ids it already made
+- Choice 2: They sort before its earlier ids, but none repeats
+- Choice 3: Nothing goes wrong: the sequence keeps them apart
+- Reveal: Two ids are made twice: after the step G1's clock reads ticks it has used, and its sequence starts again at 0, so it makes the same timestamp, number and sequence as before. Turn on "Keep the last timestamp" and G1 waits 0.7 ms for its clock to pass the last timestamp it used, and none repeats.
+
+### A billion random ids
+
+- Ask: A billion ids, each 64 random bits: 2⁶⁴ values, about 18 billion billion. What is the chance that any two are equal?
+- Choice 1: About 1 in 18.4 billion
+- Choice 2: About 50%
+- Choice 3 (right): About 2.7%
+- Reveal: By the birthday bound the chance is about 2.7%: every pair of ids is a chance to collide, and a billion ids make about 5.0 × 10¹⁷ pairs. One new id against the rest is the 1 in 18.4 billion. At 122 bits, a UUIDv4's, the same billion gives about 9.4 × 10⁻²⁰.
+
+### Challenge: size the layout
+
+- Ask: Design the layout for up to 1,000 generators, each able to make 1,000,000 ids a second on its own, lasting at least 200 years from today.
+- Reveal: 10 generator bits and 10 sequence bits at a 1 ms tick: 1,024 generators, 1,024,000 ids a second each, and 43 timestamp bits that last 278.7 years, 277.8 years of them from today. One generator bit fewer leaves 512 generators, one sequence bit fewer 512,000 ids a second, and one more bit for either halves the timestamp to 139.4 years, short of 200 years.
+
+## Browser walk: Desktop, reduced motion
+
+### stage
+
+- One id, 64 bits
+- made by G2 at 2.9 ms
+- 0
+- 1
+- timestamp 28,296,000,002
+- generator 2
+- sequence 1
+- G2's clock: 12:00:00 + 2.9 ms − epoch 1 January 2026 = 28,296,000,002.9 ms ÷ 1 ms a tick, rounded down
+- = 28,296,000,002, the timestamp
+- id 118,682,025,992,396,801
+- Anyone holding this id can read when it was made (12:00:00.002 UTC on 24 November 2026, to the tick) and
+- which generator made it (number 2).
+- Timestamp, 41 bits
+- 2⁴¹ ticks × 1 ms = 69.7 years
+- 1 January 2026 to 7 September 2095
+- 1 month
+- 100 years
+- 10,000 years
+- 1 million years
+- 1 billion years
+- lasts 69.7 years
+- today, 328 days in
+- Generator, 10 bits
+- 2¹⁰ = 1,024 generators at once
+- Sequence, 12 bits
+- 2¹² = 4,096 ids a tick × 1,000 ticks a second
+- = 4,096,000 ids a second each
+- 4,194,304,000 ids a second from all 1,024
+- Three generators, no coordination
+- None talks to another. The clock starts at 12:00:00.000 UTC on 24 November 2026, and the axis is true time; a
+- lane with a faulty clock shows its own ticks. A number over dots is their sequence; a dot with none is sequence
+- 0.
+- G0 number 0
+- 2
+- G1 number 1
+- G2 number 2
+- 4
+- 6
+- 8 ms
+- Sorted by id
+- the order an index keeps them in
+- id
+- timestamp · G · seq
+- 118,682,025,984,000,000
+- …000 · 0 · 0
+- 118,682,025,984,004,096
+- …000 · 1 · 0
+- 118,682,025,984,008,192
+- …000 · 2 · 0
+- 118,682,025,988,194,304
+- …001 · 0 · 0
+- 118,682,025,988,194,305
+- …001 · 0 · 1
+- 118,682,025,988,194,306
+- …001 · 0 · 2
+- 118,682,025,992,392,704
+- …002 · 1 · 0
+- 118,682,025,992,396,800
+- …002 · 2 · 0
+- 118,682,025,992,396,801
+- …002 · 2 · 1
+- 118,682,025,996,582,912
+- …003 · 0 · 0
+- 118,682,025,996,587,008
+- …003 · 1 · 0
+- 118,682,025,996,591,104
+- …003 · 2 · 0
+- 118,682,026,000,781,312
+- …004 · 1 · 0
+- 118,682,026,004,971,520
+- …005 · 0 · 0
+- 118,682,026,004,975,616
+- …005 · 1 · 0
+- 118,682,026,009,169,920
+- …006 · 1 · 0
+- 118,682,026,009,174,016
+- …006 · 2 · 0
+- 118,682,026,013,360,128
+- …007 · 0 · 0
+- 118,682,026,013,364,224
+- …007 · 1 · 0
+- 118,682,026,013,368,320
+- …007 · 2 · 0
+- Random ids beside them
+- Chance of any repeat, by the birthday bound
+- 64 bits
+- 122 bits, UUIDv4
+- 10⁻⁶
+- 10⁻¹²
+- 10⁻¹⁸
+- 10⁻²⁴
+- 10³
+- 10⁶
+- 10⁹
+- 10¹²
+- 10¹⁵
+- ids made
+- × 10⁶
+- about 9.4 × 10⁻²⁰
+- 10⁹ ids → about 5.0 × 10¹⁷ pairs × 1 in 5.3 × 10³⁶ each
+- ≈ 9.4 × 10⁻²⁰ repeats expected → chance about 9.4 × 10⁻²⁰
+- Where 24 new ids land in the index
+- Time-ordered ids: the last page
+- all 24 in 1 page, which stays in memory
+- Random ids: any page
+- 24 inserts touch 11 of 12 pages, each read
+- from disk once the index outgrows
+- memory
+- id 237,364,051,984,785,409
+- Timestamp, 40 bits
+- 2⁴⁰ ticks × 1 ms = 34.8 years
+- 1 January 2026 to 3 November 2060
+- was 69.7 years with 41 bits: one bit fewer halves it
+- lasts 34.8 years
+- was 69.7 years
+- Generator, 11 bits
+- 2¹¹ = 2,048 generators at once
+- 8,388,608,000 ids a second from all 2,048
+- 237,364,051,968,000,000
+- 237,364,051,968,004,096
+- 237,364,051,968,008,192
+- 237,364,051,976,388,608
+- 237,364,051,976,388,609
+- 237,364,051,976,388,610
+- 237,364,051,984,781,312
+- 237,364,051,984,785,408
+- 237,364,051,984,785,409
+- 237,364,051,993,165,824
+- 237,364,051,993,169,920
+- 237,364,051,993,174,016
+- 237,364,052,001,558,528
+- 237,364,052,009,943,040
+- 237,364,052,009,947,136
+- 237,364,052,018,335,744
+- 237,364,052,018,339,840
+- 237,364,052,026,720,256
+- 237,364,052,026,724,352
+- 237,364,052,026,728,448
+- id 7,595,649,663,512,879,105
+- Timestamp, 35 bits
+- 2³⁵ ticks × 1 ms = 1.1 years
+- 1 January 2026 to 2 February 2027
+- was 2.2 years with 36 bits: one bit fewer halves it
+- lasts 1.1 years
+- was 2.2 years
+- Generator, 16 bits
+- 2¹⁶ = 65,536 generators at once
+- 268,435,456,000 ids a second from all 65,536
+- 7,595,649,662,976,000,000
+- 7,595,649,662,976,004,096
+- 7,595,649,662,976,008,192
+- 7,595,649,663,244,435,456
+- 7,595,649,663,244,435,457
+- 7,595,649,663,244,435,458
+- 7,595,649,663,512,875,008
+- 7,595,649,663,512,879,104
+- 7,595,649,663,512,879,105
+- 7,595,649,663,781,306,368
+- 7,595,649,663,781,310,464
+- 7,595,649,663,781,314,560
+- 7,595,649,664,049,745,920
+- 7,595,649,664,318,177,280
+- 7,595,649,664,318,181,376
+- 7,595,649,664,586,616,832
+- 7,595,649,664,586,620,928
+- 7,595,649,664,855,048,192
+- 7,595,649,664,855,052,288
+- 7,595,649,664,855,056,384
+- made by G0 at 7.8 ms
+- timestamp 28,296,000,007
+- sequence 0
+- G0's clock: 12:00:00 + 7.8 ms − epoch 1 January 2026 = 28,296,000,007.8 ms ÷ 1 ms a tick, rounded down
+- = 28,296,000,007, the timestamp
+- id 115,900,416,028,672
+- Anyone holding this id can read when it was made (12:00:00.007 UTC on 24 November 2026, to the tick) and
+- which generator made it (number 0).
+- Timestamp, 51 bits
+- 2⁵¹ ticks × 1 ms = 71,355 years
+- 1 January 2026 to about 71,355 years after the epoch
+- was 35,678 years with 50 bits: one bit more doubles it
+- lasts 71,355 years
+- was 35,678 years
+- Generator, 0 bits
+- 2⁰ = 1 generator at once
+- 4,096,000 ids a second from all 1
+- cannot run: 0 generator bits give only 1 number
+- 115,900,416,000,000
+- 115,900,416,004,096
+- 115,900,416,004,097
+- 115,900,416,004,098
+- 115,900,416,012,288
+- 115,900,416,020,480
+- 115,900,416,028,672
+- id 28,296,000,007
+- Timestamp, 63 bits
+- 2⁶³ ticks × 1 ms = 292.3 million years
+- 1 January 2026 to about 292.3 million years after the epoch
+- was 146.1 million years with 62 bits: one bit more doubles it
+- lasts 292.3 million years
+- was 146.1 million years
+- Sequence, 0 bits
+- 2⁰ = 1 id a tick × 1,000 ticks a second = 1,000 ids a second each
+- 1,000 ids a second from all 1
+- 28,296,000,000
+- 28,296,000,001
+- 28,296,000,002
+- …002 · 0 · 0
+- 28,296,000,003
+- 28,296,000,004
+- …004 · 0 · 0
+- 28,296,000,005
+- 28,296,000,007
+- id 1,854,406,656,458,752
+- Timestamp, 47 bits
+- 2⁴⁷ ticks × 1 ms = 4,460 years
+- 1 January 2026 to 17 October 6485
+- was 8,919 years with 48 bits: one bit fewer halves it
+- lasts 4,460 years
+- was 8,919 years
+- Sequence, 16 bits
+- 2¹⁶ = 65,536 ids a tick × 1,000 ticks a second
+- = 65,536,000 ids a second each
+- 65,536,000 ids a second from all 1
+- 1,854,406,656,000,000
+- 1,854,406,656,065,536
+- 1,854,406,656,065,537
+- 1,854,406,656,065,538
+- 1,854,406,656,196,608
+- 1,854,406,656,327,680
+- 1,854,406,656,458,752
+- timestamp 2,829,600,000
+- sequence 2
+- G2's clock: 12:00:00 + 2.9 ms − epoch 1 January 2026 = 28,296,000,002.9 ms ÷ 10 ms a tick, rounded down
+- = 2,829,600,000, the timestamp
+- id 11,868,202,598,408,194
+- Anyone holding this id can read when it was made (12:00:00.000 UTC on 24 November 2026, to the tick) and
+- 2⁴¹ ticks × 10 ms = 696.8 years
+- 1 January 2026 to 5 November 2722
+- was 69.7 years with 41 bits and a 1 ms tick: a 10 ms tick makes it ten times as long
+- lasts 696.8 years
+- 2¹² = 4,096 ids a tick × 100 ticks a second
+- = 409,600 ids a second each
+- 419,430,400 ids a second from all 1,024
+- 3
+- 5
+- 11,868,202,598,400,000
+- 11,868,202,598,400,001
+- …000 · 0 · 1
+- 11,868,202,598,400,002
+- …000 · 0 · 2
+- 11,868,202,598,400,003
+- …000 · 0 · 3
+- 11,868,202,598,400,004
+- …000 · 0 · 4
+- 11,868,202,598,400,005
+- …000 · 0 · 5
+- 11,868,202,598,400,006
+- …000 · 0 · 6
+- 11,868,202,598,404,096
+- 11,868,202,598,404,097
+- …000 · 1 · 1
+- 11,868,202,598,404,098
+- …000 · 1 · 2
+- 11,868,202,598,404,099
+- …000 · 1 · 3
+- 11,868,202,598,404,100
+- …000 · 1 · 4
+- 11,868,202,598,404,101
+- …000 · 1 · 5
+- 11,868,202,598,404,102
+- …000 · 1 · 6
+- 11,868,202,598,408,192
+- 11,868,202,598,408,193
+- …000 · 2 · 1
+- 11,868,202,598,408,194
+- …000 · 2 · 2
+- 11,868,202,598,408,195
+- …000 · 2 · 3
+- 11,868,202,598,408,196
+- …000 · 2 · 4
+- 11,868,202,598,408,197
+- …000 · 2 · 5
+- timestamp 179,552,160,000
+- G2's clock: 12:00:00 + 2.9 ms − epoch 1 January 1970 = 1,795,521,600,002.9 ms
+- ÷ 10 ms a tick, rounded down = 179,552,160,000, the timestamp
+- id 753,096,342,896,648,194
+- 1 January 1970 to 4 November 2666
+- today, 56.9 years in
+- 753,096,342,896,640,000
+- 753,096,342,896,640,001
+- 753,096,342,896,640,002
+- 753,096,342,896,640,003
+- 753,096,342,896,640,004
+- 753,096,342,896,640,005
+- 753,096,342,896,640,006
+- 753,096,342,896,644,096
+- 753,096,342,896,644,097
+- 753,096,342,896,644,098
+- 753,096,342,896,644,099
+- 753,096,342,896,644,100
+- 753,096,342,896,644,101
+- 753,096,342,896,644,102
+- 753,096,342,896,648,192
+- 753,096,342,896,648,193
+- 753,096,342,896,648,194
+- 753,096,342,896,648,195
+- 753,096,342,896,648,196
+- 753,096,342,896,648,197
+- timestamp 1,795,521,600,002
+- G2's clock: 12:00:00 + 2.9 ms − epoch 1 January 1970 = 1,795,521,600,002.9 ms ÷ 1 ms a tick, rounded down
+- = 1,795,521,600,002, the timestamp
+- id 7,530,963,428,974,796,801
+- 1 January 1970 to 7 September 2039
+- was 696.8 years with 41 bits and a 10 ms tick: a 1 ms tick makes it a tenth as long
+- was 696.8 years
+- 7,530,963,428,966,400,000
+- 7,530,963,428,966,404,096
+- 7,530,963,428,966,408,192
+- 7,530,963,428,970,594,304
+- 7,530,963,428,970,594,305
+- 7,530,963,428,970,594,306
+- 7,530,963,428,974,792,704
+- 7,530,963,428,974,796,800
+- 7,530,963,428,974,796,801
+- 7,530,963,428,978,982,912
+- 7,530,963,428,978,987,008
+- 7,530,963,428,978,991,104
+- 7,530,963,428,983,181,312
+- 7,530,963,428,987,371,520
+- 7,530,963,428,987,375,616
+- 7,530,963,428,991,569,920
+- 7,530,963,428,991,574,016
+- 7,530,963,428,995,760,128
+- 7,530,963,428,995,764,224
+- 7,530,963,428,995,768,320
+- 1 full tick of 4,096
+- 904
+- last waits 0.95 ms
+- …000 · 0 · 0–4,095
+- …001 · 0 · 0–903
+- made by G2 at 2.9 ms; G2's clock, 2 ms ahead, read 4.9 ms
+- timestamp 28,296,000,004
+- G2's clock: 12:00:00 + 4.9 ms − epoch 1 January 2026 = 28,296,000,004.9 ms ÷ 1 ms a tick, rounded down
+- = 28,296,000,004, the timestamp
+- id 118,682,026,000,785,409
+- Anyone holding this id can read when it was made (12:00:00.004 UTC on 24 November 2026, to the tick) and
+- G2's clock 2 ms ahead
+- 7
+- 8
+- 9
+- 118,682,026,000,785,408
+- …004 · 2 · 0
+- 118,682,026,000,785,409
+- …004 · 2 · 1
+- 118,682,026,004,979,712
+- …005 · 2 · 0
+- 118,682,026,017,562,624
+- …008 · 2 · 0
+- 118,682,026,021,756,928
+- …009 · 2 · 0
+- A hollow amber dot sorts before an id made earlier, in an earlier tick: out of time order.
+- steps back 2 ms
+- 118,682,026,004,975,617
+- …005 · 1 · 1
+- 118,682,026,004,975,618
+- …005 · 1 · 2
+- same id as the row above
+- generator 1
+- id 118,682,025,992,392,705
+- which generator made it (number 1).
+- G2 number 1
+- given G1's number, 1
+- 118,682,025,992,392,705
+- …002 · 1 · 1
+- same as above
+- about 2.7%
+- 10⁹ ids → about 5.0 × 10¹⁷ pairs × 1 in 1.8 × 10¹⁹ each
+- ≈ 0.027 repeats expected → chance about 2.7%
+- 10³ ids → about 5.0 × 10⁵ pairs × 1 in 5.3 × 10³⁶ each
+- ≈ 9.4 × 10⁻³² repeats expected → chance about 9.4 × 10⁻³²
+- 10⁶ ids → about 5.0 × 10¹¹ pairs × 1 in 5.3 × 10³⁶ each
+- ≈ 9.4 × 10⁻²⁶ repeats expected → chance about 9.4 × 10⁻²⁶
+- about 9.4 × 10⁻¹⁴
+- 10¹² ids → about 5.0 × 10²³ pairs × 1 in 5.3 × 10³⁶ each
+- ≈ 9.4 × 10⁻¹⁴ repeats expected → chance about 9.4 × 10⁻¹⁴
+- about 9.4 × 10⁻⁸
+- 10¹⁵ ids → about 5.0 × 10²⁹ pairs × 1 in 5.3 × 10³⁶ each
+- ≈ 9.4 × 10⁻⁸ repeats expected → chance about 9.4 × 10⁻⁸
+- made by G1 at 3.1 ms
+- timestamp 28,296,000,003
+- G1's clock: 12:00:00 + 3.1 ms − epoch 1 January 2026 = 28,296,000,003.1 ms ÷ 1 ms a tick, rounded down
+- = 28,296,000,003, the timestamp
+- id 118,682,025,996,587,008
+- Anyone holding this id can read when it was made (12:00:00.003 UTC on 24 November 2026, to the tick) and
+- Look here
+- id 118,682,025,992,390,657
+- Generator, 12 bits
+- 2¹² = 4,096 generators at once
+- Sequence, 10 bits
+- 2¹⁰ = 1,024 ids a tick × 1,000 ticks a second
+- = 1,024,000 ids a second each
+- 4,194,304,000 ids a second from all 4,096
+- 118,682,025,984,001,024
+- 118,682,025,984,002,048
+- 118,682,025,992,389,632
+- 118,682,025,992,390,656
+- 118,682,025,992,390,657
+- 118,682,025,996,583,936
+- 118,682,025,996,584,960
+- 118,682,026,000,778,240
+- 118,682,026,004,972,544
+- 118,682,026,009,166,848
+- 118,682,026,009,167,872
+- 118,682,026,013,361,152
+- 118,682,026,013,362,176
+- 4 full ticks of 1,024
+- last waits 3.95 ms
+- …000 · 0 · 0–1,023
+- …001 · 0 · 0–1,023
+- 118,682,025,992,388,608
+- …002 · 0 · 0–1,023
+- …003 · 0 · 0–1,023
+- 118,682,026,000,777,216
+- …004 · 0 · 0–903
+- timestamp
+- generator
+- sequence
+- This id's digits and what they tell are hidden until you answer
+- The order of the ids is hidden until you answer
+- sorts first
+- The chance is hidden until you answer
+- Its arithmetic is hidden too
+- need 200 years from today
+- 2¹⁰ = 1,024 generators at once (need 1,000)
+- = 4,096,000 ids a second each (need 1,000,000)
+- id 29,670,506,498,099,201
+- Timestamp, 43 bits
+- 2⁴³ ticks × 1 ms = 278.7 years
+- 1 January 2026 to 27 September 2304
+- was 139.4 years with 42 bits: one bit more doubles it
+- lasts 278.7 years
+- was 139.4 years
+- = 1,024,000 ids a second each (need 1,000,000)
+- 1,048,576,000 ids a second from all 1,024
+- 29,670,506,496,000,000
+- 29,670,506,496,001,024
+- 29,670,506,496,002,048
+- 29,670,506,497,048,576
+- 29,670,506,497,048,577
+- 29,670,506,497,048,578
+- 29,670,506,498,098,176
+- 29,670,506,498,099,200
+- 29,670,506,498,099,201
+- 29,670,506,499,145,728
+- 29,670,506,499,146,752
+- 29,670,506,499,147,776
+- 29,670,506,500,195,328
+- 29,670,506,501,242,880
+- 29,670,506,501,243,904
+- 29,670,506,502,292,480
+- 29,670,506,502,293,504
+- 29,670,506,503,340,032
+- 29,670,506,503,341,056
+- 29,670,506,503,342,080
+
+### summary
+
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 40 timestamp bits, 11 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 34.8 years, to 3 November 2060. There is room for 2,048 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 35 timestamp bits, 16 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 1.1 years, to 2 February 2027. There is room for 65,536 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 51 timestamp bits, 0 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 71,355 years, to about 71,355 years after the epoch. There is room for 1 generator, each making up to 4,096,000 ids a second. One generator made 7 ids without talking to each other. G1 and G2 cannot run: 0 generator bits give only 1 number. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 63 timestamp bits, 0 generator bits and 0 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 292.3 million years, to about 292.3 million years after the epoch. There is room for 1 generator, each making up to 1,000 ids a second. One generator made 7 ids without talking to each other. G1 and G2 cannot run: 0 generator bits give only 1 number. No id repeats. Three requests waited for a later tick because a tick holds only 1 id a generator. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 47 timestamp bits, 0 generator bits and 16 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 4,460 years, to 17 October 6485. There is room for 1 generator, each making up to 65,536,000 ids a second. One generator made 7 ids without talking to each other. G1 and G2 cannot run: 0 generator bits give only 1 number. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 10 ms ticks from 1 January 2026 and lasts 696.8 years, to 5 November 2722. There is room for 1,024 generators, each making up to 409,600 ids a second. Three generators made 20 ids without talking to each other. No id repeats. With a 10 ms tick every id here shares one timestamp, so they sort by generator, then by sequence. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 10 ms ticks from 1 January 1970 and lasts 696.8 years, to 4 November 2666. There is room for 1,024 generators, each making up to 409,600 ids a second. Three generators made 20 ids without talking to each other. No id repeats. With a 10 ms tick every id here shares one timestamp, so they sort by generator, then by sequence. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 1970 and lasts 69.7 years, to 7 September 2039. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 5,013 ids without talking to each other. No id repeats. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 5,013 ids without talking to each other. G2's clock runs 2 ms ahead. No id repeats. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. Five ids from G2, whose clock runs 2 ms ahead, sort after ids made later. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 5,013 ids without talking to each other. G1's clock steps back 2 ms at 5.5 ms, and G1 keeps its last timestamp. No id repeats. G1's clock stepped back 2 ms; it kept its last timestamp and waited 0.7 ms for its clock to catch up. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. G1's clock now runs 2 ms behind, so 1 id made earlier sorts after ids G1 made later. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 5,013 ids without talking to each other. G1's clock steps back 2 ms at 5.5 ms, and G1 trusts it. Two ids repeat: G1's clock stepped back 2 ms and the generator trusted it, reissuing timestamps it had used. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. G1's clock now runs 2 ms behind, so 2 ids made earlier sort after ids G1 made later. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 5,013 ids without talking to each other. G2 was handed G1's number, 1. Five ids repeat: G1 and G2 share the number 1, so in a tick where both make an id with the same sequence, the ids are equal. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 64-bit ids, the chance of any repeat is about 2.7%, by the birthday bound. It reaches even odds near 5.1 billion ids. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a thousand random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻³², by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a million random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁶, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a trillion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻¹⁴, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a quadrillion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻⁸, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 12 generator bits and 10 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 4,096 generators, each making up to 1,024,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 12 generator bits and 10 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 4,096 generators, each making up to 1,024,000 ids a second. Three generators made 5,013 ids without talking to each other. No id repeats. G0's burst of 5,000 requests needs 5 ticks of 1,024 ids, so its last request waits 3.95 ms. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. G2's clock runs 2 ms ahead. No id repeats. The order of the ids is hidden until you answer. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. G2's clock runs 2 ms ahead. No id repeats. Five ids from G2, whose clock runs 2 ms ahead, sort after ids made later. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. Whether G1 makes any id twice is hidden until you answer. The order of the ids is hidden until you answer. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. G1's clock steps back 2 ms at 5.5 ms, and G1 trusts it. Two ids repeat: G1's clock stepped back 2 ms and the generator trusted it, reissuing timestamps it had used. G1's clock now runs 2 ms behind, so 3 ids made earlier sort after ids G1 made later. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Random 122-bit ids: the chance of a repeat is hidden until you answer.
+- The 64 bits are 1 sign bit, 43 timestamp bits, 10 generator bits and 10 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 278.7 years, to 27 September 2304. There is room for 1,024 generators, each making up to 1,024,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+
+### labels
+
+- Unique ids: one id made bit by bit, three generators minting, and random ids beside them
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- Newer id
+- Older id
+- Play the mint: 8 ms of three generators
+- One generator bit fewer
+- One generator bit more
+- One sequence bit fewer
+- One sequence bit more
+- The 64 bits are 1 sign bit, 40 timestamp bits, 11 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 34.8 years, to 3 November 2060. There is room for 2,048 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 35 timestamp bits, 16 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 1.1 years, to 2 February 2027. There is room for 65,536 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 51 timestamp bits, 0 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 71,355 years, to about 71,355 years after the epoch. There is room for 1 generator, each making up to 4,096,000 ids a second. One generator made 7 ids without talking to each other. G1 and G2 cannot run: 0 generator bits give only 1 number. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 63 timestamp bits, 0 generator bits and 0 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 292.3 million years, to about 292.3 million years after the epoch. There is room for 1 generator, each making up to 1,000 ids a second. One generator made 7 ids without talking to each other. G1 and G2 cannot run: 0 generator bits give only 1 number. No id repeats. Three requests waited for a later tick because a tick holds only 1 id a generator. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 47 timestamp bits, 0 generator bits and 16 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 4,460 years, to 17 October 6485. There is room for 1 generator, each making up to 65,536,000 ids a second. One generator made 7 ids without talking to each other. G1 and G2 cannot run: 0 generator bits give only 1 number. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 10 ms ticks from 1 January 2026 and lasts 696.8 years, to 5 November 2722. There is room for 1,024 generators, each making up to 409,600 ids a second. Three generators made 20 ids without talking to each other. No id repeats. With a 10 ms tick every id here shares one timestamp, so they sort by generator, then by sequence. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 10 ms ticks from 1 January 1970 and lasts 696.8 years, to 4 November 2666. There is room for 1,024 generators, each making up to 409,600 ids a second. Three generators made 20 ids without talking to each other. No id repeats. With a 10 ms tick every id here shares one timestamp, so they sort by generator, then by sequence. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 1970 and lasts 69.7 years, to 7 September 2039. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 5,013 ids without talking to each other. No id repeats. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 5,013 ids without talking to each other. G2's clock runs 2 ms ahead. No id repeats. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. Five ids from G2, whose clock runs 2 ms ahead, sort after ids made later. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 5,013 ids without talking to each other. G1's clock steps back 2 ms at 5.5 ms, and G1 keeps its last timestamp. No id repeats. G1's clock stepped back 2 ms; it kept its last timestamp and waited 0.7 ms for its clock to catch up. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. G1's clock now runs 2 ms behind, so 1 id made earlier sorts after ids G1 made later. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 5,013 ids without talking to each other. G1's clock steps back 2 ms at 5.5 ms, and G1 trusts it. Two ids repeat: G1's clock stepped back 2 ms and the generator trusted it, reissuing timestamps it had used. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. G1's clock now runs 2 ms behind, so 2 ids made earlier sort after ids G1 made later. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 5,013 ids without talking to each other. G2 was handed G1's number, 1. Five ids repeat: G1 and G2 share the number 1, so in a tick where both make an id with the same sequence, the ids are equal. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 64-bit ids, the chance of any repeat is about 2.7%, by the birthday bound. It reaches even odds near 5.1 billion ids. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a thousand random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻³², by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a million random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁶, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a trillion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻¹⁴, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a quadrillion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻⁸, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- Every id the generators made in 8 ms, in id order
+- Play the mint, after your answer
+- Experiment: One bit for the generators
+- Snowflake's timestamp has 41 bits of 1 ms ticks and lasts 69.7 years. Move one bit from it to the generators, for 2,048 generators. How long does the timestamp last now?
+- your answer, wrong
+- correct answer
+- done
+- The 64 bits are 1 sign bit, 41 timestamp bits, 12 generator bits and 10 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 4,096 generators, each making up to 1,024,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- Experiment: A burst in one tick
+- The 64 bits are 1 sign bit, 41 timestamp bits, 12 generator bits and 10 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 4,096 generators, each making up to 1,024,000 ids a second. Three generators made 5,013 ids without talking to each other. No id repeats. G0's burst of 5,000 requests needs 5 ticks of 1,024 ids, so its last request waits 3.95 ms. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- With 10 sequence bits a generator has 1,024 sequence numbers a tick. G0 gets 5,000 requests at 0.05 ms. How long does the last of them wait for its id?
+- your answer, correct
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. G2's clock runs 2 ms ahead. No id repeats. The order of the ids is hidden until you answer. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- Experiment: Which id sorts first
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. G2's clock runs 2 ms ahead. No id repeats. Five ids from G2, whose clock runs 2 ms ahead, sort after ids made later. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- G2's clock runs 2 ms ahead. G2 makes an id at 3.7 ms and G1 makes one at 4.4 ms, by true time. Which id is smaller, so it sorts first?
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. Whether G1 makes any id twice is hidden until you answer. The order of the ids is hidden until you answer. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- Experiment: The clock steps back
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. G1's clock steps back 2 ms at 5.5 ms, and G1 trusts it. Two ids repeat: G1's clock stepped back 2 ms and the generator trusted it, reissuing timestamps it had used. G1's clock now runs 2 ms behind, so 3 ids made earlier sort after ids G1 made later. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- G1 trusts its clock: it does not keep its last timestamp. At 5.5 ms its clock steps back 2 ms. What happens to the ids it makes after that?
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Random 122-bit ids: the chance of a repeat is hidden until you answer.
+- Experiment: A billion random ids
+- A billion ids, each 64 random bits: 2⁶⁴ values, about 18 billion billion. What is the chance that any two are equal?
+- Experiment: Challenge: size the layout
+- The 64 bits are 1 sign bit, 43 timestamp bits, 10 generator bits and 10 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 278.7 years, to 27 September 2304. There is room for 1,024 generators, each making up to 1,024,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+
+### notice
+
+- Change the layout, the requests or what goes wrong; Play runs 8 ms of three generators, slowed down.
+- The layout now has 11 generator bits and 12 sequence bits: 2,048 generators, 4,096,000 ids a second each; the timestamp keeps 40 bits and lasts 34.8 years.
+- The layout now has 16 generator bits and 12 sequence bits: 65,536 generators, 4,096,000 ids a second each; the timestamp keeps 35 bits and lasts 1.1 years.
+- The layout now has 0 generator bits and 12 sequence bits: 1 generator, 4,096,000 ids a second each; the timestamp keeps 51 bits and lasts 71,355 years.
+- The layout now has 0 generator bits and 0 sequence bits: 1 generator, 1,000 ids a second each; the timestamp keeps 63 bits and lasts 292.3 million years.
+- The layout now has 0 generator bits and 16 sequence bits: 1 generator, 65,536,000 ids a second each; the timestamp keeps 47 bits and lasts 4,460 years.
+- The timestamp counts 10 ms ticks from 1 January 2026 and lasts 696.8 years, to 5 November 2722. There is room for 1,024 generators, each making up to 409,600 ids a second.
+- The timestamp counts 10 ms ticks from 1 January 1970 and lasts 696.8 years, to 4 November 2666. There is room for 1,024 generators, each making up to 409,600 ids a second.
+- The timestamp counts 1 ms ticks from 1 January 1970 and lasts 69.7 years, to 7 September 2039. There is room for 1,024 generators, each making up to 4,096,000 ids a second.
+- The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second.
+- Three generators made 5,013 ids without talking to each other. No id repeats. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. They sort by tick, then by generator, then by sequence, so time order holds only to the tick.
+- Three generators made 5,013 ids without talking to each other. G2's clock runs 2 ms ahead. No id repeats. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. Five ids from G2, whose clock runs 2 ms ahead, sort after ids made later.
+- Three generators made 5,013 ids without talking to each other. G1's clock steps back 2 ms at 5.5 ms, and G1 keeps its last timestamp. No id repeats. G1's clock stepped back 2 ms; it kept its last timestamp and waited 0.7 ms for its clock to catch up. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. G1's clock now runs 2 ms behind, so 1 id made earlier sorts after ids G1 made later.
+- Three generators made 5,013 ids without talking to each other. G1's clock steps back 2 ms at 5.5 ms, and G1 trusts it. Two ids repeat: G1's clock stepped back 2 ms and the generator trusted it, reissuing timestamps it had used. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. G1's clock now runs 2 ms behind, so 2 ids made earlier sort after ids G1 made later.
+- Three generators made 5,013 ids without talking to each other. G2 was handed G1's number, 1. Five ids repeat: G1 and G2 share the number 1, so in a tick where both make an id with the same sequence, the ids are equal. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. They sort by tick, then by generator, then by sequence, so time order holds only to the tick.
+- Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick.
+- Among a billion random 64-bit ids, the chance of any repeat is about 2.7%, by the birthday bound.
+- Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound.
+- Among a thousand random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻³², by the birthday bound.
+- Among a million random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁶, by the birthday bound.
+- Among a trillion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻¹⁴, by the birthday bound.
+- Among a quadrillion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻⁸, by the birthday bound.
+- Reduced motion: the mint is drawn at its end. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick.
+- Newer id: G1's, sequence 0.
+- One bit for the generators.
+- The 64 bits are 1 sign bit, 40 timestamp bits, 11 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 34.8 years, to 3 November 2060. There is room for 2,048 generators, each making up to 4,096,000 ids a second.
+- A burst in one tick.
+- Three generators made 5,013 ids without talking to each other. No id repeats. G0's burst of 5,000 requests needs 5 ticks of 1,024 ids, so its last request waits 3.95 ms. They sort by tick, then by generator, then by sequence, so time order holds only to the tick.
+- Which id sorts first: the part it is about is hidden until you answer.
+- Three generators made 20 ids without talking to each other. G2's clock runs 2 ms ahead. No id repeats. Five ids from G2, whose clock runs 2 ms ahead, sort after ids made later.
+- The clock steps back: the part it is about is hidden until you answer.
+- Three generators made 20 ids without talking to each other. G1's clock steps back 2 ms at 5.5 ms, and G1 trusts it. Two ids repeat: G1's clock stepped back 2 ms and the generator trusted it, reissuing timestamps it had used. G1's clock now runs 2 ms behind, so 3 ids made earlier sort after ids G1 made later.
+- A billion random ids: the part it is about is hidden until you answer.
+- Among a billion random 64-bit ids, the chance of any repeat is about 2.7%, by the birthday bound. It reaches even odds near 5.1 billion ids. A thousand times the ids makes the chance about a million times larger while it is small.
+- The layout now has 10 generator bits and 12 sequence bits: 1,024 generators, 4,096,000 ids a second each; the timestamp keeps 41 bits and lasts 69.7 years.
+- Goal met. The layout now has 10 generator bits and 10 sequence bits: 1,024 generators, 1,024,000 ids a second each; the timestamp keeps 43 bits and lasts 278.7 years.
+
+### controls
+
+- Newer id ›
+- ‹ Older id
+- The layout, 63 bits to share
+- Generator bits
+- −
+- 10
+- +
+- Sequence bits
+- 12
+- Tick
+- 1 ms
+- 10 ms
+- Epoch
+- 2026
+- 1970
+- Requests to G0
+- A trickle
+- 5,000 at once
+- What goes wrong
+- Nothing
+- G2's clock ahead
+- G1's clock steps back
+- G2 given number 1
+- Keep the last timestamp (wait if the clock is behind it)
+- Random ids
+- 64 random bits
+- 122 (UUIDv4)
+- Ids made
+- A billion ids (1,000,000,000)
+- 11
+- 16
+- 0
+- A thousand ids (1,000)
+- A million ids (1,000,000)
+- A trillion ids (1,000,000,000,000)
+- A quadrillion ids (1,000,000,000,000,000)
+
+### caption
+
+- Reduced motion: the mint is drawn at its end. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick.
+
+### describe
+
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a quadrillion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻⁸, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- #
+- timestamp · G · seq
+- Made
+- Note
+- 1
+- …000 · 0 · 0
+- 0.3 ms
+- 2
+- …000 · 1 · 0
+- 0.6 ms
+- 3
+- …000 · 2 · 0
+- 0.1 ms
+- 4
+- …001 · 0 · 0
+- 1.1 ms
+- 5
+- …001 · 0 · 1
+- 1.5 ms
+- 6
+- …001 · 0 · 2
+- 1.9 ms
+- 7
+- …002 · 1 · 0
+- 2.2 ms
+- 8
+- …002 · 2 · 0
+- 2.5 ms
+- 9
+- …002 · 2 · 1
+- 2.9 ms
+- 10
+- …003 · 0 · 0
+- 3.5 ms
+- 11
+- …003 · 1 · 0
+- 3.1 ms
+- 12
+- …003 · 2 · 0
+- 3.7 ms
+- 13
+- …004 · 1 · 0
+- 4.4 ms
+- 14
+- …005 · 0 · 0
+- 5.1 ms
+- 15
+- …005 · 1 · 0
+- 5.2 ms
+- 16
+- …006 · 1 · 0
+- 6.3 ms
+- 17
+- …006 · 2 · 0
+- 6.6 ms
+- 18
+- …007 · 0 · 0
+- 7.8 ms
+- 19
+- …007 · 1 · 0
+- 7.4 ms
+- 20
+- …007 · 2 · 0
+- 7.1 ms
+- Ids made in the first 8 ms of the stated clock, in id order. The index strip under the chart is an illustration from one seeded draw.
+- Describe waits for your answer.
+- Describe waits until you meet the goal.
+
+### dock
+
+- Snowflake's timestamp has 41 bits of 1 ms ticks and lasts 69.7 years. Move one bit from it to the generators, for 2,048 generators. How long does the timestamp last now?
+- The timestamp now holds 2⁴⁰ ticks, and 2⁴⁰ × 1 ms is 34.8 years, ending on 3 November 2060 instead of 7 September 2095. A bit is a doubling, so every bit moved out of the timestamp halves its lifetime, and every bit moved in doubles it: on the ruler the marker steps one bit left of its ghost.
+- With 10 sequence bits a generator has 1,024 sequence numbers a tick. G0 gets 5,000 requests at 0.05 ms. How long does the last of them wait for its id?
+- Each tick gives G0 only 1,024 ids, so the 5,000 requests take 5 ticks: four full gauges, then 904 ids in the last, and the last request waits 3.95 ms. The generator never repeats a sequence number; it waits for the clock. The other generators are not slowed at all.
+- G2's clock runs 2 ms ahead. G2 makes an id at 3.7 ms and G1 makes one at 4.4 ms, by true time. Which id is smaller, so it sorts first?
+- G2's clock read 5.7 ms when it made its id, so its timestamp is the tick at 5 ms; G1's id carries the tick at 4 ms. The timestamp is the high bits, so G1's id sorts first although it was made 0.7 ms later. Each generator stamps ids with its own clock, so across machines ids are only as time-ordered as their clocks agree.
+- G1 trusts its clock: it does not keep its last timestamp. At 5.5 ms its clock steps back 2 ms. What happens to the ids it makes after that?
+- Two ids are made twice: after the step G1's clock reads ticks it has used, and its sequence starts again at 0, so it makes the same timestamp, number and sequence as before. Turn on "Keep the last timestamp" and G1 waits 0.7 ms for its clock to pass the last timestamp it used, and none repeats.
+- A billion ids, each 64 random bits: 2⁶⁴ values, about 18 billion billion. What is the chance that any two are equal?
+- By the birthday bound the chance is about 2.7%: every pair of ids is a chance to collide, and a billion ids make about 5.0 × 10¹⁷ pairs. One new id against the rest is the 1 in 18.4 billion. At 122 bits, a UUIDv4's, the same billion gives about 9.4 × 10⁻²⁰.
+- Design the layout for up to 1,000 generators, each able to make 1,000,000 ids a second on its own, lasting at least 200 years from today.
+- ✓1,024 generators (need 1,000)
+- ✓4,096,000 ids a second each (need 1,000,000)
+- ·lasts 68.8 years from today (need 200 years)
+- Goal met:
+- ✓1,024,000 ids a second each (need 1,000,000)
+- ✓lasts 277.8 years from today (need 200 years)
+- 10 generator bits and 10 sequence bits at a 1 ms tick: 1,024 generators, 1,024,000 ids a second each, and 43 timestamp bits that last 278.7 years, 277.8 years of them from today. One generator bit fewer leaves 512 generators, one sequence bit fewer 512,000 ids a second, and one more bit for either halves the timestamp to 139.4 years, short of 200 years.
+
+## Browser walk: Desktop, with motion
+
+### stage
+
+- One id, 64 bits
+- made by G2 at 2.9 ms
+- 0
+- 1
+- timestamp 28,296,000,002
+- generator 2
+- sequence 1
+- G2's clock: 12:00:00 + 2.9 ms − epoch 1 January 2026 = 28,296,000,002.9 ms ÷ 1 ms a tick, rounded down
+- = 28,296,000,002, the timestamp
+- id 118,682,025,992,396,801
+- Anyone holding this id can read when it was made (12:00:00.002 UTC on 24 November 2026, to the tick) and
+- which generator made it (number 2).
+- Timestamp, 41 bits
+- 2⁴¹ ticks × 1 ms = 69.7 years
+- 1 January 2026 to 7 September 2095
+- 1 month
+- 100 years
+- 10,000 years
+- 1 million years
+- 1 billion years
+- lasts 69.7 years
+- today, 328 days in
+- Generator, 10 bits
+- 2¹⁰ = 1,024 generators at once
+- Sequence, 12 bits
+- 2¹² = 4,096 ids a tick × 1,000 ticks a second
+- = 4,096,000 ids a second each
+- 4,194,304,000 ids a second from all 1,024
+- Three generators, no coordination
+- None talks to another. The clock starts at 12:00:00.000 UTC on 24 November 2026, and the axis is true time; a
+- lane with a faulty clock shows its own ticks. A number over dots is their sequence; a dot with none is sequence
+- 0.
+- G0 number 0
+- 2
+- G1 number 1
+- G2 number 2
+- 4
+- 6
+- 8 ms
+- Sorted by id
+- the order an index keeps them in
+- id
+- timestamp · G · seq
+- 118,682,025,984,000,000
+- …000 · 0 · 0
+- 118,682,025,984,004,096
+- …000 · 1 · 0
+- 118,682,025,984,008,192
+- …000 · 2 · 0
+- 118,682,025,988,194,304
+- …001 · 0 · 0
+- 118,682,025,988,194,305
+- …001 · 0 · 1
+- 118,682,025,988,194,306
+- …001 · 0 · 2
+- 118,682,025,992,392,704
+- …002 · 1 · 0
+- 118,682,025,992,396,800
+- …002 · 2 · 0
+- 118,682,025,992,396,801
+- …002 · 2 · 1
+- 118,682,025,996,582,912
+- …003 · 0 · 0
+- 118,682,025,996,587,008
+- …003 · 1 · 0
+- 118,682,025,996,591,104
+- …003 · 2 · 0
+- 118,682,026,000,781,312
+- …004 · 1 · 0
+- 118,682,026,004,971,520
+- …005 · 0 · 0
+- 118,682,026,004,975,616
+- …005 · 1 · 0
+- 118,682,026,009,169,920
+- …006 · 1 · 0
+- 118,682,026,009,174,016
+- …006 · 2 · 0
+- 118,682,026,013,360,128
+- …007 · 0 · 0
+- 118,682,026,013,364,224
+- …007 · 1 · 0
+- 118,682,026,013,368,320
+- …007 · 2 · 0
+- Random ids beside them
+- Chance of any repeat, by the birthday bound
+- 64 bits
+- 122 bits, UUIDv4
+- 10⁻⁶
+- 10⁻¹²
+- 10⁻¹⁸
+- 10⁻²⁴
+- 10³
+- 10⁶
+- 10⁹
+- 10¹²
+- 10¹⁵
+- ids made
+- × 10⁶
+- about 9.4 × 10⁻²⁰
+- 10⁹ ids → about 5.0 × 10¹⁷ pairs × 1 in 5.3 × 10³⁶ each
+- ≈ 9.4 × 10⁻²⁰ repeats expected → chance about 9.4 × 10⁻²⁰
+- Where 24 new ids land in the index
+- Time-ordered ids: the last page
+- all 24 in 1 page, which stays in memory
+- Random ids: any page
+- 24 inserts touch 11 of 12 pages, each read
+- from disk once the index outgrows
+- memory
+- id 237,364,051,984,785,409
+- Timestamp, 40 bits
+- 2⁴⁰ ticks × 1 ms = 34.8 years
+- 1 January 2026 to 3 November 2060
+- was 69.7 years with 41 bits: one bit fewer halves it
+- lasts 34.8 years
+- was 69.7 years
+- Generator, 11 bits
+- 2¹¹ = 2,048 generators at once
+- 8,388,608,000 ids a second from all 2,048
+- 237,364,051,968,000,000
+- 237,364,051,968,004,096
+- 237,364,051,968,008,192
+- 237,364,051,976,388,608
+- 237,364,051,976,388,609
+- 237,364,051,976,388,610
+- 237,364,051,984,781,312
+- 237,364,051,984,785,408
+- 237,364,051,984,785,409
+- 237,364,051,993,165,824
+- 237,364,051,993,169,920
+- 237,364,051,993,174,016
+- 237,364,052,001,558,528
+- 237,364,052,009,943,040
+- 237,364,052,009,947,136
+- 237,364,052,018,335,744
+- 237,364,052,018,339,840
+- 237,364,052,026,720,256
+- 237,364,052,026,724,352
+- 237,364,052,026,728,448
+- id 7,595,649,663,512,879,105
+- Timestamp, 35 bits
+- 2³⁵ ticks × 1 ms = 1.1 years
+- 1 January 2026 to 2 February 2027
+- was 2.2 years with 36 bits: one bit fewer halves it
+- lasts 1.1 years
+- was 2.2 years
+- Generator, 16 bits
+- 2¹⁶ = 65,536 generators at once
+- 268,435,456,000 ids a second from all 65,536
+- 7,595,649,662,976,000,000
+- 7,595,649,662,976,004,096
+- 7,595,649,662,976,008,192
+- 7,595,649,663,244,435,456
+- 7,595,649,663,244,435,457
+- 7,595,649,663,244,435,458
+- 7,595,649,663,512,875,008
+- 7,595,649,663,512,879,104
+- 7,595,649,663,512,879,105
+- 7,595,649,663,781,306,368
+- 7,595,649,663,781,310,464
+- 7,595,649,663,781,314,560
+- 7,595,649,664,049,745,920
+- 7,595,649,664,318,177,280
+- 7,595,649,664,318,181,376
+- 7,595,649,664,586,616,832
+- 7,595,649,664,586,620,928
+- 7,595,649,664,855,048,192
+- 7,595,649,664,855,052,288
+- 7,595,649,664,855,056,384
+- made by G0 at 7.8 ms
+- timestamp 28,296,000,007
+- sequence 0
+- G0's clock: 12:00:00 + 7.8 ms − epoch 1 January 2026 = 28,296,000,007.8 ms ÷ 1 ms a tick, rounded down
+- = 28,296,000,007, the timestamp
+- id 115,900,416,028,672
+- Anyone holding this id can read when it was made (12:00:00.007 UTC on 24 November 2026, to the tick) and
+- which generator made it (number 0).
+- Timestamp, 51 bits
+- 2⁵¹ ticks × 1 ms = 71,355 years
+- 1 January 2026 to about 71,355 years after the epoch
+- was 35,678 years with 50 bits: one bit more doubles it
+- lasts 71,355 years
+- was 35,678 years
+- Generator, 0 bits
+- 2⁰ = 1 generator at once
+- 4,096,000 ids a second from all 1
+- cannot run: 0 generator bits give only 1 number
+- 115,900,416,000,000
+- 115,900,416,004,096
+- 115,900,416,004,097
+- 115,900,416,004,098
+- 115,900,416,012,288
+- 115,900,416,020,480
+- 115,900,416,028,672
+- id 28,296,000,007
+- Timestamp, 63 bits
+- 2⁶³ ticks × 1 ms = 292.3 million years
+- 1 January 2026 to about 292.3 million years after the epoch
+- was 146.1 million years with 62 bits: one bit more doubles it
+- lasts 292.3 million years
+- was 146.1 million years
+- Sequence, 0 bits
+- 2⁰ = 1 id a tick × 1,000 ticks a second = 1,000 ids a second each
+- 1,000 ids a second from all 1
+- 28,296,000,000
+- 28,296,000,001
+- 28,296,000,002
+- …002 · 0 · 0
+- 28,296,000,003
+- 28,296,000,004
+- …004 · 0 · 0
+- 28,296,000,005
+- 28,296,000,007
+- id 1,854,406,656,458,752
+- Timestamp, 47 bits
+- 2⁴⁷ ticks × 1 ms = 4,460 years
+- 1 January 2026 to 17 October 6485
+- was 8,919 years with 48 bits: one bit fewer halves it
+- lasts 4,460 years
+- was 8,919 years
+- Sequence, 16 bits
+- 2¹⁶ = 65,536 ids a tick × 1,000 ticks a second
+- = 65,536,000 ids a second each
+- 65,536,000 ids a second from all 1
+- 1,854,406,656,000,000
+- 1,854,406,656,065,536
+- 1,854,406,656,065,537
+- 1,854,406,656,065,538
+- 1,854,406,656,196,608
+- 1,854,406,656,327,680
+- 1,854,406,656,458,752
+- timestamp 2,829,600,000
+- sequence 2
+- G2's clock: 12:00:00 + 2.9 ms − epoch 1 January 2026 = 28,296,000,002.9 ms ÷ 10 ms a tick, rounded down
+- = 2,829,600,000, the timestamp
+- id 11,868,202,598,408,194
+- Anyone holding this id can read when it was made (12:00:00.000 UTC on 24 November 2026, to the tick) and
+- 2⁴¹ ticks × 10 ms = 696.8 years
+- 1 January 2026 to 5 November 2722
+- was 69.7 years with 41 bits and a 1 ms tick: a 10 ms tick makes it ten times as long
+- lasts 696.8 years
+- 2¹² = 4,096 ids a tick × 100 ticks a second
+- = 409,600 ids a second each
+- 419,430,400 ids a second from all 1,024
+- 3
+- 5
+- 11,868,202,598,400,000
+- 11,868,202,598,400,001
+- …000 · 0 · 1
+- 11,868,202,598,400,002
+- …000 · 0 · 2
+- 11,868,202,598,400,003
+- …000 · 0 · 3
+- 11,868,202,598,400,004
+- …000 · 0 · 4
+- 11,868,202,598,400,005
+- …000 · 0 · 5
+- 11,868,202,598,400,006
+- …000 · 0 · 6
+- 11,868,202,598,404,096
+- 11,868,202,598,404,097
+- …000 · 1 · 1
+- 11,868,202,598,404,098
+- …000 · 1 · 2
+- 11,868,202,598,404,099
+- …000 · 1 · 3
+- 11,868,202,598,404,100
+- …000 · 1 · 4
+- 11,868,202,598,404,101
+- …000 · 1 · 5
+- 11,868,202,598,404,102
+- …000 · 1 · 6
+- 11,868,202,598,408,192
+- 11,868,202,598,408,193
+- …000 · 2 · 1
+- 11,868,202,598,408,194
+- …000 · 2 · 2
+- 11,868,202,598,408,195
+- …000 · 2 · 3
+- 11,868,202,598,408,196
+- …000 · 2 · 4
+- 11,868,202,598,408,197
+- …000 · 2 · 5
+- timestamp 179,552,160,000
+- G2's clock: 12:00:00 + 2.9 ms − epoch 1 January 1970 = 1,795,521,600,002.9 ms
+- ÷ 10 ms a tick, rounded down = 179,552,160,000, the timestamp
+- id 753,096,342,896,648,194
+- 1 January 1970 to 4 November 2666
+- today, 56.9 years in
+- 753,096,342,896,640,000
+- 753,096,342,896,640,001
+- 753,096,342,896,640,002
+- 753,096,342,896,640,003
+- 753,096,342,896,640,004
+- 753,096,342,896,640,005
+- 753,096,342,896,640,006
+- 753,096,342,896,644,096
+- 753,096,342,896,644,097
+- 753,096,342,896,644,098
+- 753,096,342,896,644,099
+- 753,096,342,896,644,100
+- 753,096,342,896,644,101
+- 753,096,342,896,644,102
+- 753,096,342,896,648,192
+- 753,096,342,896,648,193
+- 753,096,342,896,648,194
+- 753,096,342,896,648,195
+- 753,096,342,896,648,196
+- 753,096,342,896,648,197
+- timestamp 1,795,521,600,002
+- G2's clock: 12:00:00 + 2.9 ms − epoch 1 January 1970 = 1,795,521,600,002.9 ms ÷ 1 ms a tick, rounded down
+- = 1,795,521,600,002, the timestamp
+- id 7,530,963,428,974,796,801
+- 1 January 1970 to 7 September 2039
+- was 696.8 years with 41 bits and a 10 ms tick: a 1 ms tick makes it a tenth as long
+- was 696.8 years
+- 7,530,963,428,966,400,000
+- 7,530,963,428,966,404,096
+- 7,530,963,428,966,408,192
+- 7,530,963,428,970,594,304
+- 7,530,963,428,970,594,305
+- 7,530,963,428,970,594,306
+- 7,530,963,428,974,792,704
+- 7,530,963,428,974,796,800
+- 7,530,963,428,974,796,801
+- 7,530,963,428,978,982,912
+- 7,530,963,428,978,987,008
+- 7,530,963,428,978,991,104
+- 7,530,963,428,983,181,312
+- 7,530,963,428,987,371,520
+- 7,530,963,428,987,375,616
+- 7,530,963,428,991,569,920
+- 7,530,963,428,991,574,016
+- 7,530,963,428,995,760,128
+- 7,530,963,428,995,764,224
+- 7,530,963,428,995,768,320
+- 1 full tick of 4,096
+- 904
+- last waits 0.95 ms
+- …000 · 0 · 0–4,095
+- …001 · 0 · 0–903
+- made by G2 at 2.9 ms; G2's clock, 2 ms ahead, read 4.9 ms
+- timestamp 28,296,000,004
+- G2's clock: 12:00:00 + 4.9 ms − epoch 1 January 2026 = 28,296,000,004.9 ms ÷ 1 ms a tick, rounded down
+- = 28,296,000,004, the timestamp
+- id 118,682,026,000,785,409
+- Anyone holding this id can read when it was made (12:00:00.004 UTC on 24 November 2026, to the tick) and
+- G2's clock 2 ms ahead
+- 7
+- 8
+- 9
+- 118,682,026,000,785,408
+- …004 · 2 · 0
+- 118,682,026,000,785,409
+- …004 · 2 · 1
+- 118,682,026,004,979,712
+- …005 · 2 · 0
+- 118,682,026,017,562,624
+- …008 · 2 · 0
+- 118,682,026,021,756,928
+- …009 · 2 · 0
+- A hollow amber dot sorts before an id made earlier, in an earlier tick: out of time order.
+- steps back 2 ms
+- 118,682,026,004,975,617
+- …005 · 1 · 1
+- 118,682,026,004,975,618
+- …005 · 1 · 2
+- same id as the row above
+- generator 1
+- id 118,682,025,992,392,705
+- which generator made it (number 1).
+- G2 number 1
+- given G1's number, 1
+- 118,682,025,992,392,705
+- …002 · 1 · 1
+- same as above
+- about 2.7%
+- 10⁹ ids → about 5.0 × 10¹⁷ pairs × 1 in 1.8 × 10¹⁹ each
+- ≈ 0.027 repeats expected → chance about 2.7%
+- 10³ ids → about 5.0 × 10⁵ pairs × 1 in 5.3 × 10³⁶ each
+- ≈ 9.4 × 10⁻³² repeats expected → chance about 9.4 × 10⁻³²
+- 10⁶ ids → about 5.0 × 10¹¹ pairs × 1 in 5.3 × 10³⁶ each
+- ≈ 9.4 × 10⁻²⁶ repeats expected → chance about 9.4 × 10⁻²⁶
+- about 9.4 × 10⁻¹⁴
+- 10¹² ids → about 5.0 × 10²³ pairs × 1 in 5.3 × 10³⁶ each
+- ≈ 9.4 × 10⁻¹⁴ repeats expected → chance about 9.4 × 10⁻¹⁴
+- about 9.4 × 10⁻⁸
+- 10¹⁵ ids → about 5.0 × 10²⁹ pairs × 1 in 5.3 × 10³⁶ each
+- ≈ 9.4 × 10⁻⁸ repeats expected → chance about 9.4 × 10⁻⁸
+- made by G1 at 3.1 ms
+- timestamp 28,296,000,003
+- G1's clock: 12:00:00 + 3.1 ms − epoch 1 January 2026 = 28,296,000,003.1 ms ÷ 1 ms a tick, rounded down
+- = 28,296,000,003, the timestamp
+- id 118,682,025,996,587,008
+- Anyone holding this id can read when it was made (12:00:00.003 UTC on 24 November 2026, to the tick) and
+- Look here
+- id 118,682,025,992,390,657
+- Generator, 12 bits
+- 2¹² = 4,096 generators at once
+- Sequence, 10 bits
+- 2¹⁰ = 1,024 ids a tick × 1,000 ticks a second
+- = 1,024,000 ids a second each
+- 4,194,304,000 ids a second from all 4,096
+- 118,682,025,984,001,024
+- 118,682,025,984,002,048
+- 118,682,025,992,389,632
+- 118,682,025,992,390,656
+- 118,682,025,992,390,657
+- 118,682,025,996,583,936
+- 118,682,025,996,584,960
+- 118,682,026,000,778,240
+- 118,682,026,004,972,544
+- 118,682,026,009,166,848
+- 118,682,026,009,167,872
+- 118,682,026,013,361,152
+- 118,682,026,013,362,176
+- made by G2 at 3.7 ms
+- G2's clock: 12:00:00 + 3.7 ms − epoch 1 January 2026 = 28,296,000,003.7 ms ÷ 1 ms a tick, rounded down
+- id 118,682,025,996,584,960
+- …000 · 0 · 0–1,023
+- G0's later ticks are hidden until the reveal
+- G0's later ids are hidden until you answer
+- timestamp
+- generator
+- sequence
+- This id's digits and what they tell are hidden until you answer
+- The order of the ids is hidden until you answer
+- made by G2 at 3.7 ms; G2's clock, 2 ms ahead, read 5.7 ms
+- The chance is hidden until you answer
+- Its arithmetic is hidden too
+- need 200 years from today
+- 2¹⁰ = 1,024 generators at once (need 1,000)
+- = 4,096,000 ids a second each (need 1,000,000)
+- id 29,670,506,498,099,201
+- Timestamp, 43 bits
+- 2⁴³ ticks × 1 ms = 278.7 years
+- 1 January 2026 to 27 September 2304
+- was 139.4 years with 42 bits: one bit more doubles it
+- lasts 278.7 years
+- was 139.4 years
+- = 1,024,000 ids a second each (need 1,000,000)
+- 1,048,576,000 ids a second from all 1,024
+- 29,670,506,496,000,000
+- 29,670,506,496,001,024
+- 29,670,506,496,002,048
+- 29,670,506,497,048,576
+- 29,670,506,497,048,577
+- 29,670,506,497,048,578
+- 29,670,506,498,098,176
+- 29,670,506,498,099,200
+- 29,670,506,498,099,201
+- 29,670,506,499,145,728
+- 29,670,506,499,146,752
+- 29,670,506,499,147,776
+- 29,670,506,500,195,328
+- 29,670,506,501,242,880
+- 29,670,506,501,243,904
+- 29,670,506,502,292,480
+- 29,670,506,502,293,504
+- 29,670,506,503,340,032
+- 29,670,506,503,341,056
+- 29,670,506,503,342,080
+
+### summary
+
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 40 timestamp bits, 11 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 34.8 years, to 3 November 2060. There is room for 2,048 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 35 timestamp bits, 16 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 1.1 years, to 2 February 2027. There is room for 65,536 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 51 timestamp bits, 0 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 71,355 years, to about 71,355 years after the epoch. There is room for 1 generator, each making up to 4,096,000 ids a second. One generator made 7 ids without talking to each other. G1 and G2 cannot run: 0 generator bits give only 1 number. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 63 timestamp bits, 0 generator bits and 0 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 292.3 million years, to about 292.3 million years after the epoch. There is room for 1 generator, each making up to 1,000 ids a second. One generator made 7 ids without talking to each other. G1 and G2 cannot run: 0 generator bits give only 1 number. No id repeats. Three requests waited for a later tick because a tick holds only 1 id a generator. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 47 timestamp bits, 0 generator bits and 16 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 4,460 years, to 17 October 6485. There is room for 1 generator, each making up to 65,536,000 ids a second. One generator made 7 ids without talking to each other. G1 and G2 cannot run: 0 generator bits give only 1 number. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 10 ms ticks from 1 January 2026 and lasts 696.8 years, to 5 November 2722. There is room for 1,024 generators, each making up to 409,600 ids a second. Three generators made 20 ids without talking to each other. No id repeats. With a 10 ms tick every id here shares one timestamp, so they sort by generator, then by sequence. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 10 ms ticks from 1 January 1970 and lasts 696.8 years, to 4 November 2666. There is room for 1,024 generators, each making up to 409,600 ids a second. Three generators made 20 ids without talking to each other. No id repeats. With a 10 ms tick every id here shares one timestamp, so they sort by generator, then by sequence. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 1970 and lasts 69.7 years, to 7 September 2039. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 5,013 ids without talking to each other. No id repeats. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 5,013 ids without talking to each other. G2's clock runs 2 ms ahead. No id repeats. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. Five ids from G2, whose clock runs 2 ms ahead, sort after ids made later. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 5,013 ids without talking to each other. G1's clock steps back 2 ms at 5.5 ms, and G1 keeps its last timestamp. No id repeats. G1's clock stepped back 2 ms; it kept its last timestamp and waited 0.7 ms for its clock to catch up. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. G1's clock now runs 2 ms behind, so 1 id made earlier sorts after ids G1 made later. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 5,013 ids without talking to each other. G1's clock steps back 2 ms at 5.5 ms, and G1 trusts it. Two ids repeat: G1's clock stepped back 2 ms and the generator trusted it, reissuing timestamps it had used. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. G1's clock now runs 2 ms behind, so 2 ids made earlier sort after ids G1 made later. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 5,013 ids without talking to each other. G2 was handed G1's number, 1. Five ids repeat: G1 and G2 share the number 1, so in a tick where both make an id with the same sequence, the ids are equal. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 64-bit ids, the chance of any repeat is about 2.7%, by the birthday bound. It reaches even odds near 5.1 billion ids. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a thousand random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻³², by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a million random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁶, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a trillion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻¹⁴, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a quadrillion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻⁸, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 12 generator bits and 10 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 4,096 generators, each making up to 1,024,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 12 generator bits and 10 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 4,096 generators, each making up to 1,024,000 ids a second. Three generators made ids without talking to each other. No id repeats. G0's burst is hidden until you answer. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. G2's clock runs 2 ms ahead. No id repeats. The order of the ids is hidden until you answer. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. Whether G1 makes any id twice is hidden until you answer. The order of the ids is hidden until you answer. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. G1's clock steps back 2 ms at 5.5 ms, and G1 trusts it. Whether G1 makes any id twice is hidden until you answer. The order of the ids is hidden until you answer. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Random 122-bit ids: the chance of a repeat is hidden until you answer.
+- The 64 bits are 1 sign bit, 43 timestamp bits, 10 generator bits and 10 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 278.7 years, to 27 September 2304. There is room for 1,024 generators, each making up to 1,024,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+
+### labels
+
+- Unique ids: one id made bit by bit, three generators minting, and random ids beside them
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- Newer id
+- Older id
+- Play the mint: 8 ms of three generators
+- One generator bit fewer
+- One generator bit more
+- One sequence bit fewer
+- One sequence bit more
+- The 64 bits are 1 sign bit, 40 timestamp bits, 11 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 34.8 years, to 3 November 2060. There is room for 2,048 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 35 timestamp bits, 16 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 1.1 years, to 2 February 2027. There is room for 65,536 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 51 timestamp bits, 0 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 71,355 years, to about 71,355 years after the epoch. There is room for 1 generator, each making up to 4,096,000 ids a second. One generator made 7 ids without talking to each other. G1 and G2 cannot run: 0 generator bits give only 1 number. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 63 timestamp bits, 0 generator bits and 0 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 292.3 million years, to about 292.3 million years after the epoch. There is room for 1 generator, each making up to 1,000 ids a second. One generator made 7 ids without talking to each other. G1 and G2 cannot run: 0 generator bits give only 1 number. No id repeats. Three requests waited for a later tick because a tick holds only 1 id a generator. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 47 timestamp bits, 0 generator bits and 16 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 4,460 years, to 17 October 6485. There is room for 1 generator, each making up to 65,536,000 ids a second. One generator made 7 ids without talking to each other. G1 and G2 cannot run: 0 generator bits give only 1 number. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 10 ms ticks from 1 January 2026 and lasts 696.8 years, to 5 November 2722. There is room for 1,024 generators, each making up to 409,600 ids a second. Three generators made 20 ids without talking to each other. No id repeats. With a 10 ms tick every id here shares one timestamp, so they sort by generator, then by sequence. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 10 ms ticks from 1 January 1970 and lasts 696.8 years, to 4 November 2666. There is room for 1,024 generators, each making up to 409,600 ids a second. Three generators made 20 ids without talking to each other. No id repeats. With a 10 ms tick every id here shares one timestamp, so they sort by generator, then by sequence. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 1970 and lasts 69.7 years, to 7 September 2039. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 5,013 ids without talking to each other. No id repeats. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 5,013 ids without talking to each other. G2's clock runs 2 ms ahead. No id repeats. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. Five ids from G2, whose clock runs 2 ms ahead, sort after ids made later. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 5,013 ids without talking to each other. G1's clock steps back 2 ms at 5.5 ms, and G1 keeps its last timestamp. No id repeats. G1's clock stepped back 2 ms; it kept its last timestamp and waited 0.7 ms for its clock to catch up. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. G1's clock now runs 2 ms behind, so 1 id made earlier sorts after ids G1 made later. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 5,013 ids without talking to each other. G1's clock steps back 2 ms at 5.5 ms, and G1 trusts it. Two ids repeat: G1's clock stepped back 2 ms and the generator trusted it, reissuing timestamps it had used. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. G1's clock now runs 2 ms behind, so 2 ids made earlier sort after ids G1 made later. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 5,013 ids without talking to each other. G2 was handed G1's number, 1. Five ids repeat: G1 and G2 share the number 1, so in a tick where both make an id with the same sequence, the ids are equal. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 64-bit ids, the chance of any repeat is about 2.7%, by the birthday bound. It reaches even odds near 5.1 billion ids. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a thousand random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻³², by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a million random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁶, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a trillion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻¹⁴, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a quadrillion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻⁸, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- Pause the mint
+- Every id the generators made in 8 ms, in id order
+- Play the mint, after your answer
+- Experiment: One bit for the generators
+- Snowflake's timestamp has 41 bits of 1 ms ticks and lasts 69.7 years. Move one bit from it to the generators, for 2,048 generators. How long does the timestamp last now?
+- your answer, wrong
+- correct answer
+- done
+- The 64 bits are 1 sign bit, 41 timestamp bits, 12 generator bits and 10 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 4,096 generators, each making up to 1,024,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- Experiment: A burst in one tick
+- The 64 bits are 1 sign bit, 41 timestamp bits, 12 generator bits and 10 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 4,096 generators, each making up to 1,024,000 ids a second. Three generators made ids without talking to each other. No id repeats. G0's burst is hidden until you answer. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- With 10 sequence bits a generator has 1,024 sequence numbers a tick. G0 gets 5,000 requests at 0.05 ms. How long does the last of them wait for its id?
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. G2's clock runs 2 ms ahead. No id repeats. The order of the ids is hidden until you answer. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- Experiment: Which id sorts first
+- G2's clock runs 2 ms ahead. G2 makes an id at 3.7 ms and G1 makes one at 4.4 ms, by true time. Which id is smaller, so it sorts first?
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. Whether G1 makes any id twice is hidden until you answer. The order of the ids is hidden until you answer. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- Experiment: The clock steps back
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. G1's clock steps back 2 ms at 5.5 ms, and G1 trusts it. Whether G1 makes any id twice is hidden until you answer. The order of the ids is hidden until you answer. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- G1 trusts its clock: it does not keep its last timestamp. At 5.5 ms its clock steps back 2 ms. What happens to the ids it makes after that?
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Random 122-bit ids: the chance of a repeat is hidden until you answer.
+- Experiment: A billion random ids
+- A billion ids, each 64 random bits: 2⁶⁴ values, about 18 billion billion. What is the chance that any two are equal?
+- Experiment: Challenge: size the layout
+- The 64 bits are 1 sign bit, 43 timestamp bits, 10 generator bits and 10 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 278.7 years, to 27 September 2304. There is room for 1,024 generators, each making up to 1,024,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+
+### notice
+
+- Change the layout, the requests or what goes wrong; Play runs 8 ms of three generators, slowed down.
+- The layout now has 11 generator bits and 12 sequence bits: 2,048 generators, 4,096,000 ids a second each; the timestamp keeps 40 bits and lasts 34.8 years.
+- The layout now has 16 generator bits and 12 sequence bits: 65,536 generators, 4,096,000 ids a second each; the timestamp keeps 35 bits and lasts 1.1 years.
+- The layout now has 0 generator bits and 12 sequence bits: 1 generator, 4,096,000 ids a second each; the timestamp keeps 51 bits and lasts 71,355 years.
+- The layout now has 0 generator bits and 0 sequence bits: 1 generator, 1,000 ids a second each; the timestamp keeps 63 bits and lasts 292.3 million years.
+- The layout now has 0 generator bits and 16 sequence bits: 1 generator, 65,536,000 ids a second each; the timestamp keeps 47 bits and lasts 4,460 years.
+- The timestamp counts 10 ms ticks from 1 January 2026 and lasts 696.8 years, to 5 November 2722. There is room for 1,024 generators, each making up to 409,600 ids a second.
+- The timestamp counts 10 ms ticks from 1 January 1970 and lasts 696.8 years, to 4 November 2666. There is room for 1,024 generators, each making up to 409,600 ids a second.
+- The timestamp counts 1 ms ticks from 1 January 1970 and lasts 69.7 years, to 7 September 2039. There is room for 1,024 generators, each making up to 4,096,000 ids a second.
+- The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second.
+- Three generators made 5,013 ids without talking to each other. No id repeats. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. They sort by tick, then by generator, then by sequence, so time order holds only to the tick.
+- Three generators made 5,013 ids without talking to each other. G2's clock runs 2 ms ahead. No id repeats. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. Five ids from G2, whose clock runs 2 ms ahead, sort after ids made later.
+- Three generators made 5,013 ids without talking to each other. G1's clock steps back 2 ms at 5.5 ms, and G1 keeps its last timestamp. No id repeats. G1's clock stepped back 2 ms; it kept its last timestamp and waited 0.7 ms for its clock to catch up. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. G1's clock now runs 2 ms behind, so 1 id made earlier sorts after ids G1 made later.
+- Three generators made 5,013 ids without talking to each other. G1's clock steps back 2 ms at 5.5 ms, and G1 trusts it. Two ids repeat: G1's clock stepped back 2 ms and the generator trusted it, reissuing timestamps it had used. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. G1's clock now runs 2 ms behind, so 2 ids made earlier sort after ids G1 made later.
+- Three generators made 5,013 ids without talking to each other. G2 was handed G1's number, 1. Five ids repeat: G1 and G2 share the number 1, so in a tick where both make an id with the same sequence, the ids are equal. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. They sort by tick, then by generator, then by sequence, so time order holds only to the tick.
+- Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick.
+- Among a billion random 64-bit ids, the chance of any repeat is about 2.7%, by the birthday bound.
+- Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound.
+- Among a thousand random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻³², by the birthday bound.
+- Among a million random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁶, by the birthday bound.
+- Among a trillion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻¹⁴, by the birthday bound.
+- Among a quadrillion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻⁸, by the birthday bound.
+- Playing the mint: 8 ms of the clock, slowed down.
+- Newer id: G1's, sequence 0.
+- One bit for the generators.
+- The 64 bits are 1 sign bit, 40 timestamp bits, 11 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 34.8 years, to 3 November 2060. There is room for 2,048 generators, each making up to 4,096,000 ids a second.
+- A burst in one tick.
+- Playing your guess.
+- Which id sorts first: the part it is about is hidden until you answer.
+- The clock steps back: the part it is about is hidden until you answer.
+- A billion random ids: the part it is about is hidden until you answer.
+- Among a billion random 64-bit ids, the chance of any repeat is about 2.7%, by the birthday bound. It reaches even odds near 5.1 billion ids. A thousand times the ids makes the chance about a million times larger while it is small.
+- The layout now has 10 generator bits and 12 sequence bits: 1,024 generators, 4,096,000 ids a second each; the timestamp keeps 41 bits and lasts 69.7 years.
+- Goal met. The layout now has 10 generator bits and 10 sequence bits: 1,024 generators, 1,024,000 ids a second each; the timestamp keeps 43 bits and lasts 278.7 years.
+
+### controls
+
+- Newer id ›
+- ‹ Older id
+- The layout, 63 bits to share
+- Generator bits
+- −
+- 10
+- +
+- Sequence bits
+- 12
+- Tick
+- 1 ms
+- 10 ms
+- Epoch
+- 2026
+- 1970
+- Requests to G0
+- A trickle
+- 5,000 at once
+- What goes wrong
+- Nothing
+- G2's clock ahead
+- G1's clock steps back
+- G2 given number 1
+- Keep the last timestamp (wait if the clock is behind it)
+- Random ids
+- 64 random bits
+- 122 (UUIDv4)
+- Ids made
+- A billion ids (1,000,000,000)
+- 11
+- 16
+- 0
+- A thousand ids (1,000)
+- A million ids (1,000,000)
+- A trillion ids (1,000,000,000,000)
+- A quadrillion ids (1,000,000,000,000,000)
+
+### describe
+
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a quadrillion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻⁸, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- #
+- timestamp · G · seq
+- Made
+- Note
+- 1
+- …000 · 0 · 0
+- 0.3 ms
+- 2
+- …000 · 1 · 0
+- 0.6 ms
+- 3
+- …000 · 2 · 0
+- 0.1 ms
+- 4
+- …001 · 0 · 0
+- 1.1 ms
+- 5
+- …001 · 0 · 1
+- 1.5 ms
+- 6
+- …001 · 0 · 2
+- 1.9 ms
+- 7
+- …002 · 1 · 0
+- 2.2 ms
+- 8
+- …002 · 2 · 0
+- 2.5 ms
+- 9
+- …002 · 2 · 1
+- 2.9 ms
+- 10
+- …003 · 0 · 0
+- 3.5 ms
+- 11
+- …003 · 1 · 0
+- 3.1 ms
+- 12
+- …003 · 2 · 0
+- 3.7 ms
+- 13
+- …004 · 1 · 0
+- 4.4 ms
+- 14
+- …005 · 0 · 0
+- 5.1 ms
+- 15
+- …005 · 1 · 0
+- 5.2 ms
+- 16
+- …006 · 1 · 0
+- 6.3 ms
+- 17
+- …006 · 2 · 0
+- 6.6 ms
+- 18
+- …007 · 0 · 0
+- 7.8 ms
+- 19
+- …007 · 1 · 0
+- 7.4 ms
+- 20
+- …007 · 2 · 0
+- 7.1 ms
+- Ids made in the first 8 ms of the stated clock, in id order. The index strip under the chart is an illustration from one seeded draw.
+- Describe waits for your answer.
+- Describe waits until you meet the goal.
+
+### dock
+
+- Snowflake's timestamp has 41 bits of 1 ms ticks and lasts 69.7 years. Move one bit from it to the generators, for 2,048 generators. How long does the timestamp last now?
+- The timestamp now holds 2⁴⁰ ticks, and 2⁴⁰ × 1 ms is 34.8 years, ending on 3 November 2060 instead of 7 September 2095. A bit is a doubling, so every bit moved out of the timestamp halves its lifetime, and every bit moved in doubles it: on the ruler the marker steps one bit left of its ghost.
+- With 10 sequence bits a generator has 1,024 sequence numbers a tick. G0 gets 5,000 requests at 0.05 ms. How long does the last of them wait for its id?
+- Watch the picture: the answer plays out on it.
+- G2's clock runs 2 ms ahead. G2 makes an id at 3.7 ms and G1 makes one at 4.4 ms, by true time. Which id is smaller, so it sorts first?
+- G1 trusts its clock: it does not keep its last timestamp. At 5.5 ms its clock steps back 2 ms. What happens to the ids it makes after that?
+- A billion ids, each 64 random bits: 2⁶⁴ values, about 18 billion billion. What is the chance that any two are equal?
+- By the birthday bound the chance is about 2.7%: every pair of ids is a chance to collide, and a billion ids make about 5.0 × 10¹⁷ pairs. One new id against the rest is the 1 in 18.4 billion. At 122 bits, a UUIDv4's, the same billion gives about 9.4 × 10⁻²⁰.
+- Design the layout for up to 1,000 generators, each able to make 1,000,000 ids a second on its own, lasting at least 200 years from today.
+- ✓1,024 generators (need 1,000)
+- ✓4,096,000 ids a second each (need 1,000,000)
+- ·lasts 68.8 years from today (need 200 years)
+- Goal met:
+- ✓1,024,000 ids a second each (need 1,000,000)
+- ✓lasts 277.8 years from today (need 200 years)
+- 10 generator bits and 10 sequence bits at a 1 ms tick: 1,024 generators, 1,024,000 ids a second each, and 43 timestamp bits that last 278.7 years, 277.8 years of them from today. One generator bit fewer leaves 512 generators, one sequence bit fewer 512,000 ids a second, and one more bit for either halves the timestamp to 139.4 years, short of 200 years.
+
+## Browser walk: 320 px, reduced motion
+
+### stage
+
+- One id
+- made by G2 at 2.9 ms
+- 0
+- 1
+- timestamp 28,296,000,002
+- generator 2
+- sequence 1
+- G2's clock: 12:00:00 + 2.9 ms
+- − epoch 1 January 2026
+- = 28,296,000,002.9 ms
+- ÷ 1 ms a tick, rounded down
+- = 28,296,000,002, the timestamp
+- id 118,682,025,992,396,801
+- Anyone holding this id can read when it was
+- made (12:00:00.002 UTC on 24 November
+- 2026, to the tick) and which generator made
+- it (number 2).
+- Timestamp, 41 bits
+- 2⁴¹ ticks × 1 ms = 69.7 years
+- 1 January 2026 to 7 September 2095
+- 1 month
+- 10,000 years
+- 1 billion years
+- lasts 69.7 years
+- today, 328 days in
+- Generator, 10 bits
+- 2¹⁰ = 1,024 generators at once
+- Sequence, 12 bits
+- 2¹² = 4,096 ids a tick
+- × 1,000 ticks a second
+- = 4,096,000 ids a second each
+- 4,194,304,000 ids a second from all 1,024
+- Three generators
+- None talks to another. The clock starts at
+- 12:00:00.000 UTC on 24 November 2026,
+- and the axis is true time; a lane with a faulty
+- clock shows its own ticks. A number over
+- dots is their sequence; a dot with none is
+- sequence 0.
+- G0 #0
+- 0 to 2
+- G1 #1
+- G2 #2
+- 0 to 1
+- 2
+- 4
+- 6
+- 8 ms
+- Sorted by id
+- timestamp·G·seq
+- …000·0·0
+- …000·1·0
+- …000·2·0
+- …001·0·0
+- …001·0·1
+- …001·0·2
+- …002·1·0
+- …002·2·0
+- …002·2·1
+- …003·0·0
+- …003·1·0
+- …003·2·0
+- …004·1·0
+- …005·0·0
+- …005·1·0
+- …006·1·0
+- …006·2·0
+- …007·0·0
+- …007·1·0
+- …007·2·0
+- Random ids beside them
+- Chance of any repeat, by the birthday bound
+- 64 bits
+- 122 bits, UUIDv4
+- 10⁻⁶
+- 10⁻¹²
+- 10⁻¹⁸
+- 10⁻²⁴
+- 10³
+- 10⁶
+- 10⁹
+- 10¹²
+- 10¹⁵
+- ids made
+- × 10⁶
+- 10⁹ ids → about 5.0 × 10¹⁷ pairs
+- × 1 in 5.3 × 10³⁶ each
+- ≈ 9.4 × 10⁻²⁰ repeats expected
+- → chance about 9.4 × 10⁻²⁰
+- Where 24 new ids land in the index
+- Time-ordered ids: the last page
+- all 24 in 1 page, which stays in memory
+- Random ids: any page
+- 24 inserts touch 11 of 12 pages, each read
+- from disk once the index outgrows memory
+- id 237,364,051,984,785,409
+- Timestamp, 40 bits
+- 2⁴⁰ ticks × 1 ms = 34.8 years
+- 1 January 2026 to 3 November 2060
+- was 69.7 years with 41 bits: one bit fewer
+- halves it
+- lasts 34.8 years
+- was 69.7 years
+- Generator, 11 bits
+- 2¹¹ = 2,048 generators at once
+- 8,388,608,000 ids a second from all 2,048
+- id 7,595,649,663,512,879,105
+- Timestamp, 35 bits
+- 2³⁵ ticks × 1 ms = 1.1 years
+- 1 January 2026 to 2 February 2027
+- was 2.2 years with 36 bits: one bit fewer
+- lasts 1.1 years
+- was 2.2 years
+- Generator, 16 bits
+- 2¹⁶ = 65,536 generators at once
+- 268,435,456,000 ids a second from all
+- 65,536
+- made by G0 at 7.8 ms
+- timestamp 28,296,000,007
+- sequence 0
+- G0's clock: 12:00:00 + 7.8 ms
+- = 28,296,000,007.8 ms
+- = 28,296,000,007, the timestamp
+- id 115,900,416,028,672
+- made (12:00:00.007 UTC on 24 November
+- it (number 0).
+- Timestamp, 51 bits
+- 2⁵¹ ticks × 1 ms = 71,355 years
+- 1 January 2026 to about 71,355 years after
+- the epoch
+- was 35,678 years with 50 bits: one bit more
+- doubles it
+- lasts 71,355 years
+- was 35,678 years
+- Generator, 0 bits
+- 2⁰ = 1 generator at once
+- 4,096,000 ids a second from all 1
+- no number for it
+- id 28,296,000,007
+- Timestamp, 63 bits
+- 2⁶³ ticks × 1 ms
+- = 292.3 million years
+- 1 January 2026 to about 292.3 million years
+- after the epoch
+- was 146.1 million years with 62 bits: one bit
+- more doubles it
+- lasts 292.3 million years
+- was 146.1 million years
+- Sequence, 0 bits
+- 2⁰ = 1 id a tick × 1,000 ticks a second
+- = 1,000 ids a second each
+- 1,000 ids a second from all 1
+- …002·0·0
+- …004·0·0
+- id 1,854,406,656,458,752
+- Timestamp, 47 bits
+- 2⁴⁷ ticks × 1 ms = 4,460 years
+- 1 January 2026 to 17 October 6485
+- was 8,919 years with 48 bits: one bit fewer
+- lasts 4,460 years
+- was 8,919 years
+- Sequence, 16 bits
+- 2¹⁶ = 65,536 ids a tick
+- = 65,536,000 ids a second each
+- 65,536,000 ids a second from all 1
+- timestamp 2,829,600,000
+- sequence 2
+- ÷ 10 ms a tick, rounded down
+- = 2,829,600,000, the timestamp
+- id 11,868,202,598,408,194
+- made (12:00:00.000 UTC on 24 November
+- 2⁴¹ ticks × 10 ms = 696.8 years
+- 1 January 2026 to 5 November 2722
+- was 69.7 years with 41 bits and a 1 ms tick: a
+- 10 ms tick makes it ten times as long
+- lasts 696.8 years
+- × 100 ticks a second
+- = 409,600 ids a second each
+- 419,430,400 ids a second from all 1,024
+- 0 to 6
+- 3
+- 5
+- 0 to 5
+- …000·0·1
+- …000·0·2
+- …000·0·3
+- …000·0·4
+- …000·0·5
+- …000·0·6
+- …000·1·1
+- …000·1·2
+- …000·1·3
+- …000·1·4
+- …000·1·5
+- …000·1·6
+- …000·2·1
+- …000·2·2
+- …000·2·3
+- …000·2·4
+- …000·2·5
+- timestamp 179,552,160,000
+- − epoch 1 January 1970
+- = 1,795,521,600,002.9 ms
+- = 179,552,160,000, the timestamp
+- id 753,096,342,896,648,194
+- 1 January 1970 to 4 November 2666
+- today, 56.9 years in
+- timestamp 1,795,521,600,002
+- = 1,795,521,600,002, the timestamp
+- id 7,530,963,428,974,796,801
+- 1 January 1970 to 7 September 2039
+- was 696.8 years with 41 bits and a 10 ms
+- tick: a 1 ms tick makes it a tenth as long
+- was 696.8 years
+- 1 full tick of 4,096
+- last waits 0.95 ms
+- …000·0·0–4,095
+- …001·0·0–903
+- made by G2 at 2.9 ms; G2's clock, 2 ms
+- ahead, read 4.9 ms
+- timestamp 28,296,000,004
+- G2's clock: 12:00:00 + 4.9 ms
+- = 28,296,000,004.9 ms
+- = 28,296,000,004, the timestamp
+- id 118,682,026,000,785,409
+- made (12:00:00.004 UTC on 24 November
+- +2 ms
+- 7
+- 8
+- 9
+- …004·2·0
+- …004·2·1
+- …005·2·0
+- …008·2·0
+- …009·2·0
+- A hollow amber dot sorts before an id
+- made earlier, in an earlier tick: out of time
+- order.
+- −2 ms
+- …005·1·1
+- …005·1·2
+- same as above
+- generator 1
+- id 118,682,025,992,392,705
+- it (number 1).
+- G2 #1
+- number 1
+- …002·1·1
+- about 2.7%
+- × 1 in 1.8 × 10¹⁹ each
+- ≈ 0.027 repeats expected
+- → chance about 2.7%
+- 10³ ids → about 5.0 × 10⁵ pairs
+- ≈ 9.4 × 10⁻³² repeats expected
+- → chance about 9.4 × 10⁻³²
+- 10⁶ ids → about 5.0 × 10¹¹ pairs
+- ≈ 9.4 × 10⁻²⁶ repeats expected
+- → chance about 9.4 × 10⁻²⁶
+- 10¹² ids → about 5.0 × 10²³ pairs
+- ≈ 9.4 × 10⁻¹⁴ repeats expected
+- → chance about 9.4 × 10⁻¹⁴
+- 10¹⁵ ids → about 5.0 × 10²⁹ pairs
+- ≈ 9.4 × 10⁻⁸ repeats expected
+- → chance about 9.4 × 10⁻⁸
+- made by G1 at 3.1 ms
+- timestamp 28,296,000,003
+- G1's clock: 12:00:00 + 3.1 ms
+- = 28,296,000,003.1 ms
+- = 28,296,000,003, the timestamp
+- id 118,682,025,996,587,008
+- made (12:00:00.003 UTC on 24 November
+- Look here
+- id 118,682,025,992,390,657
+- Generator, 12 bits
+- 2¹² = 4,096 generators at once
+- Sequence, 10 bits
+- 2¹⁰ = 1,024 ids a tick
+- = 1,024,000 ids a second each
+- 4,194,304,000 ids a second from all 4,096
+- 4 full ticks of 1,024
+- 904
+- last waits 3.95 ms
+- …000·0·0–1,023
+- …001·0·0–1,023
+- …002·0·0–1,023
+- …003·0·0–1,023
+- …004·0·0–903
+- timestamp
+- generator
+- sequence
+- Hidden until you answer
+- sorts first
+- The chance is hidden until you answer
+- Its arithmetic is hidden too
+- need 200 years from today
+- (need 1,000)
+- (need 1,000,000)
+- id 29,670,506,498,099,201
+- Timestamp, 43 bits
+- 2⁴³ ticks × 1 ms = 278.7 years
+- 1 January 2026 to 27 September 2304
+- was 139.4 years with 42 bits: one bit more
+- lasts 278.7 years
+- was 139.4 years
+- need 200 yr
+- 1,048,576,000 ids a second from all 1,024
+
+### summary
+
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 40 timestamp bits, 11 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 34.8 years, to 3 November 2060. There is room for 2,048 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 35 timestamp bits, 16 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 1.1 years, to 2 February 2027. There is room for 65,536 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 51 timestamp bits, 0 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 71,355 years, to about 71,355 years after the epoch. There is room for 1 generator, each making up to 4,096,000 ids a second. One generator made 7 ids without talking to each other. G1 and G2 cannot run: 0 generator bits give only 1 number. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 63 timestamp bits, 0 generator bits and 0 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 292.3 million years, to about 292.3 million years after the epoch. There is room for 1 generator, each making up to 1,000 ids a second. One generator made 7 ids without talking to each other. G1 and G2 cannot run: 0 generator bits give only 1 number. No id repeats. Three requests waited for a later tick because a tick holds only 1 id a generator. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 47 timestamp bits, 0 generator bits and 16 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 4,460 years, to 17 October 6485. There is room for 1 generator, each making up to 65,536,000 ids a second. One generator made 7 ids without talking to each other. G1 and G2 cannot run: 0 generator bits give only 1 number. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 10 ms ticks from 1 January 2026 and lasts 696.8 years, to 5 November 2722. There is room for 1,024 generators, each making up to 409,600 ids a second. Three generators made 20 ids without talking to each other. No id repeats. With a 10 ms tick every id here shares one timestamp, so they sort by generator, then by sequence. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 10 ms ticks from 1 January 1970 and lasts 696.8 years, to 4 November 2666. There is room for 1,024 generators, each making up to 409,600 ids a second. Three generators made 20 ids without talking to each other. No id repeats. With a 10 ms tick every id here shares one timestamp, so they sort by generator, then by sequence. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 1970 and lasts 69.7 years, to 7 September 2039. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 5,013 ids without talking to each other. No id repeats. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 5,013 ids without talking to each other. G2's clock runs 2 ms ahead. No id repeats. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. Five ids from G2, whose clock runs 2 ms ahead, sort after ids made later. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 5,013 ids without talking to each other. G1's clock steps back 2 ms at 5.5 ms, and G1 keeps its last timestamp. No id repeats. G1's clock stepped back 2 ms; it kept its last timestamp and waited 0.7 ms for its clock to catch up. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. G1's clock now runs 2 ms behind, so 1 id made earlier sorts after ids G1 made later. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 5,013 ids without talking to each other. G1's clock steps back 2 ms at 5.5 ms, and G1 trusts it. Two ids repeat: G1's clock stepped back 2 ms and the generator trusted it, reissuing timestamps it had used. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. G1's clock now runs 2 ms behind, so 2 ids made earlier sort after ids G1 made later. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 5,013 ids without talking to each other. G2 was handed G1's number, 1. Five ids repeat: G1 and G2 share the number 1, so in a tick where both make an id with the same sequence, the ids are equal. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 64-bit ids, the chance of any repeat is about 2.7%, by the birthday bound. It reaches even odds near 5.1 billion ids. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a thousand random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻³², by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a million random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁶, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a trillion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻¹⁴, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a quadrillion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻⁸, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 12 generator bits and 10 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 4,096 generators, each making up to 1,024,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 12 generator bits and 10 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 4,096 generators, each making up to 1,024,000 ids a second. Three generators made 5,013 ids without talking to each other. No id repeats. G0's burst of 5,000 requests needs 5 ticks of 1,024 ids, so its last request waits 3.95 ms. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. G2's clock runs 2 ms ahead. No id repeats. The order of the ids is hidden until you answer. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. G2's clock runs 2 ms ahead. No id repeats. Five ids from G2, whose clock runs 2 ms ahead, sort after ids made later. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. Whether G1 makes any id twice is hidden until you answer. The order of the ids is hidden until you answer. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. G1's clock steps back 2 ms at 5.5 ms, and G1 trusts it. Two ids repeat: G1's clock stepped back 2 ms and the generator trusted it, reissuing timestamps it had used. G1's clock now runs 2 ms behind, so 3 ids made earlier sort after ids G1 made later. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Random 122-bit ids: the chance of a repeat is hidden until you answer.
+- The 64 bits are 1 sign bit, 43 timestamp bits, 10 generator bits and 10 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 278.7 years, to 27 September 2304. There is room for 1,024 generators, each making up to 1,024,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+
+### labels
+
+- Unique ids: one id made bit by bit, three generators minting, and random ids beside them
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- Newer id
+- Older id
+- Play the mint: 8 ms of three generators
+- One generator bit fewer
+- One generator bit more
+- One sequence bit fewer
+- One sequence bit more
+- The 64 bits are 1 sign bit, 40 timestamp bits, 11 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 34.8 years, to 3 November 2060. There is room for 2,048 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 35 timestamp bits, 16 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 1.1 years, to 2 February 2027. There is room for 65,536 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 51 timestamp bits, 0 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 71,355 years, to about 71,355 years after the epoch. There is room for 1 generator, each making up to 4,096,000 ids a second. One generator made 7 ids without talking to each other. G1 and G2 cannot run: 0 generator bits give only 1 number. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 63 timestamp bits, 0 generator bits and 0 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 292.3 million years, to about 292.3 million years after the epoch. There is room for 1 generator, each making up to 1,000 ids a second. One generator made 7 ids without talking to each other. G1 and G2 cannot run: 0 generator bits give only 1 number. No id repeats. Three requests waited for a later tick because a tick holds only 1 id a generator. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 47 timestamp bits, 0 generator bits and 16 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 4,460 years, to 17 October 6485. There is room for 1 generator, each making up to 65,536,000 ids a second. One generator made 7 ids without talking to each other. G1 and G2 cannot run: 0 generator bits give only 1 number. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 10 ms ticks from 1 January 2026 and lasts 696.8 years, to 5 November 2722. There is room for 1,024 generators, each making up to 409,600 ids a second. Three generators made 20 ids without talking to each other. No id repeats. With a 10 ms tick every id here shares one timestamp, so they sort by generator, then by sequence. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 10 ms ticks from 1 January 1970 and lasts 696.8 years, to 4 November 2666. There is room for 1,024 generators, each making up to 409,600 ids a second. Three generators made 20 ids without talking to each other. No id repeats. With a 10 ms tick every id here shares one timestamp, so they sort by generator, then by sequence. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 1970 and lasts 69.7 years, to 7 September 2039. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 5,013 ids without talking to each other. No id repeats. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 5,013 ids without talking to each other. G2's clock runs 2 ms ahead. No id repeats. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. Five ids from G2, whose clock runs 2 ms ahead, sort after ids made later. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 5,013 ids without talking to each other. G1's clock steps back 2 ms at 5.5 ms, and G1 keeps its last timestamp. No id repeats. G1's clock stepped back 2 ms; it kept its last timestamp and waited 0.7 ms for its clock to catch up. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. G1's clock now runs 2 ms behind, so 1 id made earlier sorts after ids G1 made later. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 5,013 ids without talking to each other. G1's clock steps back 2 ms at 5.5 ms, and G1 trusts it. Two ids repeat: G1's clock stepped back 2 ms and the generator trusted it, reissuing timestamps it had used. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. G1's clock now runs 2 ms behind, so 2 ids made earlier sort after ids G1 made later. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 5,013 ids without talking to each other. G2 was handed G1's number, 1. Five ids repeat: G1 and G2 share the number 1, so in a tick where both make an id with the same sequence, the ids are equal. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 64-bit ids, the chance of any repeat is about 2.7%, by the birthday bound. It reaches even odds near 5.1 billion ids. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a thousand random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻³², by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a million random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁶, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a trillion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻¹⁴, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a quadrillion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻⁸, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- Every id the generators made in 8 ms, in id order
+- Play the mint, after your answer
+- Experiment: One bit for the generators
+- Snowflake's timestamp has 41 bits of 1 ms ticks and lasts 69.7 years. Move one bit from it to the generators, for 2,048 generators. How long does the timestamp last now?
+- your answer, wrong
+- correct answer
+- done
+- The 64 bits are 1 sign bit, 41 timestamp bits, 12 generator bits and 10 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 4,096 generators, each making up to 1,024,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- Experiment: A burst in one tick
+- The 64 bits are 1 sign bit, 41 timestamp bits, 12 generator bits and 10 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 4,096 generators, each making up to 1,024,000 ids a second. Three generators made 5,013 ids without talking to each other. No id repeats. G0's burst of 5,000 requests needs 5 ticks of 1,024 ids, so its last request waits 3.95 ms. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- With 10 sequence bits a generator has 1,024 sequence numbers a tick. G0 gets 5,000 requests at 0.05 ms. How long does the last of them wait for its id?
+- your answer, correct
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. G2's clock runs 2 ms ahead. No id repeats. The order of the ids is hidden until you answer. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- Experiment: Which id sorts first
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. G2's clock runs 2 ms ahead. No id repeats. Five ids from G2, whose clock runs 2 ms ahead, sort after ids made later. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- G2's clock runs 2 ms ahead. G2 makes an id at 3.7 ms and G1 makes one at 4.4 ms, by true time. Which id is smaller, so it sorts first?
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. Whether G1 makes any id twice is hidden until you answer. The order of the ids is hidden until you answer. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- Experiment: The clock steps back
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. G1's clock steps back 2 ms at 5.5 ms, and G1 trusts it. Two ids repeat: G1's clock stepped back 2 ms and the generator trusted it, reissuing timestamps it had used. G1's clock now runs 2 ms behind, so 3 ids made earlier sort after ids G1 made later. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- G1 trusts its clock: it does not keep its last timestamp. At 5.5 ms its clock steps back 2 ms. What happens to the ids it makes after that?
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Random 122-bit ids: the chance of a repeat is hidden until you answer.
+- Experiment: A billion random ids
+- A billion ids, each 64 random bits: 2⁶⁴ values, about 18 billion billion. What is the chance that any two are equal?
+- Experiment: Challenge: size the layout
+- The 64 bits are 1 sign bit, 43 timestamp bits, 10 generator bits and 10 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 278.7 years, to 27 September 2304. There is room for 1,024 generators, each making up to 1,024,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+
+### notice
+
+- Change the layout, the requests or what goes wrong; Play runs 8 ms of three generators, slowed down.
+- The layout now has 11 generator bits and 12 sequence bits: 2,048 generators, 4,096,000 ids a second each; the timestamp keeps 40 bits and lasts 34.8 years.
+- The layout now has 16 generator bits and 12 sequence bits: 65,536 generators, 4,096,000 ids a second each; the timestamp keeps 35 bits and lasts 1.1 years.
+- The layout now has 0 generator bits and 12 sequence bits: 1 generator, 4,096,000 ids a second each; the timestamp keeps 51 bits and lasts 71,355 years.
+- The layout now has 0 generator bits and 0 sequence bits: 1 generator, 1,000 ids a second each; the timestamp keeps 63 bits and lasts 292.3 million years.
+- The layout now has 0 generator bits and 16 sequence bits: 1 generator, 65,536,000 ids a second each; the timestamp keeps 47 bits and lasts 4,460 years.
+- The timestamp counts 10 ms ticks from 1 January 2026 and lasts 696.8 years, to 5 November 2722. There is room for 1,024 generators, each making up to 409,600 ids a second.
+- The timestamp counts 10 ms ticks from 1 January 1970 and lasts 696.8 years, to 4 November 2666. There is room for 1,024 generators, each making up to 409,600 ids a second.
+- The timestamp counts 1 ms ticks from 1 January 1970 and lasts 69.7 years, to 7 September 2039. There is room for 1,024 generators, each making up to 4,096,000 ids a second.
+- The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second.
+- Three generators made 5,013 ids without talking to each other. No id repeats. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. They sort by tick, then by generator, then by sequence, so time order holds only to the tick.
+- Three generators made 5,013 ids without talking to each other. G2's clock runs 2 ms ahead. No id repeats. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. Five ids from G2, whose clock runs 2 ms ahead, sort after ids made later.
+- Three generators made 5,013 ids without talking to each other. G1's clock steps back 2 ms at 5.5 ms, and G1 keeps its last timestamp. No id repeats. G1's clock stepped back 2 ms; it kept its last timestamp and waited 0.7 ms for its clock to catch up. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. G1's clock now runs 2 ms behind, so 1 id made earlier sorts after ids G1 made later.
+- Three generators made 5,013 ids without talking to each other. G1's clock steps back 2 ms at 5.5 ms, and G1 trusts it. Two ids repeat: G1's clock stepped back 2 ms and the generator trusted it, reissuing timestamps it had used. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. G1's clock now runs 2 ms behind, so 2 ids made earlier sort after ids G1 made later.
+- Three generators made 5,013 ids without talking to each other. G2 was handed G1's number, 1. Five ids repeat: G1 and G2 share the number 1, so in a tick where both make an id with the same sequence, the ids are equal. G0's burst of 5,000 requests needs 2 ticks of 4,096 ids, so its last request waits 0.95 ms. They sort by tick, then by generator, then by sequence, so time order holds only to the tick.
+- Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick.
+- Among a billion random 64-bit ids, the chance of any repeat is about 2.7%, by the birthday bound.
+- Among a billion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁰, by the birthday bound.
+- Among a thousand random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻³², by the birthday bound.
+- Among a million random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻²⁶, by the birthday bound.
+- Among a trillion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻¹⁴, by the birthday bound.
+- Among a quadrillion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻⁸, by the birthday bound.
+- Reduced motion: the mint is drawn at its end. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick.
+- Newer id: G1's, sequence 0.
+- One bit for the generators.
+- The 64 bits are 1 sign bit, 40 timestamp bits, 11 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 34.8 years, to 3 November 2060. There is room for 2,048 generators, each making up to 4,096,000 ids a second.
+- A burst in one tick.
+- Three generators made 5,013 ids without talking to each other. No id repeats. G0's burst of 5,000 requests needs 5 ticks of 1,024 ids, so its last request waits 3.95 ms. They sort by tick, then by generator, then by sequence, so time order holds only to the tick.
+- Which id sorts first: the part it is about is hidden until you answer.
+- Three generators made 20 ids without talking to each other. G2's clock runs 2 ms ahead. No id repeats. Five ids from G2, whose clock runs 2 ms ahead, sort after ids made later.
+- The clock steps back: the part it is about is hidden until you answer.
+- Three generators made 20 ids without talking to each other. G1's clock steps back 2 ms at 5.5 ms, and G1 trusts it. Two ids repeat: G1's clock stepped back 2 ms and the generator trusted it, reissuing timestamps it had used. G1's clock now runs 2 ms behind, so 3 ids made earlier sort after ids G1 made later.
+- A billion random ids: the part it is about is hidden until you answer.
+- Among a billion random 64-bit ids, the chance of any repeat is about 2.7%, by the birthday bound. It reaches even odds near 5.1 billion ids. A thousand times the ids makes the chance about a million times larger while it is small.
+- The layout now has 10 generator bits and 12 sequence bits: 1,024 generators, 4,096,000 ids a second each; the timestamp keeps 41 bits and lasts 69.7 years.
+- Goal met. The layout now has 10 generator bits and 10 sequence bits: 1,024 generators, 1,024,000 ids a second each; the timestamp keeps 43 bits and lasts 278.7 years.
+
+### controls
+
+- ›
+- ‹
+- The layout, 63 bits to share
+- Generator bits
+- −
+- 10
+- +
+- Sequence bits
+- 12
+- Tick
+- 1 ms
+- 10 ms
+- Epoch
+- 2026
+- 1970
+- Requests to G0
+- A trickle
+- 5,000 at once
+- What goes wrong
+- Nothing
+- G2's clock ahead
+- G1's clock steps back
+- G2 given number 1
+- Keep the last timestamp (wait if the clock is behind it)
+- Random ids
+- 64 random bits
+- 122 (UUIDv4)
+- Ids made
+- A billion ids (1,000,000,000)
+- 11
+- 16
+- 0
+- A thousand ids (1,000)
+- A million ids (1,000,000)
+- A trillion ids (1,000,000,000,000)
+- A quadrillion ids (1,000,000,000,000,000)
+
+### caption
+
+- Reduced motion: the mint is drawn at its end. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick.
+
+### describe
+
+- The 64 bits are 1 sign bit, 41 timestamp bits, 10 generator bits and 12 sequence bits. The timestamp counts 1 ms ticks from 1 January 2026 and lasts 69.7 years, to 7 September 2095. There is room for 1,024 generators, each making up to 4,096,000 ids a second. Three generators made 20 ids without talking to each other. No id repeats. They sort by tick, then by generator, then by sequence, so time order holds only to the tick. Among a quadrillion random 122-bit ids, the chance of any repeat is about 9.4 × 10⁻⁸, by the birthday bound. It reaches even odds only near 2.7 × 10¹⁸ ids, past the chart. A thousand times the ids makes the chance about a million times larger while it is small.
+- #
+- timestamp · G · seq
+- Made
+- Note
+- 1
+- …000 · 0 · 0
+- 0.3 ms
+- 2
+- …000 · 1 · 0
+- 0.6 ms
+- 3
+- …000 · 2 · 0
+- 0.1 ms
+- 4
+- …001 · 0 · 0
+- 1.1 ms
+- 5
+- …001 · 0 · 1
+- 1.5 ms
+- 6
+- …001 · 0 · 2
+- 1.9 ms
+- 7
+- …002 · 1 · 0
+- 2.2 ms
+- 8
+- …002 · 2 · 0
+- 2.5 ms
+- 9
+- …002 · 2 · 1
+- 2.9 ms
+- 10
+- …003 · 0 · 0
+- 3.5 ms
+- 11
+- …003 · 1 · 0
+- 3.1 ms
+- 12
+- …003 · 2 · 0
+- 3.7 ms
+- 13
+- …004 · 1 · 0
+- 4.4 ms
+- 14
+- …005 · 0 · 0
+- 5.1 ms
+- 15
+- …005 · 1 · 0
+- 5.2 ms
+- 16
+- …006 · 1 · 0
+- 6.3 ms
+- 17
+- …006 · 2 · 0
+- 6.6 ms
+- 18
+- …007 · 0 · 0
+- 7.8 ms
+- 19
+- …007 · 1 · 0
+- 7.4 ms
+- 20
+- …007 · 2 · 0
+- 7.1 ms
+- Ids made in the first 8 ms of the stated clock, in id order. The index strip under the chart is an illustration from one seeded draw.
+- Describe waits for your answer.
+- Describe waits until you meet the goal.
+
+### dock
+
+- Snowflake's timestamp has 41 bits of 1 ms ticks and lasts 69.7 years. Move one bit from it to the generators, for 2,048 generators. How long does the timestamp last now?
+- The timestamp now holds 2⁴⁰ ticks, and 2⁴⁰ × 1 ms is 34.8 years, ending on 3 November 2060 instead of 7 September 2095. A bit is a doubling, so every bit moved out of the timestamp halves its lifetime, and every bit moved in doubles it: on the ruler the marker steps one bit left of its ghost.
+- With 10 sequence bits a generator has 1,024 sequence numbers a tick. G0 gets 5,000 requests at 0.05 ms. How long does the last of them wait for its id?
+- Each tick gives G0 only 1,024 ids, so the 5,000 requests take 5 ticks: four full gauges, then 904 ids in the last, and the last request waits 3.95 ms. The generator never repeats a sequence number; it waits for the clock. The other generators are not slowed at all.
+- G2's clock runs 2 ms ahead. G2 makes an id at 3.7 ms and G1 makes one at 4.4 ms, by true time. Which id is smaller, so it sorts first?
+- G2's clock read 5.7 ms when it made its id, so its timestamp is the tick at 5 ms; G1's id carries the tick at 4 ms. The timestamp is the high bits, so G1's id sorts first although it was made 0.7 ms later. Each generator stamps ids with its own clock, so across machines ids are only as time-ordered as their clocks agree.
+- G1 trusts its clock: it does not keep its last timestamp. At 5.5 ms its clock steps back 2 ms. What happens to the ids it makes after that?
+- Two ids are made twice: after the step G1's clock reads ticks it has used, and its sequence starts again at 0, so it makes the same timestamp, number and sequence as before. Turn on "Keep the last timestamp" and G1 waits 0.7 ms for its clock to pass the last timestamp it used, and none repeats.
+- A billion ids, each 64 random bits: 2⁶⁴ values, about 18 billion billion. What is the chance that any two are equal?
+- By the birthday bound the chance is about 2.7%: every pair of ids is a chance to collide, and a billion ids make about 5.0 × 10¹⁷ pairs. One new id against the rest is the 1 in 18.4 billion. At 122 bits, a UUIDv4's, the same billion gives about 9.4 × 10⁻²⁰.
+- Design the layout for up to 1,000 generators, each able to make 1,000,000 ids a second on its own, lasting at least 200 years from today.
+- ✓1,024 generators (need 1,000)
+- ✓4,096,000 ids a second each (need 1,000,000)
+- ·lasts 68.8 years from today (need 200 years)
+- Goal met:
+- ✓1,024,000 ids a second each (need 1,000,000)
+- ✓lasts 277.8 years from today (need 200 years)
+- 10 generator bits and 10 sequence bits at a 1 ms tick: 1,024 generators, 1,024,000 ids a second each, and 43 timestamp bits that last 278.7 years, 277.8 years of them from today. One generator bit fewer leaves 512 generators, one sequence bit fewer 512,000 ids a second, and one more bit for either halves the timestamp to 139.4 years, short of 200 years.
