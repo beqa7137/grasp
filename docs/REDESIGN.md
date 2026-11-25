@@ -3536,6 +3536,12 @@ sample.ts`: the seeded year (seed 3282478, common random numbers, no two outages
     settings, and catches a leak planted on each flag of the map against a clean run of the same question.
     `IDS_KEEP` keeps a number with its unit, a "(need ...)", "number 1", a date, a power of ten and a percentage whole
     in every `g-code-text` of the widget.
+  - **Fix round 1.** While an answer plays, the stage draws the marks the question asked about as the play makes them
+    (`onStage` lifts `burstAfter`, `order`, `inspect` and `repeats` from the stage) and only the words wait for the
+    reveal; nothing is drawn before its event (a step back, a faulty clock's ticks, an out-of-order mark among the ids
+    made so far). The out-of-order mark is "made before an id that sorts ahead of it" everywhere; every waited request
+    shows its arrival, wait and reason; the ruler names its marks in one ordered row with leaders; the guard is named
+    for the comparison it makes; the overflow message is never under a fill.
 
 **R46 Case widgets II.**
 
