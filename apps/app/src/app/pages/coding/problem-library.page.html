@@ -190,6 +190,25 @@
       </div>
       <p class="hint" [id]="where + '-level'">{{ levelHint() }}</p>
     </div>
+    @if (companies().length) {
+      <div class="facet" role="group" [attr.aria-labelledby]="where + '-reported'">
+        <h3 [id]="where + '-reported'">Interview reports</h3>
+        <div class="options">
+          @for (c of companies(); track c.id) {
+            @let n = result().counts.reported[c.id];
+            <button
+              type="button"
+              g-chip
+              [attr.aria-pressed]="lib.isOn('reported', c.id)"
+              [attr.aria-disabled]="dimmed('reported', c.id, n)"
+              (click)="toggle('reported', c.id, n)"
+            >
+              Reported at {{ c.name }} <span class="count">{{ n }}</span>
+            </button>
+          }
+        </div>
+      </div>
+    }
     <div class="facet" role="group" [attr.aria-labelledby]="where + '-pattern'">
       <h3 [id]="where + '-pattern'">Pattern</h3>
       @for (t of tracks; track t.id) {

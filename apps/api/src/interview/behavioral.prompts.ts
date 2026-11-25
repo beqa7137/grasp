@@ -1,4 +1,13 @@
-import { ANSWER_FLAWS, COMPETENCY_CATALOG, getCompetencySummary, type Seniority, type StarDraft, type StarPart } from '@grasp/engine';
+import {
+  ANSWER_FLAWS,
+  COMPANY_NAMES,
+  COMPETENCY_CATALOG,
+  attributesOfQuestion,
+  getCompetencySummary,
+  type Seniority,
+  type StarDraft,
+  type StarPart,
+} from '@grasp/engine';
 import type { InterviewMessage, InterviewSession } from './interview.types.js';
 import { RUBRICS } from './prompts.js';
 
@@ -60,6 +69,18 @@ function competencyLine(session: InterviewSession): string {
   return summary ? `${summary.name}: ${summary.oneLiner}` : session.problem.title;
 }
 
+/** The culture attributes the session's company maps to this question, for one follow-up; nothing without a company. */
+export function cultureAttributes(session: InterviewSession) {
+  return attributesOfQuestion(session.company, session.problem.id, session.problem.competencyId ?? '');
+}
+
+function cultureLines(session: InterviewSession): string {
+  const attributes = cultureAttributes(session);
+  if (!session.company || !attributes.length) return '';
+  const names = attributes.map((a) => a.name).join(', ');
+  return `\nThe candidate is preparing for a ${COMPANY_NAMES[session.company]} loop. Where their story allows, let one follow-up test how it shows: ${names}. Never name these or any list of values unless the candidate does.`;
+}
+
 export function behavioralInterviewerPrompt(session: InterviewSession): string {
   const { problem } = session;
   return `You are a bar raiser at a large tech company running the behavioral part of a software engineer's interview loop, in a chat window inside an interview-practice app. You asked one question. The candidate answers it once in STAR form; you then ask follow-ups the way a trained bar raiser would.
@@ -67,7 +88,7 @@ export function behavioralInterviewerPrompt(session: InterviewSession): string {
 <question>
 Competency: ${competencyLine(session)}
 What you asked: ${problem.opening}
-Candidate level: ${LEVELS[session.level ?? 'mid'].asked}
+Candidate level: ${LEVELS[session.level ?? 'mid'].asked}${cultureLines(session)}
 </question>
 
 <reference_notes>

@@ -69,19 +69,43 @@ describe('the problem library', () => {
     expect(queryLibrary(query({ q: 'zzzz' }), {}).groups).toEqual([]);
   });
 
+  it('filters by the companies whose reports name a problem, counting with the other facets', () => {
+    const sets = { microsoft: new Set(['two-sum', 'rotting-oranges', 'validate-bst']) };
+    const all = queryLibrary(EMPTY_LIBRARY_QUERY, {}, sets);
+    expect(all.counts.reported).toEqual({ microsoft: 3 });
+    const reported = queryLibrary(query({ reported: ['microsoft'] }), {}, sets);
+    expect(reported.problems.map((p) => p.id).sort()).toEqual(['rotting-oranges', 'two-sum', 'validate-bst']);
+    expect(reported.counts.reported).toEqual({ microsoft: 3 });
+    expect(reported.counts.difficulty.easy).toBe(1);
+    const easy = queryLibrary(query({ reported: ['microsoft'], difficulty: ['easy'] }), {}, sets);
+    expect(easy.counts.reported).toEqual({ microsoft: 1 });
+    expect(queryLibrary(query({ reported: ['microsoft'] }), {}).problems).toEqual([]);
+    expect(parseLibraryQuery({ reported: 'microsoft,amazon,nope' }).reported).toEqual(['microsoft']);
+    expect(libraryQueryParams(query({ reported: ['microsoft'] })).reported).toBe('microsoft');
+    expect(isFiltered(query({ reported: ['microsoft'] }))).toBe(true);
+  });
+
   it('has three exclusive states', () => {
     expect([problemState(undefined), problemState(attempted()), problemState(solved())]).toEqual(['unsolved', 'attempted', 'solved']);
   });
 
   it('round-trips the URL, drops unknown values and keeps the catalog order', () => {
     const parsed = parseLibraryQuery({ track: 'graphs,nope,foundations', difficulty: 'hard,easy', status: 'solved', q: ' koko ' });
-    expect(parsed).toEqual({ q: 'koko', status: ['solved'], difficulty: ['easy', 'hard'], track: ['foundations', 'graphs'], pattern: [] });
+    expect(parsed).toEqual({
+      q: 'koko',
+      status: ['solved'],
+      difficulty: ['easy', 'hard'],
+      track: ['foundations', 'graphs'],
+      pattern: [],
+      reported: [],
+    });
     expect(libraryQueryParams(parsed)).toEqual({
       q: 'koko',
       status: 'solved',
       difficulty: 'easy,hard',
       track: 'foundations,graphs',
       pattern: null,
+      reported: null,
     });
     expect(parseLibraryQuery({})).toEqual(EMPTY_LIBRARY_QUERY);
     expect(isFiltered(parseLibraryQuery({}))).toBe(false);

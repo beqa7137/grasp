@@ -36,6 +36,7 @@ import { AnnouncerService } from '../../core/announcer.service';
 import { ApiError, ApiService } from '../../core/api.service';
 import { refocusAfterRender } from '../../core/focus';
 import { ProgressService } from '../../core/progress.service';
+import { TargetCompanyService } from '../../companies/target-company.service';
 import { RovingSelectDirective } from '../../core/roving-select.directive';
 import { SignInOptionsComponent } from '../../core/sign-in-options.component';
 import type { AiAccess, InterviewCatalog, InterviewMode, InterviewSession } from './interview.types';
@@ -405,6 +406,12 @@ export class MockLoopPage {
   readonly target = computed(() => currentTarget(this.progress.state()));
   /** A string, so a record that leaves the level as it was does not reset the one picked here. */
   private readonly targetLevel = computed(() => this.target().target.level);
+  /** Read when each behavioral round opens, so a resumed loop follows the Target's company as it is now. */
+  private readonly targetCompany = inject(TargetCompanyService).company;
+  private readonly company = computed(() => {
+    const company = this.targetCompany();
+    return company ? { company } : {};
+  });
   private readonly loopRounds = computed(() => PLAN_ROUNDS.filter((r) => this.target().target.rounds[r] > 0));
   readonly setupTracks = computed(() => this.loopRounds().map((r) => PLAN_ROUND_TRACK[r]));
   readonly rounds = computed(() =>
@@ -557,7 +564,7 @@ export class MockLoopPage {
         track: round.track,
         problemId: round.problemId,
         mode: loop.mode,
-        ...(round.track === 'behavioral' ? { level: loop.level } : {}),
+        ...(round.track === 'behavioral' ? { level: loop.level, ...this.company() } : {}),
       });
       this.sessions.update((all) => ({ ...all, [session.id]: session }));
       await this.loops.update((l) => ({ ...l, rounds: l.rounds.map((r, i) => (i === index ? { ...r, sessionId: session.id } : r)) }));

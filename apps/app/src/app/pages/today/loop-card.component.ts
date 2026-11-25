@@ -1,7 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import {
+  COMPANY_NAMES,
   DEFAULT_ROUND_COUNTS,
   MAX_ROUND_COUNT,
+  OFFERED_COMPANIES,
   PLAN_MAX_DAYS,
   PLAN_MINUTES,
   PLAN_ROUNDS,
@@ -10,11 +12,14 @@ import {
   addCalendarDays,
   calendarDaysBetween,
   isCalendarDate,
+  offeredCompany,
   type PlanLevel,
   type PlanRound,
   type RoundCounts,
   type Seniority,
+  type TargetCompany,
 } from '@grasp/engine';
+import { CompanyLoopComponent } from '../../companies/company-loop.component';
 import { ProgressService } from '../../core/progress.service';
 import { uniqueId } from '../../core/unique-id';
 import { ChipComponent } from '../../ui/chip.component';
@@ -47,7 +52,7 @@ const DEFAULT_PICK_DAYS = 21;
 @Component({
   selector: 'app-loop-card',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ChipComponent],
+  imports: [ChipComponent, CompanyLoopComponent],
   template: `
     <form (submit)="$event.preventDefault(); save()" novalidate>
       @if (mode() === 'first-run') {
@@ -83,6 +88,20 @@ const DEFAULT_PICK_DAYS = 21;
               (change)="picked.set($any($event.target).value)"
             />
           </label>
+        }
+      </div>
+      <div class="field inline" role="group" [attr.aria-labelledby]="id + '-company'">
+        <span class="label" [id]="id + '-company'">Company</span>
+        <div class="chips">
+          <button type="button" g-chip [attr.aria-pressed]="company() === null" (click)="company.set(null)">None</button>
+          @for (c of companies; track c.id) {
+            <button type="button" g-chip [attr.aria-pressed]="company() === c.id" (click)="company.set(c.id)">{{ c.name }}</button>
+          }
+        </div>
+        @if (mode() === 'edit' && offered(); as c) {
+          @if (level(); as l) {
+            <app-company-loop [company]="c" [level]="l" [folded]="true" />
+          }
         }
       </div>
       <p class="summary">
@@ -194,6 +213,16 @@ const DEFAULT_PICK_DAYS = 21;
       display: grid;
       gap: var(--g-space-2);
     }
+    /* One line for its label and two chips, so the first-run card keeps Build my plan above a 320 by 700 tab bar. */
+    .field.inline {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      column-gap: var(--g-space-3);
+      app-company-loop {
+        flex-basis: 100%;
+      }
+    }
     .label {
       @include label;
       color: var(--g-muted);
@@ -285,6 +314,7 @@ export class LoopCardComponent {
   readonly roundNames = PLAN_ROUNDS.map((round) => ({ round, name: ROUND_NAMES[round] }));
   readonly minuteOptions = PLAN_MINUTES.map((value) => ({ value, label: formatMinutes(value) }));
   readonly startingPoints = STARTING_POINTS;
+  readonly companies = OFFERED_COMPANIES.map((id) => ({ id, name: COMPANY_NAMES[id] }));
   readonly maxCount = MAX_ROUND_COUNT;
 
   private readonly day = this.today.day;
@@ -298,6 +328,9 @@ export class LoopCardComponent {
   readonly minutes = signal<number>(DEFAULT_MINUTES);
   readonly start = signal<PlanLevel>('new');
   readonly details = signal(false);
+  /** A stored company this client does not offer presses no chip and is saved back unchanged. */
+  readonly company = signal<TargetCompany | null>(null);
+  readonly offered = computed(() => offeredCompany(this.company()));
 
   readonly roundsLine = computed(
     () =>
@@ -340,6 +373,7 @@ export class LoopCardComponent {
     const target = state.target ?? { level: 'mid' as const, rounds: levelCounts('mid', state.plan!.rounds) };
     this.level.set(target.level);
     this.counts.set({ ...target.rounds });
+    this.company.set(state.target?.company ?? null);
     const plan = state.plan;
     this.when.set(plan ? 'pick' : 'none');
     if (plan) this.picked.set(plan.interviewDate);
@@ -362,7 +396,14 @@ export class LoopCardComponent {
     this.saving.set(true);
     const state = this.progress.state();
     const events = loopEvents(
-      { level, rounds: this.counts(), date: this.date(), minutesPerDay: this.minutes(), startingPoint: this.start() },
+      {
+        level,
+        rounds: this.counts(),
+        date: this.date(),
+        minutesPerDay: this.minutes(),
+        startingPoint: this.start(),
+        ...(this.company() && { company: this.company()! }),
+      },
       state,
     );
     for (const event of events) await this.progress.record(event);

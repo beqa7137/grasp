@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { attributesOfQuestion } from '../companies/culture.js';
 import {
   EMPTY_QUESTION_QUERY,
   QUESTION_COUNT,
@@ -27,9 +28,9 @@ describe('the Questions library', () => {
 
   it('reads and writes its URL, dropping unknown values and keeping catalog order', () => {
     const query = parseQuestionQuery({ q: ' disagree ', competency: 'conflict,bogus,ownership', status: 'story,nope' });
-    expect(query).toEqual({ q: 'disagree', competency: ['ownership', 'conflict'], status: ['story'] });
-    expect(questionQueryParams(query)).toEqual({ q: 'disagree', competency: 'ownership,conflict', status: 'story' });
-    expect(questionQueryParams(EMPTY_QUESTION_QUERY)).toEqual({ q: null, competency: null, status: null });
+    expect(query).toEqual({ q: 'disagree', competency: ['ownership', 'conflict'], status: ['story'], culture: [] });
+    expect(questionQueryParams(query)).toEqual({ q: 'disagree', competency: 'ownership,conflict', status: 'story', culture: null });
+    expect(questionQueryParams(EMPTY_QUESTION_QUERY)).toEqual({ q: null, competency: null, status: null, culture: null });
     expect(isQuestionQueryFiltered(EMPTY_QUESTION_QUERY)).toBe(false);
     expect(isQuestionQueryFiltered({ ...EMPTY_QUESTION_QUERY, q: 'x' })).toBe(true);
   });
@@ -39,7 +40,25 @@ describe('the Questions library', () => {
       q: 'tell me',
       competency: ['conflict'],
       status: ['drafted', 'story'],
+      culture: [],
     });
+  });
+
+  it('filters by culture attribute, counting each with the other facets', () => {
+    const cultureOf = (q: { id: string; competencyId: string }) => attributesOfQuestion('microsoft', q.id, q.competencyId).map((a) => a.id);
+    const all = queryQuestions(EMPTY_QUESTION_QUERY, fresh, cultureOf);
+    expect(all.counts.culture).toEqual({
+      'growth-mindset': 18,
+      'customer-obsessed': 7,
+      'diverse-inclusive': 2,
+      'one-microsoft': 15,
+      'making-a-difference': 9,
+    });
+    const growth = queryQuestions({ ...EMPTY_QUESTION_QUERY, culture: ['growth-mindset'] }, fresh, cultureOf);
+    expect(growth.groups.map((g) => g.competencyId)).toEqual(['conflict', 'influence', 'feedback', 'failure', 'learning']);
+    expect(growth.total).toBe(18);
+    expect(parseQuestionQuery({ culture: 'growth-mindset,nope' }).culture).toEqual(['growth-mindset']);
+    expect(queryQuestions({ ...EMPTY_QUESTION_QUERY, culture: ['growth-mindset'] }, fresh).total).toBe(0);
   });
 
   it('opens a deep link to one competency and a search, matching every word anywhere in the prompt', () => {

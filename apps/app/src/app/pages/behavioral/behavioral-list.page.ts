@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { NgComponentOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import {
   COMPETENCY_CATALOG,
@@ -10,6 +11,7 @@ import {
   type StatusContext,
 } from '@grasp/engine';
 import { ProgressService } from '../../core/progress.service';
+import { TargetCompanyService } from '../../companies/target-company.service';
 import { ChipComponent } from '../../ui/chip.component';
 import { EntryRowComponent } from '../../ui/entry-row.component';
 import { SkillStateComponent } from '../../ui/skill-state.component';
@@ -25,7 +27,7 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 @Component({
   selector: 'app-behavioral-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, ChipComponent, EntryRowComponent, SkillStateComponent],
+  imports: [RouterLink, NgComponentOutlet, ChipComponent, EntryRowComponent, SkillStateComponent],
   template: `
     <div class="page narrow">
       <h1>Behavioral interviews</h1>
@@ -71,10 +73,20 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
                   }
                 </span>
               }
+              @if (r.culture.length) {
+                <span below class="marks tags">
+                  @for (a of r.culture; track a) {
+                    <g-chip tone="accent">{{ a }}</g-chip>
+                  }
+                </span>
+              }
             </a>
           </li>
         }
       </ul>
+      @if (cultureView(); as view) {
+        <ng-container *ngComponentOutlet="view.CultureSectionComponent; inputs: { company: company() }" />
+      }
     </div>
   `,
   styles: `
@@ -138,6 +150,9 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
       justify-content: flex-end;
       gap: var(--g-space-1);
     }
+    .marks.tags {
+      justify-content: flex-start;
+    }
   `,
 })
 export class BehavioralListPage {
@@ -149,8 +164,15 @@ export class BehavioralListPage {
   readonly names = { new: 'New', learning: 'Learning', practiced: 'Practiced', ready: 'Ready' } as const;
 
   readonly due = computed(() => dueStories(this.bank.stories(), this.progress.now(), this.progress.state().behavioral).length);
+  readonly company = inject(TargetCompanyService).company;
+  /**
+   * The culture chips and section load only for an offered Target company, so the hub's tap fetches no mapping or
+   * question text for anyone else.
+   */
+  readonly cultureView = signal<typeof import('./culture-section.component') | null>(null);
   readonly rows = computed(() => {
     const state = this.progress.state();
+    const company = this.company();
     const profile = LEVEL_PROFILES[currentTarget(state).target.level];
     const ctx: StatusContext = { state, stories: this.bank.stories(), now: this.progress.now(), profile };
     const coverage = new Map(this.bank.review().coverage.map((c) => [c.competencyId, c.storyIds.length]));
@@ -164,6 +186,10 @@ export class BehavioralListPage {
         state: status.state,
         flagged: status.flagged,
         focus: profile.level === 'senior' && profile.competencies.some((w) => w.id === c.id && w.weight > 1),
+        culture:
+          this.cultureView()
+            ?.attributesOfCompetency(company, c.id)
+            .map((a) => a.name) ?? [],
         meta: [
           plural(QUESTIONS_PER_COMPETENCY, 'question'),
           ...(drafted ? [`${drafted} drafted`] : []),
@@ -182,6 +208,12 @@ export class BehavioralListPage {
       ...(due ? [`${plural(due, 'story', 'stories')} due`] : []),
     ];
   });
+
+  constructor() {
+    effect(() => {
+      if (this.company() && !this.cultureView()) void import('./culture-section.component').then((m) => this.cultureView.set(m));
+    });
+  }
 
   ionViewWillEnter() {
     void this.drafts.load();

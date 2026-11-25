@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpException, Logger, Param, ParseUUIDPipe, Post, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { STAR_ANSWER_LIMIT, isEmptyDraft, starLength } from '@grasp/engine';
+import { STAR_ANSWER_LIMIT, isEmptyDraft, offeredCompany, starLength } from '@grasp/engine';
 import { z } from 'zod';
 import { LearnerId, UserId } from '../common/learner-id.decorator.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
@@ -18,8 +18,15 @@ const startSchema = modeSchema
     track: z.enum(['coding', 'system-design', 'behavioral']),
     problemId: z.string().max(64).optional(),
     level: z.enum(['early', 'mid', 'senior']).optional(),
+    // A company this release does not map is dropped, not refused, so a rollback still starts a newer client's interview.
+    company: z
+      .string()
+      .max(32)
+      .optional()
+      .transform((company) => offeredCompany(company) ?? undefined),
   })
-  .refine((s) => !s.level || s.track === 'behavioral', 'Only a behavioral interview takes a level');
+  .refine((s) => !s.level || s.track === 'behavioral', 'Only a behavioral interview takes a level')
+  .refine((s) => !s.company || s.track === 'behavioral', 'Only a behavioral interview takes a company');
 
 const starSchema = storySchema.shape.draft
   .refine((star) => starLength(star) <= STAR_ANSWER_LIMIT, `A STAR answer is at most ${STAR_ANSWER_LIMIT} characters`)
@@ -55,7 +62,7 @@ export class InterviewController {
 
   @Post('sessions')
   start(@LearnerId() learnerId: string, @Body(new ZodValidationPipe(startSchema)) body: z.infer<typeof startSchema>, @Req() req: Request) {
-    return this.interviews.start(learnerId, body.track, body.problemId, body.mode, req.accessClaims, body.level);
+    return this.interviews.start(learnerId, body.track, body.problemId, body.mode, req.accessClaims, body.level, body.company);
   }
 
   @Get('sessions/:id')

@@ -21,11 +21,12 @@ const story = (competencyIds: string[], rehearsal?: Story['rehearsal']): Story =
 function render(state: ProgressState, stories: Story[], drafted: string[] = []) {
   TestBed.resetTestingModule();
   const all = signal(stories);
+  const progress = signal(state);
   TestBed.configureTestingModule({
     imports: [BehavioralListPage],
     providers: [
       provideRouter([]),
-      { provide: ProgressService, useValue: { state: signal(state), now: signal(NOW) } },
+      { provide: ProgressService, useValue: { state: progress, now: signal(NOW) } },
       {
         provide: StoryBankService,
         useValue: { stories: all, review: computed(() => reviewBank(all())), loaded: signal(true), load: async () => undefined },
@@ -47,7 +48,12 @@ function render(state: ProgressState, stories: Story[], drafted: string[] = []) 
   const row = (name: string) =>
     [...host.querySelectorAll<HTMLElement>('.rows a')].find((a) => a.querySelector('.title')!.textContent === name)!;
   const meta = (name: string) => [...row(name).querySelectorAll('.meta > span')].map((m) => m.textContent).join(' · ');
-  return { host, row, meta, text: (el: Element) => el.textContent!.replace(/\s+/g, ' ').trim() };
+  const settle = async () => {
+    await import('./culture-section.component');
+    await fixture.whenStable();
+    fixture.detectChanges();
+  };
+  return { host, row, meta, settle, text: (el: Element) => el.textContent!.replace(/\s+/g, ' ').trim() };
 }
 
 describe('the Behavioral hub Competencies', () => {
@@ -106,5 +112,28 @@ describe('the Behavioral hub Competencies', () => {
       'Prioritization & Trade-offs',
       'Technical Depth',
     ]);
+  });
+
+  it("shows culture chips and the Target company's whole mapping with every reason, and nothing without one", async () => {
+    expect(render(emptyProgress(), []).host.querySelector('.culture')).toBeNull();
+    const target = { level: 'mid' as const, rounds: { coding: 2, design: 1, behavioral: 1 }, company: 'microsoft' as const };
+    const { host, row, text, settle } = render({ ...emptyProgress(), target }, []);
+    await settle();
+    expect(text(row('Learning Quickly').querySelector('.marks')!)).toBe('Growth mindset');
+    expect(text(row('Collaboration & Teamwork').querySelector('.marks')!)).toBe('One Microsoft');
+    expect(row('Technical Depth').querySelector('.marks')).toBeNull();
+    const culture = host.querySelector<HTMLElement>('.culture')!;
+    expect([...culture.querySelectorAll('h3')].map(text)).toEqual([
+      'Growth mindset',
+      'Customer obsessed',
+      'Diverse and inclusive',
+      'One Microsoft',
+      'Making a difference',
+    ]);
+    expect(text(culture.querySelector('.uncovered')!)).toBe('Not covered yet by a competency. These questions touch it:');
+    expect(culture.querySelectorAll('.practices li')).toHaveLength(15);
+    expect([...culture.querySelectorAll('.reason')].every((r) => text(r).length > 0)).toBe(true);
+    expect(culture.querySelector('a[href="/behavioral/learning"]')).not.toBeNull();
+    expect(culture.querySelector('a[href="/behavioral/question/collaboration-4"]')).not.toBeNull();
   });
 });

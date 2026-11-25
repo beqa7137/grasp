@@ -63,6 +63,18 @@ describe('behavioral prompts', () => {
     expect(behavioralInterviewerPrompt({ ...session, level: 'senior' })).toContain('Candidate level: senior or staff');
   });
 
+  it('asks one follow-up to test the mapped culture attributes of a target company, and nothing more without one', () => {
+    const session = behavioralSession();
+    const microsoft = behavioralInterviewerPrompt({ ...session, company: 'microsoft' });
+    expect(microsoft).toContain('preparing for a Microsoft loop');
+    expect(microsoft).toContain('let one follow-up test how it shows: Making a difference.');
+    expect(microsoft).toContain('Never name these or any list of values unless the candidate does.');
+    expect(behavioralInterviewerPrompt(session)).not.toContain('Microsoft');
+    const unmapped = { ...session, problem: pickBehavioralProblem('tradeoffs-1')! };
+    expect(behavioralInterviewerPrompt({ ...unmapped, company: 'microsoft' })).toBe(behavioralInterviewerPrompt(unmapped));
+    expect(behavioralInterviewerPrompt({ ...session, company: 'amazon' })).toBe(behavioralInterviewerPrompt(session));
+  });
+
   it('keeps the interviewer prompt byte-identical as the interview goes on, so the cache can hit', () => {
     const opening = behavioralSession();
     const later = behavioralSession(STRONG_STAR, ['I told the payments lead first.', 'Timeouts, pages and orders per minute.']);

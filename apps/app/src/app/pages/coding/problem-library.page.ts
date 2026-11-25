@@ -16,8 +16,10 @@ import { NgTemplateOutlet } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
   CODING_CATALOG,
+  COMPANY_NAMES,
   DIFFICULTIES,
   LEVEL_PROFILES,
+  OFFERED_COMPANIES,
   PATTERN_CATALOG,
   PATTERN_TRACKS,
   PROBLEM_STATES,
@@ -32,6 +34,7 @@ import {
   meetsBar,
   parseLibraryQuery,
   queryLibrary,
+  type OfferedCompany,
   type CodingProblemSummary,
   type LibraryQuery,
   type ListFacet,
@@ -41,6 +44,7 @@ import { refocusAfterRender } from '../../core/focus';
 import { SearchEverythingComponent } from '../../search/search-everything.component';
 import { LibraryState, matchedWhat, resultLine, type UrlParam } from '../../core/library-state';
 import { ProgressService } from '../../core/progress.service';
+import { ReportedService } from '../../companies/reported.service';
 import { CheckComponent } from '../../ui/check.component';
 import { ChipComponent } from '../../ui/chip.component';
 import { EmptyStateComponent } from '../../ui/empty-state.component';
@@ -50,6 +54,8 @@ import { closeIcon, expandIcon } from '../../ui/icons';
 import { type KeptSegment } from '../hub/segment-memory';
 import { LibraryPrefsService, type LibraryView } from './library-prefs.service';
 import { DIFFICULTY_NAMES, PATTERN_NAMES, PROBLEM_STATUS as STATUS, problemRow } from './problem-rows';
+
+const reportedLabel = (company: OfferedCompany) => `Reported at ${COMPANY_NAMES[company]}`;
 
 /**
  * The Problem library (REDESIGN.md 4.2): the 164 problems grouped by pattern or mixed, filtered by status, difficulty,
@@ -79,6 +85,7 @@ export class ProblemLibraryPage implements KeptSegment {
   private readonly injector = inject(Injector);
   private readonly destroyRef = inject(DestroyRef);
   private readonly progress = inject(ProgressService);
+  private readonly reports = inject(ReportedService);
   readonly prefs = inject(LibraryPrefsService);
 
   readonly icons = { close: closeIcon, expand: expandIcon };
@@ -96,15 +103,30 @@ export class ProblemLibraryPage implements KeptSegment {
   readonly difficulty = input<UrlParam>();
   readonly track = input<UrlParam>();
   readonly pattern = input<UrlParam>();
+  readonly reported = input<UrlParam>();
   readonly lib = new LibraryState<LibraryQuery>(
-    () => ({ q: this.q(), status: this.status(), difficulty: this.difficulty(), track: this.track(), pattern: this.pattern() }),
+    () => ({
+      q: this.q(),
+      status: this.status(),
+      difficulty: this.difficulty(),
+      track: this.track(),
+      pattern: this.pattern(),
+      reported: this.reported(),
+    }),
     { parse: parseLibraryQuery, params: libraryQueryParams },
   );
   readonly query = this.lib.query;
   readonly filtered = computed(() => isFiltered(this.query()));
 
   private readonly coding = computed(() => this.progress.state().coding);
-  readonly result = computed(() => queryLibrary(this.query(), this.coding()));
+  readonly result = computed(() => queryLibrary(this.query(), this.coding(), this.reports.problems()));
+  /**
+   * "Interview reports" shows for a learner whose Target names an offered company, or when a link turned it on; without
+   * either it stays out, as R49 decided for a company facet open to everyone.
+   */
+  readonly companies = computed(() =>
+    this.reports.company() || this.query().reported.length ? OFFERED_COMPANIES.map((id) => ({ id, name: COMPANY_NAMES[id] })) : [],
+  );
   readonly summary = computed(() => {
     const s = librarySummary(this.coding());
     const parts = DIFFICULTIES.map((d) => `${DIFFICULTY_NAMES[d]} ${s.byDifficulty[d].solved}/${s.byDifficulty[d].total}`);
@@ -116,13 +138,16 @@ export class ProblemLibraryPage implements KeptSegment {
     return n ? `Show ${n} ${n === 1 ? 'problem' : 'problems'}` : 'No problems match';
   });
   /** Filters set in the sheet; the Track chips and the search sit outside it. */
-  readonly sheetActive = computed(() => this.query().status.length + this.query().difficulty.length + this.query().pattern.length);
+  readonly sheetActive = computed(
+    () => this.query().status.length + this.query().difficulty.length + this.query().pattern.length + this.query().reported.length,
+  );
   readonly chips = computed(() => {
     const q = this.query();
     return [
       ...q.status.map((v) => ({ facet: 'status' as const, value: v, label: STATUS[v].name })),
       ...q.difficulty.map((v) => ({ facet: 'difficulty' as const, value: v, label: DIFFICULTY_NAMES[v] })),
       ...q.pattern.map((v) => ({ facet: 'pattern' as const, value: v, label: PATTERN_NAMES.get(v) ?? v })),
+      ...q.reported.map((v) => ({ facet: 'reported' as const, value: v, label: reportedLabel(v) })),
     ];
   });
 
@@ -162,6 +187,7 @@ export class ProblemLibraryPage implements KeptSegment {
   readonly catalogSize = CODING_CATALOG.length;
 
   constructor() {
+    if (this.query().reported.length) void this.reports.load();
     // On a phone the tracks scroll in one line; a chosen track that starts past its edge is brought into it.
     afterNextRender(() => {
       const row = this.trackRow().nativeElement;
@@ -263,7 +289,7 @@ export class ProblemLibraryPage implements KeptSegment {
   }
 
   resetSheet(): void {
-    this.lib.write({ status: [], difficulty: [], pattern: [] });
+    this.lib.write({ status: [], difficulty: [], pattern: [], reported: [] });
   }
 
   pickRandom(): void {

@@ -1,6 +1,7 @@
 import { COMPETENCY_CATALOG } from './catalog.js';
 import { QUESTION_PROMPTS, type QuestionPrompt } from './question-prompts.js';
 import { paramText, paramValues, type UrlParams } from '../url-params.js';
+import { COMPANY_CULTURES } from '../companies/culture.js';
 
 /**
  * What a question shows in the Questions library. A draft lives on the device per question; a story is tagged with
@@ -14,14 +15,17 @@ export interface QuestionQuery {
   q: string;
   competency: readonly string[];
   status: readonly QuestionStatus[];
+  /** Culture attribute ids of any company (companies/culture.ts). */
+  culture: readonly string[];
 }
 
-export const EMPTY_QUESTION_QUERY: QuestionQuery = { q: '', competency: [], status: [] };
+export const EMPTY_QUESTION_QUERY: QuestionQuery = { q: '', competency: [], status: [], culture: [] };
 
 export type QuestionFacet = Exclude<keyof QuestionQuery, 'q'>;
 const FACET_VALUES: Record<QuestionFacet, readonly string[]> = {
   competency: COMPETENCY_CATALOG.map((c) => c.id),
   status: QUESTION_STATUSES,
+  culture: [...new Set(Object.values(COMPANY_CULTURES).flatMap((attributes) => attributes.map((a) => a.id)))],
 };
 export const QUESTION_FACETS = Object.keys(FACET_VALUES) as QuestionFacet[];
 
@@ -31,13 +35,18 @@ export function parseQuestionQuery(params: UrlParams): QuestionQuery {
     const given = paramValues(params, facet);
     return FACET_VALUES[facet].filter((v) => given.has(v));
   };
-  return { q: paramText(params, 'q', ' ').trim(), competency: list('competency'), status: list('status') as QuestionStatus[] };
+  return {
+    q: paramText(params, 'q', ' ').trim(),
+    competency: list('competency'),
+    status: list('status') as QuestionStatus[],
+    culture: list('culture'),
+  };
 }
 
 /** The URL parameters for a query; an empty filter is null, so an unfiltered library has a bare URL. */
 export function questionQueryParams(query: QuestionQuery): Record<keyof QuestionQuery, string | null> {
   const join = (values: readonly string[]) => (values.length ? values.join(',') : null);
-  return { q: query.q.trim() || null, competency: join(query.competency), status: join(query.status) };
+  return { q: query.q.trim() || null, competency: join(query.competency), status: join(query.status), culture: join(query.culture) };
 }
 
 export const isQuestionQueryFiltered = (query: QuestionQuery) => Boolean(query.q) || QUESTION_FACETS.some((f) => query[f].length > 0);
@@ -62,6 +71,7 @@ export const QUESTION_COUNT = QUESTION_PROMPTS.length;
 export function queryQuestions(
   query: QuestionQuery,
   statusesOf: (question: QuestionPrompt) => readonly QuestionStatus[],
+  cultureOf: (question: QuestionPrompt) => readonly string[] = () => [],
 ): QuestionLibraryResult {
   const terms = query.q.toLowerCase().split(/\s+/).filter(Boolean);
   const base = QUESTION_PROMPTS.filter((q) => terms.every((t) => q.prompt.toLowerCase().includes(t)));
@@ -69,6 +79,7 @@ export function queryQuestions(
   const matches: Record<QuestionFacet, (q: QuestionPrompt, values: readonly string[]) => boolean> = {
     competency: (q, values) => values.includes(q.competencyId),
     status: (q, values) => statuses.get(q.id)!.some((s) => values.includes(s)),
+    culture: (q, values) => cultureOf(q).some((a) => values.includes(a)),
   };
   const keeps = (q: QuestionPrompt, except?: QuestionFacet) =>
     QUESTION_FACETS.every((f) => f === except || !query[f].length || matches[f](q, query[f]));

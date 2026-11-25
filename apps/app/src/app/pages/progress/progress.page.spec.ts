@@ -116,6 +116,17 @@ describe('Progress', () => {
     expect(el.querySelector('g-stat')!.textContent).toContain('Review strength');
     expect(el.textContent).toContain('Your stories are saved only on this device until you sign in');
   });
+
+  it('names the Target company in the loop, as Today and Mock do', async () => {
+    const target = { level: 'senior', rounds: { coding: 2, design: 2, behavioral: 1 } } as const;
+    expect((await render([{ type: 'target.set', target: { ...target, company: 'microsoft' } }])).el.textContent).toContain(
+      'Senior Microsoft loop',
+    );
+    TestBed.resetTestingModule();
+    expect((await render([{ type: 'target.set', target }])).el.textContent).toContain('Senior loop');
+    TestBed.resetTestingModule();
+    expect((await render([])).el.textContent).toContain('Assuming a Mid-level loop');
+  });
 });
 
 const NAMES: Record<SkillKind, Map<string, string>> = {

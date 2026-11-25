@@ -11,16 +11,17 @@ import {
   READINESS_BAND_NAMES,
   ROUND_NAMES,
   SCENARIO_CATALOG,
-  SENIORITY_LEVELS,
   TRACK_NAMES,
   isRehearsable,
   loopArithmetic,
   loopReadiness,
   roundArithmetic,
   skillGrids,
+  targetLoopName,
   weakSpots,
   type Difficulty,
 } from '@grasp/engine';
+import { TargetCompanyService } from '../../companies/target-company.service';
 import { AuthService } from '../../core/auth.service';
 import { ProgressService } from '../../core/progress.service';
 import { ForecastComponent } from '../../review/forecast.component';
@@ -358,11 +359,11 @@ export class ProgressPage {
     const r = this.readiness();
     return r ? loopArithmetic(r) : null;
   });
+  private readonly company = inject(TargetCompanyService).company;
   readonly loopLine = computed(() => {
     const r = this.readiness();
     if (!r) return '';
-    const level = SENIORITY_LEVELS.find((l) => l.level === r.target.level)!.label;
-    return r.source === 'set' ? `${level} loop` : `Assuming a ${level} loop`;
+    return r.source === 'set' ? targetLoopName(r.target.level, this.company()) : `Assuming a ${targetLoopName(r.target.level, null)}`;
   });
   readonly grids = computed(() => {
     const r = this.readiness();

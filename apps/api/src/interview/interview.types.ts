@@ -1,4 +1,4 @@
-import type { AnswerFlaw, Seniority, StarDraft } from '@grasp/engine';
+import type { AnswerFlaw, Seniority, StarDraft, TargetCompany } from '@grasp/engine';
 
 export type InterviewTrack = 'coding' | 'system-design' | 'behavioral';
 export type InterviewMode = 'ai' | 'offline';
@@ -85,6 +85,8 @@ export interface InterviewSession {
   mode?: InterviewMode;
   /** Behavioral only: the career stage the answer is held to; mid-level when absent. */
   level?: Seniority;
+  /** Behavioral only: the company the candidate prepares for; its mapped culture attributes shape one follow-up. */
+  company?: TargetCompany;
   scorecard?: Scorecard;
   scoredAt?: string;
   usage?: SessionUsage;

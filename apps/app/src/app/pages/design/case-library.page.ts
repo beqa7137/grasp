@@ -4,7 +4,9 @@ import {
   CASE_CATALOG,
   CASE_LEVELS,
   CASE_STATES,
+  COMPANY_NAMES,
   EMPTY_CASE_QUERY,
+  OFFERED_COMPANIES,
   SD_SHELVES,
   caseQueryParams,
   getCaseBrief,
@@ -14,6 +16,7 @@ import {
   queryCases,
   sdTopicShelf,
   topicUses,
+  type OfferedCompany,
   type CaseFacet,
   type CaseQuery,
   type CaseState,
@@ -24,6 +27,7 @@ import { refocusAfterRender } from '../../core/focus';
 import { SearchEverythingComponent } from '../../search/search-everything.component';
 import { LibraryState, matchedWhat, resultLine, type UrlParam } from '../../core/library-state';
 import { ProgressService } from '../../core/progress.service';
+import { ReportedService } from '../../companies/reported.service';
 import { ChipComponent } from '../../ui/chip.component';
 import { EmptyStateComponent } from '../../ui/empty-state.component';
 import { FilterBarComponent } from '../../ui/filter-bar.component';
@@ -34,6 +38,7 @@ const STATE_NAMES: Record<CaseState, string> = { new: 'Not started', started: 'I
 const LEVEL_NAMES: Record<CaseSummary['level'], string> = { core: 'Core', advanced: 'Advanced' };
 const SHELF_NAMES = new Map<string, string>(SD_SHELVES.map((s) => [s.id, s.name]));
 const topicName = (id: string) => getSdTopic(id)?.name ?? id;
+const reportedLabel = (company: OfferedCompany) => `Reported at ${COMPANY_NAMES[company]}`;
 
 /**
  * The Cases library (REDESIGN.md 4.5): the 27 case studies filtered by level, status, shelf and topic, plus a search. As in
@@ -96,6 +101,25 @@ const topicName = (id: string) => getSdTopic(id)?.name ?? id;
           </div>
         }
         <div class="facets">
+          @if (companies().length) {
+            <div class="facet" role="group" aria-labelledby="case-reported">
+              <h3 id="case-reported">Interview reports</h3>
+              <div class="options">
+                @for (c of companies(); track c.id) {
+                  @let n = result().counts.reported[c.id];
+                  <button
+                    type="button"
+                    g-chip
+                    [attr.aria-pressed]="lib.isOn('reported', c.id)"
+                    [attr.aria-disabled]="lib.dimmed('reported', c.id, n)"
+                    (click)="toggle('reported', c.id, n)"
+                  >
+                    Reported at {{ c.name }} <span class="count">{{ n }}</span>
+                  </button>
+                }
+              </div>
+            </div>
+          }
           <div class="facet" role="group" aria-labelledby="case-status">
             <h3 id="case-status">Status</h3>
             <div class="options">
@@ -209,6 +233,7 @@ export class CaseLibraryPage {
   private readonly injector = inject(Injector);
   readonly progress = inject(ProgressService);
   readonly drafts = inject(CaseDraftsService);
+  private readonly reports = inject(ReportedService);
 
   readonly icons = { close: closeIcon };
   readonly levels = CASE_LEVELS.map((id) => ({ id, name: LEVEL_NAMES[id] }));
@@ -225,8 +250,16 @@ export class CaseLibraryPage {
   readonly status = input<UrlParam>();
   readonly shelf = input<UrlParam>();
   readonly topic = input<UrlParam>();
+  readonly reported = input<UrlParam>();
   readonly lib = new LibraryState<CaseQuery>(
-    () => ({ q: this.q(), level: this.level(), status: this.status(), shelf: this.shelf(), topic: this.topic() }),
+    () => ({
+      q: this.q(),
+      level: this.level(),
+      status: this.status(),
+      shelf: this.shelf(),
+      topic: this.topic(),
+      reported: this.reported(),
+    }),
     { parse: parseCaseQuery, params: caseQueryParams },
   );
   readonly query = this.lib.query;
@@ -241,8 +274,12 @@ export class CaseLibraryPage {
   );
   readonly result = computed(() => {
     const states = this.states();
-    return queryCases(this.query(), (id) => states.get(id) ?? 'new');
+    return queryCases(this.query(), (id) => states.get(id) ?? 'new', this.reports.cases());
   });
+  /** Shown as in the Problem library: with an offered Target company, or when a link turned it on. */
+  readonly companies = computed(() =>
+    this.reports.company() || this.query().reported.length ? OFFERED_COMPANIES.map((id) => ({ id, name: COMPANY_NAMES[id] })) : [],
+  );
   readonly summary = computed(() => {
     const finished = [...this.states().values()].filter((state) => state === 'finished').length;
     return `${finished} of ${CASE_CATALOG.length} finished`;
@@ -258,13 +295,16 @@ export class CaseLibraryPage {
     return n ? `Show ${n} ${n === 1 ? 'case' : 'cases'}` : 'No cases match';
   });
   /** Filters set in the sheet; the Level chips and the search sit outside it. */
-  readonly sheetActive = computed(() => this.query().status.length + this.query().shelf.length + this.query().topic.length);
+  readonly sheetActive = computed(
+    () => this.query().status.length + this.query().shelf.length + this.query().topic.length + this.query().reported.length,
+  );
   readonly chips = computed(() => {
     const q = this.query();
     return [
       ...q.status.map((v) => ({ facet: 'status' as const, value: v, label: STATE_NAMES[v] })),
       ...q.shelf.map((v) => ({ facet: 'shelf' as const, value: v, label: SHELF_NAMES.get(v) ?? v })),
       ...q.topic.map((v) => ({ facet: 'topic' as const, value: v, label: topicName(v) })),
+      ...q.reported.map((v) => ({ facet: 'reported' as const, value: v, label: reportedLabel(v) })),
     ];
   });
   readonly emptyText = computed(() => `No case matches ${matchedWhat(this.query())}.`);
@@ -274,6 +314,7 @@ export class CaseLibraryPage {
 
   constructor() {
     void this.drafts.load();
+    if (this.query().reported.length) void this.reports.load();
   }
 
   ionViewWillEnter() {
@@ -329,6 +370,6 @@ export class CaseLibraryPage {
   }
 
   resetSheet(): void {
-    this.lib.write({ status: [], shelf: [], topic: [] });
+    this.lib.write({ status: [], shelf: [], topic: [], reported: [] });
   }
 }

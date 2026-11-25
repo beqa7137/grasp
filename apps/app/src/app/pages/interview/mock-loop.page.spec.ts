@@ -8,7 +8,7 @@ import type { InterviewCatalog } from './interview.types';
 import { MockLoopPage } from './mock-loop.page';
 import { MockLoopService, type MockLoop } from './mock-loop.service';
 
-function setup(catalog: InterviewCatalog) {
+function setup(catalog: InterviewCatalog, events: Parameters<typeof replay>[0] = []) {
   const loop = signal<MockLoop | null>({
     id: 'loop',
     mode: 'ai',
@@ -29,12 +29,13 @@ function setup(catalog: InterviewCatalog) {
     get: vi.fn(async (path: string) => (path.endsWith('/problems') ? catalog : [])),
     post: vi.fn(async (): Promise<unknown> => ({ id: 'session' })),
   };
+  const state = signal(replay(events));
   TestBed.configureTestingModule({
     imports: [MockLoopPage],
     providers: [
       { provide: ApiService, useValue: api },
       { provide: Router, useValue: { navigate: vi.fn(async () => true), url: '/mock/loop' } },
-      { provide: ProgressService, useValue: { state: signal(replay([])) } },
+      { provide: ProgressService, useValue: { state } },
       { provide: MockLoopService, useValue: loops },
     ],
   }).overrideComponent(MockLoopPage, { set: { template: '', imports: [] } });
@@ -53,6 +54,24 @@ describe('MockLoopPage', () => {
     expect(loop()!.mode).toBe('offline');
     await page.startRound(0);
     expect(api.post).toHaveBeenLastCalledWith('/interview/sessions', { track: 'coding', problemId: 'warmer-days', mode: 'offline' });
+  });
+
+  it("sends the Target's offered company with a behavioral round, also in a loop that resumes", async () => {
+    const target = { level: 'mid' as const, rounds: { coding: 1, design: 0, behavioral: 1 }, company: 'microsoft' as const };
+    const { page, api } = setup({ aiAccess: 'available', problems: [] }, [
+      { id: 't', at: '2026-10-16T09:00:00Z', type: 'target.set', target },
+    ]);
+    await page.reload();
+    await page.startRound(1);
+    expect(api.post).toHaveBeenLastCalledWith('/interview/sessions', {
+      track: 'behavioral',
+      problemId: 'conflict',
+      mode: 'ai',
+      level: 'mid',
+      company: 'microsoft',
+    });
+    await page.startRound(0);
+    expect(api.post).toHaveBeenLastCalledWith('/interview/sessions', { track: 'coding', problemId: 'warmer-days', mode: 'ai' });
   });
 
   it('warns at setup when fewer AI rounds are left this hour than the loop has', async () => {

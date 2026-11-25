@@ -37,9 +37,16 @@ describe('target.set', () => {
       { ...senior, level: 'staff' },
       { ...senior, rounds: { coding: 4, design: 0, behavioral: 0 } },
       { ...senior, rounds: { coding: 0, design: 0, behavioral: 0 } },
-      { ...senior, company: 'initech' },
     ] as TargetInput[];
     for (const value of unknown) expect(replay([target(t0 + DAY, value)], before).target).toEqual(senior);
+  });
+
+  it('drops only a company this client does not know, keeping the level and rounds', () => {
+    const before = replay([target(t0, senior)]);
+    const netflix = { level: 'mid', rounds: { coding: 2, design: 1, behavioral: 1 }, company: 'netflix' } as unknown as TargetInput;
+    expect(replay([target(t0 + DAY, netflix)], before).target).toEqual({ level: 'mid', rounds: { coding: 2, design: 1, behavioral: 1 } });
+    const microsoft: TargetInput = { level: 'mid', rounds: { coding: 2, design: 1, behavioral: 1 }, company: 'microsoft' };
+    expect(replay([target(t0 + DAY, microsoft)], before).target).toEqual(microsoft);
   });
 
   it('survives clearing the plan', () => {

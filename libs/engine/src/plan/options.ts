@@ -61,8 +61,20 @@ export const addCalendarDays = (date: string, days: number) =>
 /** The levels a Target can name, in `SENIORITY_LEVELS` order (the schema needs them as a literal tuple). */
 export const TARGET_LEVELS = ['early', 'mid', 'senior'] as const satisfies readonly Seniority[];
 
-export const TARGET_COMPANIES = ['amazon'] as const;
+export const TARGET_COMPANIES = ['amazon', 'microsoft'] as const;
 export type TargetCompany = (typeof TARGET_COMPANIES)[number];
+
+/**
+ * The companies "Your loop" offers: those with a culture mapping (companies/culture.ts, whose spec keeps the two equal).
+ * A literal, so the loop card and the first paint load no mapping.
+ */
+export const OFFERED_COMPANIES = ['microsoft'] as const satisfies readonly TargetCompany[];
+
+export type OfferedCompany = (typeof OFFERED_COMPANIES)[number];
+
+/** The company when "Your loop" offers it, else null: a Target may hold one only a newer or older client offers. */
+export const offeredCompany = (company: string | null | undefined): OfferedCompany | null =>
+  (OFFERED_COMPANIES as readonly string[]).includes(company ?? '') ? (company as OfferedCompany) : null;
 
 /** How many rounds of each kind the loop has; 0 leaves the round out. Counts weigh the rounds in readiness. */
 export type RoundCounts = Record<PlanRound, number>;
@@ -85,14 +97,17 @@ export const DEFAULT_ROUND_COUNTS: Record<Seniority, RoundCounts> = {
 const isCount = (value: unknown): value is number =>
   Number.isInteger(value) && (value as number) >= 0 && (value as number) <= MAX_ROUND_COUNT;
 
-/** The Target as this client understands it, or null when anything is outside the offered options (a newer client's). */
+/**
+ * The Target as this client understands it, or null when its level or rounds are outside the offered options. A company
+ * this client does not know (a newer client's) is dropped, so the level and rounds still count.
+ */
 export function normalizeTarget(input: TargetInput | null | undefined): TargetInput | null {
   if (!input || !(TARGET_LEVELS as readonly string[]).includes(input.level)) return null;
   if (!input.rounds || !PLAN_ROUNDS.every((r) => isCount(input.rounds[r]))) return null;
   if (!PLAN_ROUNDS.some((r) => input.rounds[r] > 0)) return null;
-  if (input.company !== undefined && !(TARGET_COMPANIES as readonly string[]).includes(input.company)) return null;
   const rounds = Object.fromEntries(PLAN_ROUNDS.map((r) => [r, input.rounds[r]])) as RoundCounts;
-  return input.company ? { level: input.level, rounds, company: input.company } : { level: input.level, rounds };
+  const known = (TARGET_COMPANIES as readonly string[]).includes(input.company ?? '');
+  return known ? { level: input.level, rounds, company: input.company } : { level: input.level, rounds };
 }
 
 /** The rounds a plan holds: those counted once or more. */

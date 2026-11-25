@@ -1,4 +1,4 @@
-import type { AnswerFlaw, Seniority, StarDraft } from '@grasp/engine';
+import type { AnswerFlaw, Seniority, StarDraft, TargetCompany } from '@grasp/engine';
 
 export type InterviewTrack = 'coding' | 'system-design' | 'behavioral';
 export type InterviewMode = 'ai' | 'offline';
@@ -64,6 +64,8 @@ export interface InterviewSession {
   mode: InterviewMode;
   aiAccess: AiAccess;
   level?: Seniority;
+  /** Behavioral only: the company whose culture one follow-up probes. */
+  company?: TargetCompany;
 }
 
 /** A behavioral interview asks up to this many follow-ups; the server closes it after the answer to the last one. */

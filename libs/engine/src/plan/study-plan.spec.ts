@@ -642,6 +642,38 @@ describe('a plan for a Target', () => {
   const ids = (list: { id: string }[], kind: string) =>
     list.filter((u) => u.id.startsWith(`${kind}:`)).map((u) => u.id.slice(kind.length + 1));
 
+  it('keeps the same days, minutes and units with a company, picking reported problems within a difficulty', () => {
+    const unitOf = (p: StudyPlan, unitId: string) => p.units.find((u) => u.id === unitId)!;
+    const before = buildStudyPlan(input({ interviewDate: '2027-03-01' }), emptyProgress(), { now, target: target('mid') });
+    const [first, second] = ['pattern:hashing', 'solve:hashing'].map((u) => getProblemSummary(unitOf(before, u).problemId!)!);
+    const later = problemsAtBar('hashing', LEVEL_PROFILES.mid.bar).find(
+      (p) => p.difficulty === second.difficulty && p !== second && p !== first,
+    )!;
+    const reported = {
+      company: 'microsoft' as const,
+      problems: new Set([later.id, 'two-sum', 'rotting-oranges']),
+      cases: new Set(['chat']),
+    };
+    for (const level of ['early', 'mid', 'senior'] as const) {
+      const base = input({ interviewDate: '2026-10-22' });
+      const plain = buildStudyPlan(base, emptyProgress(), { now, target: target(level) });
+      const company = { level, rounds: counts, company: 'microsoft' as const };
+      const withCompany = buildStudyPlan(base, emptyProgress(), { now, target: company, reported });
+      const shape = (p: StudyPlan) => ({
+        status: p.status,
+        finishDate: p.finishDate,
+        days: p.days.map((d) => d.slices.map((s) => [s.unit.id, s.unit.kind, s.minutes])),
+        units: p.units.map((u) => [u.id, u.minutes, u.value]),
+        unscheduled: p.unscheduled.length,
+        remaining: p.remaining,
+      });
+      expect(shape(withCompany), level).toEqual(shape(plain));
+    }
+    const mid = buildStudyPlan(input({ interviewDate: '2027-03-01' }), emptyProgress(), { now, target: target('mid'), reported });
+    expect(['pattern:hashing', 'solve:hashing'].map((u) => unitOf(mid, u).problemId)).toContain(later.id);
+    expect(['pattern:hashing', 'solve:hashing'].map((u) => unitOf(before, u).problemId)).not.toContain(later.id);
+  });
+
   it('schedules exactly the lists readiness counts at that level', () => {
     for (const level of ['early', 'mid', 'senior'] as const) {
       const units = targetPlan(level).units;

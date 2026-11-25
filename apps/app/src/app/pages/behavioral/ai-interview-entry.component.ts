@@ -6,6 +6,7 @@ import { sparkles } from 'ionicons/icons';
 import { currentTarget } from '@grasp/engine';
 import { ApiError, ApiService } from '../../core/api.service';
 import { ProgressService } from '../../core/progress.service';
+import { TargetCompanyService } from '../../companies/target-company.service';
 import { SignInOptionsComponent } from '../../core/sign-in-options.component';
 import { uniqueId } from '../../core/unique-id';
 import type { InterviewMode } from '../interview/interview.types';
@@ -74,6 +75,7 @@ export class AiInterviewEntryComponent {
   private readonly api = inject(ApiService);
   private readonly router = inject(Router);
   private readonly progress = inject(ProgressService);
+  private readonly company = inject(TargetCompanyService).company;
   readonly titleId = uniqueId('ai-entry-title');
   readonly starting = signal(false);
   readonly signInOpen = signal(false);
@@ -91,7 +93,14 @@ export class AiInterviewEntryComponent {
     this.signInOpen.set(false);
     try {
       const level = currentTarget(this.progress.state()).target.level;
-      await startInterview(this.api, this.router, { track: 'behavioral', problemId: this.problemId(), mode, level });
+      const company = this.company();
+      await startInterview(this.api, this.router, {
+        track: 'behavioral',
+        problemId: this.problemId(),
+        mode,
+        level,
+        ...(company ? { company } : {}),
+      });
     } catch (error) {
       if (needsSignIn(error)) this.signInOpen.set(true);
       else this.error.set(error instanceof ApiError ? error.message : 'Could not start the interview.');

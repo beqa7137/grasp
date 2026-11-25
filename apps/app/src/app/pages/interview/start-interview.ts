@@ -1,7 +1,7 @@
 import type { Router } from '@angular/router';
 import { ApiError, type ApiService } from '../../core/api.service';
 import { crossState } from '../../ui/cross-link.directive';
-import type { Seniority } from '@grasp/engine';
+import type { Seniority, TargetCompany } from '@grasp/engine';
 import type { InterviewMode, InterviewSession, InterviewTrack } from './interview.types';
 
 export interface InterviewStart {
@@ -11,6 +11,8 @@ export interface InterviewStart {
   mode: InterviewMode;
   /** Behavioral only: the bar the answer is held to. */
   level?: Seniority;
+  /** Behavioral only: the company whose culture one follow-up probes. */
+  company?: TargetCompany;
 }
 
 export async function startInterview(api: ApiService, router: Router, start: InterviewStart): Promise<void> {

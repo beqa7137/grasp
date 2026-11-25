@@ -188,6 +188,39 @@ test('a scripted behavioral single round is an API session: it records interview
   await expect(page.locator('app-interview-home h3.group')).toHaveText(['Behavioral']);
 });
 
+test('at a Microsoft target, a scripted behavioral round sends the company and probes the culture attribute last', async ({ page }) => {
+  await page.addInitScript((key) => {
+    if (localStorage.getItem(key)) return;
+    const target = { level: 'mid', rounds: { coding: 2, design: 1, behavioral: 1 }, company: 'microsoft' };
+    const event = { id: 'seed-target', at: new Date(Date.now() - 86_400_000).toISOString(), type: 'target.set', target };
+    localStorage.setItem(key, JSON.stringify({ events: [event], cursor: null }));
+  }, 'CapacitorStorage.grasp.events');
+  await page.goto('/mock');
+  const created = page.waitForRequest((r) => r.method() === 'POST' && new URL(r.url()).pathname === '/api/interview/sessions');
+  await startMockRound(page, 'Behavioral', /^Learning Quickly/);
+  expect((await created).postDataJSON()).toEqual({
+    track: 'behavioral',
+    problemId: 'learning',
+    mode: 'offline',
+    level: 'mid',
+    company: 'microsoft',
+  });
+  const session = page.locator('app-interview-session');
+  for (const [part, text] of Object.entries({ Situation: STORY_DRAFT.situation, Action: STORY_DRAFT.action, Result: STORY_DRAFT.result })) {
+    await session.getByLabel(part, { exact: true }).fill(text);
+  }
+  await session.getByRole('button', { name: 'Give answer' }).click();
+  const composer = page.getByRole('textbox', { name: 'Your follow-up answer' });
+  for (let i = 0; i < 2; i++) {
+    await expect(composer).toBeEditable({ timeout: 30_000 });
+    await composer.fill('I wrote the retry fix myself and checked the failure dashboards every morning for two weeks after.');
+    await page.getByRole('button', { name: 'Send', exact: true }).click();
+  }
+  await expect(session.getByText('Looking back, what did that experience change about how you work now?', { exact: true })).toBeVisible({
+    timeout: 30_000,
+  });
+});
+
 test('no route from Mock reaches the client-only STAR drill', async ({ page }) => {
   await page.goto('/mock');
   const hub = page.locator('app-interview-home');

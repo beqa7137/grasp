@@ -23,6 +23,7 @@ import {
   PLAN_ROUNDS,
   TRACK_NAMES,
   currentTarget,
+  targetLoopName,
   type ProgressState,
 } from '@grasp/engine';
 import { addIcons } from 'ionicons';
@@ -30,6 +31,7 @@ import { codeSlashOutline, gitNetworkOutline, layersOutline, peopleOutline, sear
 import { ApiError, ApiService } from '../../core/api.service';
 import { LearnerService } from '../../core/learner.service';
 import { ProgressService } from '../../core/progress.service';
+import { TargetCompanyService } from '../../companies/target-company.service';
 import { CrossLinkDirective } from '../../ui/cross-link.directive';
 import { EmptyStateComponent } from '../../ui/empty-state.component';
 import { alertIcon } from '../../ui/icons';
@@ -389,8 +391,11 @@ export class InterviewHomePage {
   private readonly scoresOf = signal<((state: ProgressState, now: Date) => RoundScores) | null>(null);
   private readonly scores = computed(() => this.scoresOf()?.(this.progress.state(), this.progress.now()) ?? null);
   readonly level = computed(() => this.target().target.level);
+  private readonly company = inject(TargetCompanyService).company;
   readonly levelLabel = computed(() => SENIORITY_LEVELS.find((l) => l.level === this.level())!.label);
-  readonly loopName = computed(() => `${this.levelLabel()} loop${this.target().source === 'set' ? '' : ' (assumed)'}`);
+  readonly loopName = computed(
+    () => `${targetLoopName(this.level(), this.company())}${this.target().source === 'set' ? '' : ' (assumed)'}`,
+  );
   readonly rounds = computed(() => {
     const byTrack = this.progress.state().interviews.byTrack;
     const { rounds } = this.target().target;
@@ -455,6 +460,7 @@ export class InterviewHomePage {
       sheet.setInput('pick', this.sheetPick());
       sheet.setInput('level', this.level());
       sheet.setInput('levelLabel', this.levelLabel());
+      sheet.setInput('company', this.company());
       sheet.setInput('catalog', this.catalog());
       sheet.setInput('offline', this.offline());
       sheet.setInput('open', this.sheetOpen());

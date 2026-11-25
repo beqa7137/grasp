@@ -10,7 +10,7 @@ import {
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { COMPETENCY_CATALOG, type Seniority, type StarDraft } from '@grasp/engine';
+import { COMPETENCY_CATALOG, type Seniority, type StarDraft, type TargetCompany } from '@grasp/engine';
 import { randomUUID } from 'node:crypto';
 import { tokenInvalid } from '../auth/auth-errors.js';
 import type { AccessClaims } from '../auth/tokens.js';
@@ -99,6 +99,7 @@ export class InterviewService {
     mode: InterviewMode = 'offline',
     claims?: AccessClaims,
     level?: Seniority,
+    company?: TargetCompany,
   ): Promise<PublicInterviewSession> {
     const problem = pickProblem(track, problemId);
     if (!problem) throw new NotFoundException('Unknown problem for this track');
@@ -115,7 +116,7 @@ export class InterviewService {
       status: 'active',
       createdAt: now,
       mode,
-      ...(track === 'behavioral' ? { level: level ?? 'mid' } : {}),
+      ...(track === 'behavioral' ? { level: level ?? 'mid', ...(company && { company }) } : {}),
       ...(mode === 'ai' ? { aiRound: true as const } : {}),
     };
     await this.store.save(session);

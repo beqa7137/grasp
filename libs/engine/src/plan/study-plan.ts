@@ -1,6 +1,7 @@
 import { COMPETENCY_CATALOG } from '../behavioral/catalog.js';
 import { dueStories, isRehearsable } from '../behavioral/rehearsal.js';
 import type { Story } from '../behavioral/stories.js';
+import type { ReportedItems } from '../companies/reported.js';
 import { problemsForPattern } from '../coding/catalog.js';
 import { PATTERN_CATALOG } from '../curriculum/catalog.js';
 import { LEVEL_PROFILES } from '../readiness/levels.js';
@@ -129,6 +130,11 @@ export interface PlanContext {
    * first when the time is short; without it, every pattern and case study as before the Target existed.
    */
   target?: TargetInput;
+  /**
+   * What the Target company's interview reports name, on the device's day. Among a pattern's problems of one difficulty
+   * the plan picks a reported one; minutes, days and value stay the same. Case order is left alone: it decides packing.
+   */
+  reported?: ReportedItems | null;
 }
 
 /** The longest day `coverage.minutesPerDay` looks for. */
@@ -161,7 +167,9 @@ export function buildStudyPlan(input: StudyPlanInput, state: ProgressState, ctx:
     return { ...base, status: daysLeft === 0 ? 'interview-day' : 'past', days: [], units: [], unscheduled: [], remaining };
   }
 
-  const all = ctx.target ? targetUnits(input, ctx.target, state, stories, ctx.now, tz) : legacyUnits(input, state, stories, ctx.now);
+  const all = ctx.target
+    ? targetUnits(input, ctx.target, state, stories, ctx.now, tz, ctx.reported?.problems)
+    : legacyUnits(input, state, stories, ctx.now);
   const doneToday = (u: PlanUnit) => !u.doneAt || dayKey(new Date(u.doneAt), tz) >= today;
   const units = all.filter(doneToday);
   const dates = Array.from({ length: Math.min(daysLeft, PLAN_MAX_DAYS) }, (_, i) => addCalendarDays(today, i));
@@ -296,9 +304,10 @@ function targetUnits(
   stories: readonly Story[],
   now: Date,
   tzOffsetMinutes: number,
+  prefer: ReadonlySet<string> | undefined,
 ): PlanUnit[] {
   const profile = LEVEL_PROFILES[target.level];
-  const ctx: TargetUnitsContext = { state, profile, counts: target.rounds, startingPoint: input.level, tzOffsetMinutes };
+  const ctx: TargetUnitsContext = { state, profile, counts: target.rounds, startingPoint: input.level, tzOffsetMinutes, prefer };
   const storyValue = skillWeight('behavioral', target.rounds, profile.competencies.length) * UNIT_GAIN.story;
   const units: PlanUnit[] = [];
   if (input.rounds.includes('coding')) units.push(...targetCodingUnits(ctx));

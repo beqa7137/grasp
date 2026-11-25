@@ -14,11 +14,28 @@ describe('the Cases library', () => {
 
   it('reads and writes its URL, dropping unknown values and keeping catalog order', () => {
     const query = parseCaseQuery({ q: ' rate ', level: 'advanced,bogus,core', topic: 'sd-caching', shelf: 'nowhere' });
-    expect(query).toEqual({ q: 'rate', level: ['core', 'advanced'], status: [], shelf: [], topic: ['sd-caching'] });
-    expect(caseQueryParams(query)).toEqual({ q: 'rate', level: 'core,advanced', status: null, shelf: null, topic: 'sd-caching' });
-    expect(caseQueryParams(EMPTY_CASE_QUERY)).toEqual({ q: null, level: null, status: null, shelf: null, topic: null });
+    expect(query).toEqual({ q: 'rate', level: ['core', 'advanced'], status: [], shelf: [], topic: ['sd-caching'], reported: [] });
+    expect(caseQueryParams(query)).toEqual({
+      q: 'rate',
+      level: 'core,advanced',
+      status: null,
+      shelf: null,
+      topic: 'sd-caching',
+      reported: null,
+    });
+    expect(caseQueryParams(EMPTY_CASE_QUERY)).toEqual({ q: null, level: null, status: null, shelf: null, topic: null, reported: null });
     expect(isCaseQueryFiltered(EMPTY_CASE_QUERY)).toBe(false);
     expect(isCaseQueryFiltered(query)).toBe(true);
+  });
+
+  it('filters by the companies whose reports name a case', () => {
+    const sets = { microsoft: new Set(['chat', 'rate-limiter']) };
+    expect(queryCases(EMPTY_CASE_QUERY, fresh, sets).counts.reported).toEqual({ microsoft: 2 });
+    const result = queryCases({ ...EMPTY_CASE_QUERY, reported: ['microsoft'] }, fresh, sets);
+    expect(result.cases.map((c) => c.id).sort()).toEqual(['chat', 'rate-limiter']);
+    expect(result.counts.level.core + result.counts.level.advanced).toBe(2);
+    expect(parseCaseQuery({ reported: 'microsoft,initech' }).reported).toEqual(['microsoft']);
+    expect(isCaseQueryFiltered({ ...EMPTY_CASE_QUERY, reported: ['microsoft'] })).toBe(true);
   });
 
   it('reads a key given more than once as all of its values', () => {

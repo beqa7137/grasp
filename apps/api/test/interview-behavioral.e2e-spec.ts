@@ -89,6 +89,7 @@ describe.each(storages)('Behavioral AI interviewer over HTTP (%s storage, script
     expect(opened.text).toContain('event: delta\ndata: {"text":"What did "}');
     const [first] = provider.requests.slice(before);
     expect(first.body['system']).toContain('Candidate level: senior or staff');
+    expect(first.body['system']).not.toContain('Microsoft');
     expect(first.body['messages'].at(-1).content).toBe(`<candidate_turn>\n${starText(STRONG_STAR)}\n</candidate_turn>`);
     await send(headers, session.id, { content: FOLLOW_UP }).expect(200);
     await send(headers, session.id, { content: 'Orders per minute and pages, both on the sale dashboard I set up.' }).expect(200);
@@ -133,6 +134,18 @@ describe.each(storages)('Behavioral AI interviewer over HTTP (%s storage, script
     });
   });
 
+  it('keeps the target company on a behavioral session and briefs the interviewer on its mapped attributes', async () => {
+    const { headers } = account;
+    const session = (await start(headers, { track: 'behavioral', problemId: 'learning-1', mode: 'ai', company: 'microsoft' }).expect(201))
+      .body;
+    expect(session).toMatchObject({ level: 'mid', company: 'microsoft', problem: { id: 'learning-1' } });
+    const before = provider.requests.length;
+    await send(headers, session.id, { star: STRONG_STAR }).expect(200);
+    const [first] = provider.requests.slice(before);
+    expect(first.body['system']).toContain('preparing for a Microsoft loop');
+    expect(first.body['system']).toContain('how it shows: Growth mindset.');
+  });
+
   it('refuses turns that break the STAR-then-follow-ups shape before any paid work', async () => {
     const { headers, learnerId } = account;
     const session = (await start(headers, { track: 'behavioral', problemId: 'conflict', mode: 'ai' }).expect(201)).body;
@@ -165,6 +178,11 @@ describe.each(storages)('Behavioral AI interviewer over HTTP (%s storage, script
     const coding = (await start(headers, { track: 'coding', problemId: 'warmer-days' }).expect(201)).body;
     await send(headers, coding.id, { star: STRONG_STAR }).expect(400);
     await start(headers, { track: 'coding', level: 'senior' }).expect(400);
+    await start(headers, { track: 'coding', company: 'microsoft' }).expect(400);
+    const unknown = (
+      await start(headers, { track: 'behavioral', problemId: 'learning-1', mode: 'offline', company: 'initech' }).expect(201)
+    ).body;
+    expect(unknown).not.toHaveProperty('company');
     await start(headers, { track: 'behavioral', problemId: 'warmer-days' }).expect(404);
   });
 

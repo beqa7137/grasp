@@ -41,6 +41,7 @@ const session = (
 
 function setup(events: StoredEvent[] = [], sessions: InterviewSession[] = [], query: Record<string, string> = {}) {
   const learnerId = signal('learner-1');
+  const state = signal(replay(events));
   const queryParamMap = new BehaviorSubject<ParamMap>(convertToParamMap(query));
   const router = { navigate: vi.fn(async () => true) };
   const catalog: InterviewCatalog = { aiAccess: 'sign-in-required', problems: [] };
@@ -52,7 +53,7 @@ function setup(events: StoredEvent[] = [], sessions: InterviewSession[] = [], qu
     providers: [
       { provide: ApiService, useValue: api },
       { provide: LearnerService, useValue: { id: learnerId } },
-      { provide: ProgressService, useValue: { state: signal(replay(events)), now: signal(new Date(AT)) } },
+      { provide: ProgressService, useValue: { state, now: signal(new Date(AT)) } },
       { provide: StoryBankService, useValue: { load: vi.fn(async () => undefined), stories: signal([]) } },
       { provide: MockLoopService, useValue: { load: vi.fn(async () => null), loop: signal(null) } },
       { provide: ActivatedRoute, useValue: { queryParamMap } },
@@ -95,6 +96,12 @@ describe('InterviewHomePage', () => {
     expect(page.level()).toBe('senior');
     expect(page.loopName()).toBe('Senior loop');
     expect(page.scoredLine()).toBe('1 round scored');
+  });
+
+  it('names the Target company in the loop, as Today and Settings do', () => {
+    const target = { level: 'mid' as const, rounds: { coding: 2, design: 1, behavioral: 1 }, company: 'microsoft' as const };
+    const { page } = setup([{ id: 't', at: AT, type: 'target.set', target }]);
+    expect(page.loopName()).toBe('Mid-level Microsoft loop');
   });
 
   it('assumes a Mid-level loop of all three rounds without a Target, and says so', () => {

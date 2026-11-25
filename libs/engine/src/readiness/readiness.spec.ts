@@ -104,3 +104,22 @@ describe('reachability', () => {
     expect([...reached]).toEqual(['learning']);
   });
 });
+
+describe('readiness with a target company', () => {
+  it('is the same with or without a company', () => {
+    const level = (company?: 'microsoft'): StoredEvent => ({
+      id: 'target',
+      at: '2026-09-01T09:00:00.000Z',
+      type: 'target.set',
+      target: { level: 'mid', rounds: { coding: 2, design: 1, behavioral: 1 }, ...(company && { company }) },
+    });
+    const now = new Date('2026-09-10T09:00:00.000Z');
+    const without = loopReadiness(replay([level()]), [], now);
+    const withCompany = loopReadiness(replay([level('microsoft')]), [], now);
+    expect({ ...withCompany, target: { ...withCompany.target, company: undefined } }).toEqual({
+      ...without,
+      target: { ...without.target, company: undefined },
+    });
+    expect(withCompany.target.company).toBe('microsoft');
+  });
+});
