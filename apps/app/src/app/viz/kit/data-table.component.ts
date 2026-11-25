@@ -22,8 +22,8 @@ import { CodeTextComponent } from '../code-text.component';
       <tbody>
         @for (row of rows(); track $index) {
           <tr
-            [class.active]="$index === active() || $index === also()"
-            [attr.aria-current]="$index === active() || $index === also() ? 'true' : null"
+            [class.active]="$index === active() || $index === also() || marked().includes($index)"
+            [attr.aria-current]="$index === active() || $index === also() || marked().includes($index) ? 'true' : null"
           >
             @for (cell of row; track $index) {
               @if ($first && rowHeads()) {
@@ -115,6 +115,8 @@ export class DataTableComponent {
   readonly active = input(-1);
   /** A second current row, for a table of two families with one current setting each. */
   readonly also = input(-1);
+  /** Current rows beyond those two, for a table whose current setting spans several rows. */
+  readonly marked = input<readonly number[]>([]);
   /** The first cell of each row names it: a row header, which may wrap between the runs `g-code-text` keeps whole. */
   readonly rowHeads = input(false);
 

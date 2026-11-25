@@ -1,14 +1,11 @@
+import { RECOVERY_EXPERIMENTS } from './recovery-experiments.js';
 import type { SdLesson } from './types.js';
 
 export const RECOVERY_LESSON: SdLesson = {
   why: 'Every database eventually loses data: a disk dies, a region goes dark, an engineer runs a `DELETE` without a `WHERE`, or ransomware encrypts the volumes. What you get back is decided long before that day, by which copies exist, where they live and whether anyone has ever restored one. Interviewers ask two numbers, how much data you may lose and how long you may be down, and then check that the design actually delivers both for each kind of disaster.',
   widget: {
     kind: 'recovery',
-    tryThis: [
-      'Start from the defaults (nightly backup, disks lost, 2 TB, 10 GB a minute): the restore takes 3.3 h and up to 24 h of writes are lost. Pick point-in-time recovery: the loss drops to 1 min, the 60 s archive interval, but recovery grows to 5.7 h, 200 minutes to restore the base backup plus 144 to replay a day of log at 10 times speed. Pick the async standby: 5 s lost and back in 1 minute.',
-      'Keep the standby and switch the disaster to a bad delete: the data does not come back, because the standby applied the delete within seconds. Pick point-in-time recovery: it stops just before the delete, so nothing is lost, still in 5.7 h. The nightly backup also recovers, but loses up to 24 h of writes.',
-      'Pick point-in-time recovery and disks lost, then set the size to 10 TB: recovery takes 19.1 h. Raise the restore speed to 50 GB a minute: back to 5.7 h. Slide the archive interval to 10 s: the loss drops to 10 s and the recovery time does not move. The archive interval sets RPO; size, restore speed and replay set RTO.',
-    ],
+    experiments: RECOVERY_EXPERIMENTS,
   },
   concepts: [
     {
@@ -25,7 +22,7 @@ export const RECOVERY_LESSON: SdLesson = {
     },
     {
       title: 'Point-in-time recovery',
-      body: 'Take a base backup (in Postgres with `pg_basebackup` or a tool such as pgBackRest; in MySQL with Percona XtraBackup) and continuously archive the write-ahead log (Postgres WAL, MySQL binlog) to object storage. To recover, restore the base backup and replay the log up to a chosen moment, such as one second before the bad delete (`recovery_target_time` in Postgres, `mysqlbinlog` with `--stop-datetime` in MySQL). RPO is the log not yet archived, which Postgres bounds with `archive_timeout` or streaming archiving; RTO is the restore plus the replay, so taking base backups more often shortens recovery.',
+      body: 'Take a base backup (in Postgres with `pg_basebackup` or a tool such as pgBackRest; in MySQL with Percona XtraBackup) and continuously archive the write-ahead log (Postgres WAL, MySQL binlog) to object storage. To recover, restore the base backup and replay the log up to a chosen moment, such as one second before the bad delete (`recovery_target_time` in Postgres, `mysqlbinlog` with `--stop-datetime` in MySQL). RPO is the log not yet archived, which Postgres bounds with `archive_timeout` or streaming archiving, and RTO is the restore and then the replay of everything since the base backup, one after the other, so taking base backups more often shortens recovery.',
     },
     {
       title: 'Snapshots and consistency',
@@ -37,7 +34,7 @@ export const RECOVERY_LESSON: SdLesson = {
     },
     {
       title: 'Restore drills and delayed replicas',
-      body: 'An untested backup is a hope. Restore regularly and automatically into a scratch environment, check the data (row counts, checksums, a smoke query), and record how long it took: that is your real RTO, not the one on the design doc. A delayed replica applies changes an hour behind (`recovery_min_apply_delay` in Postgres, `SOURCE_DELAY` in MySQL), a middle ground: after a bad delete you pause it and roll it forward to just before the mistake, in minutes instead of hours.',
+      body: "An untested backup is a hope. Restore regularly and automatically into a scratch environment, check the data (row counts, checksums, a smoke query), and record how long it took: that is your real RTO, not the one on the design doc. A delayed replica applies changes an hour behind (counted from the primary's commit time; `recovery_min_apply_delay` in Postgres, `SOURCE_DELAY` in MySQL), a middle ground: after a bad delete you pause it and roll it forward to just before the mistake, in minutes instead of hours.",
     },
     {
       title: 'Disaster recovery tiers and runbooks',

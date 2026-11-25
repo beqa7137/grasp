@@ -114,7 +114,6 @@ export type ExperimentPhase = 'asking' | 'playing' | 'revealed';
       gap: var(--g-space-2);
       margin: 0;
       font: 600 var(--g-text-body) var(--ion-font-family);
-      font-variant-numeric: tabular-nums;
       color: var(--g-muted);
       &.met {
         color: var(--g-success-ink);
@@ -132,7 +131,6 @@ export type ExperimentPhase = 'asking' | 'playing' | 'revealed';
       display: grid;
       gap: var(--g-space-1);
       font: 600 var(--g-text-body-s) var(--ion-font-family);
-      font-variant-numeric: tabular-nums;
       color: var(--g-muted);
       li {
         display: flex;
@@ -145,6 +143,11 @@ export type ExperimentPhase = 'asking' | 'playing' | 'revealed';
       .mark {
         flex: none;
         width: 1em;
+      }
+      // Tabular digits only in the kept number runs, so a figure holds its width as it changes; on prose they would
+      // spread the hyphens of "point-in-time".
+      ::ng-deep .keep {
+        font-variant-numeric: tabular-nums;
       }
     }
     @keyframes met {

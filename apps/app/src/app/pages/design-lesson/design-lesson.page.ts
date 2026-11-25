@@ -25,7 +25,6 @@ import { DeliveryWidgetComponent } from './delivery-widget.component';
 import { ClocksWidgetComponent } from './clocks-widget.component';
 import { DiscoveryWidgetComponent } from './discovery-widget.component';
 import { DurabilityWidgetComponent } from './durability-widget.component';
-import { RecoveryWidgetComponent } from './recovery-widget.component';
 import { TenancyWidgetComponent } from './tenancy-widget.component';
 import { GatewayWidgetComponent } from './gateway-widget.component';
 import { EstimateDrillComponent } from './estimate-drill.component';
@@ -45,7 +44,17 @@ import { LazyWidgetComponent } from './lazy-widget.component';
 
 /** A system design topic taught hands-on: a widget to experiment with, the ideas to name, worked examples and a quick check. */
 /** Widgets that leave the reading column at container wide, to sit beside their controls and experiments. */
-const BREAKOUT = new Set(['balancer', 'feed-model', 'quorum', 'queue-latency', 'availability', 'storage-engine', 'pipeline', 'hash-ring']);
+const BREAKOUT = new Set([
+  'balancer',
+  'feed-model',
+  'quorum',
+  'queue-latency',
+  'availability',
+  'storage-engine',
+  'pipeline',
+  'hash-ring',
+  'recovery',
+]);
 
 @Component({
   selector: 'app-design-lesson',
@@ -81,7 +90,6 @@ const BREAKOUT = new Set(['balancer', 'feed-model', 'quorum', 'queue-latency', '
     ClocksWidgetComponent,
     DiscoveryWidgetComponent,
     DurabilityWidgetComponent,
-    RecoveryWidgetComponent,
     TenancyWidgetComponent,
     GatewayWidgetComponent,
     EstimateDrillComponent,
@@ -246,7 +254,11 @@ const BREAKOUT = new Set(['balancer', 'feed-model', 'quorum', 'queue-latency', '
                     <app-durability-widget />
                   }
                   @case ('recovery') {
-                    <app-recovery-widget />
+                    <app-lazy-widget
+                      [load]="loadRecoveryWidget"
+                      [inputs]="{ experiments: l.widget.experiments ?? [] }"
+                      [placeholder]="heights.recovery"
+                    />
                   }
                   @case ('tenancy') {
                     <app-tenancy-widget />
@@ -471,6 +483,7 @@ export class DesignLessonPage {
   readonly heights = WIDGET_HEIGHTS;
   readonly loadLatencyWidget = () => import('./latency-widget.component').then((m) => m.LatencyWidgetComponent);
   readonly loadStorageWidget = () => import('./storage-widget.component').then((m) => m.StorageWidgetComponent);
+  readonly loadRecoveryWidget = () => import('./recovery-widget.component').then((m) => m.RecoveryWidgetComponent);
   readonly loadCapacityWidget = () => import('./capacity-widget.component').then((m) => m.CapacityWidgetComponent);
   readonly loadRingWidget = () => import('./ring-widget.component').then((m) => m.RingWidgetComponent);
   readonly loadQueueWidget = () => import('./queue-widget.component').then((m) => m.QueueWidgetComponent);

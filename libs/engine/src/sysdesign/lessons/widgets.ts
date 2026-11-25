@@ -16,6 +16,7 @@ export * from './widgets/overload.js';
 export * from './widgets/quorum.js';
 export * from './widgets/queueing.js';
 export * from './widgets/recovery.js';
+export * from './widgets/recovery-format.js';
 export * from './widgets/reliability.js';
 export * from './format-time.js';
 export * from './widgets/reliability-sample.js';

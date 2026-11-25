@@ -368,20 +368,16 @@ test('the durability lesson shows erasure coding beating three copies on nines a
   await expect(readout('Read to repair one piece')).toHaveText('6x');
 });
 
-test('the recovery lesson shows what each plan loses, and a standby copying a bad delete', async ({ page }) => {
+test('the recovery lesson draws what each plan loses, and a standby that cannot bring back a dropped table', async ({ page }) => {
   await page.goto('/design/topics/sd-recovery');
-  const readout = (label: string) =>
-    page
-      .locator('.readouts div')
-      .filter({ has: page.locator('dt', { hasText: new RegExp(`^${label}$`) }) })
-      .locator('dd');
-  await expect(readout('Writes lost \\(RPO\\)')).toHaveText('24 h');
-  await expect(readout('Back in service \\(RTO\\)')).toHaveText('3.3 h');
-  await page.getByRole('radio', { name: 'Point-in-time recovery' }).click();
-  await expect(readout('Writes lost \\(RPO\\)')).toHaveText('1 min');
-  await page.getByRole('radio', { name: 'Async standby' }).click();
-  await page.getByRole('radio', { name: 'A bad delete' }).click();
-  await expect(readout('Data comes back')).toHaveText('No: the delete reached the standby too');
+  const widget = page.locator('app-design-lesson:not(.ion-page-hidden) app-recovery-widget');
+  const figure = (id: string) => widget.locator(`svg.draw [data-id="${id}"]`);
+  await expect(widget.locator('svg.draw')).toHaveAttribute('aria-label', /^A timeline of one disaster and four recovery plans/);
+  await expect(figure('a-full-value')).toHaveText('loses 24 h');
+  await expect(figure('b-full-value')).toHaveText('back in 3.3 h');
+  await expect(figure('a-pitr-value')).toHaveText('loses 1 min');
+  await widget.getByRole('radio', { name: 'Table dropped', exact: true }).check();
+  await expect(figure('b-standby-value')).toHaveText('never');
 });
 
 test('the tenancy lesson shows a noisy tenant starving everyone until fair sharing protects the quiet ones', async ({ page }) => {

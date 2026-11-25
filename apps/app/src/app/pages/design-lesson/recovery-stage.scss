@@ -1,0 +1,164 @@
+@use '../../../type' as *;
+
+// The Backups & Recovery stage's drawing roles; `recovery-text.ts` measures text by these sizes, so a size changed here
+// changes its checks. Stage text keeps proportional digits, as measured, and labels are drawn in the capitals the
+// layout writes. Blue is a copy of the data (a backup, a replica's applied rows, a restore), amber the log (archived,
+// received, replayed), green a promotion and serving again, the critical hatch writes lost, the critical line the
+// disaster. Dashed is only ever "hidden until you answer".
+text {
+  paint-order: stroke;
+  stroke: var(--g-viz-stage);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+.t-title {
+  font: 600 var(--g-text-title-s) var(--ion-font-family);
+  fill: var(--g-text);
+}
+.t-label {
+  font: 600 var(--g-text-label) var(--ion-font-family);
+  letter-spacing: 0.12em;
+  fill: var(--g-muted);
+}
+.t-cap {
+  font: 500 var(--g-text-body-s) var(--ion-font-family);
+  fill: var(--g-muted);
+}
+.t-capB {
+  font: 600 var(--g-text-body-s) var(--ion-font-family);
+  fill: var(--g-text);
+}
+.t-small {
+  font: 500 var(--g-text-label) var(--ion-font-family);
+  fill: var(--g-muted);
+}
+.t-smallB {
+  font: 700 var(--g-text-label) var(--ion-font-family);
+  fill: var(--g-text);
+}
+.ink {
+  fill: var(--g-text);
+}
+.muted {
+  fill: var(--g-muted);
+}
+.lost-ink {
+  fill: var(--g-danger-ink);
+}
+.final-ink {
+  fill: var(--g-viz-final-ink);
+}
+.accent-ink {
+  fill: var(--g-accent);
+}
+.track {
+  fill: none;
+  stroke: var(--g-line);
+}
+.grid {
+  stroke: var(--g-line);
+  stroke-width: 1;
+}
+.goal-line {
+  stroke: var(--g-accent);
+  stroke-width: 1.5;
+}
+.rule {
+  stroke: var(--g-line);
+}
+.copy {
+  fill: var(--g-viz-current-soft);
+  stroke: var(--g-viz-current);
+  stroke-width: 1;
+}
+.primary-band {
+  fill: rgba(var(--g-text-rgb), 0.1);
+  stroke: var(--g-stroke);
+  stroke-width: 1;
+}
+.full-box {
+  fill: var(--g-viz-current);
+}
+.log-band {
+  fill: var(--g-viz-considering-soft);
+  stroke: var(--g-viz-considering);
+  stroke-width: 1;
+}
+.comb {
+  stroke: var(--g-viz-considering);
+  stroke-width: 1.25;
+  fill: none;
+}
+// Where the archived segments would crowd, the log is one band in the ticks' own ink.
+.comb-solid {
+  fill: var(--g-viz-considering);
+}
+.lost {
+  fill: url(#recovery-lost);
+  stroke: var(--g-viz-critical);
+  stroke-width: 1;
+}
+.strike-line {
+  stroke: var(--g-viz-critical);
+  stroke-width: 2;
+}
+.xmark {
+  fill: none;
+  stroke: var(--g-viz-critical);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.drop-tick {
+  fill: var(--g-viz-critical);
+}
+// Stroke only: the backup box or archived log a ring stands on stays visible inside it.
+.ring {
+  fill: none;
+  stroke: var(--g-text);
+  stroke-width: 2;
+}
+.more {
+  fill: none;
+  stroke: var(--g-muted);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.seg-restore {
+  fill: var(--g-viz-current);
+}
+.seg-replay {
+  fill: var(--g-viz-considering);
+}
+.seg-promote,
+.seg-copyBack {
+  fill: var(--g-viz-final);
+}
+.serve {
+  fill: var(--g-viz-final);
+  stroke: var(--g-viz-stage);
+  stroke-width: 1.5;
+}
+// An empty set: a solid hairline.
+.never {
+  stroke: var(--g-line-strong);
+  stroke-width: 1;
+}
+.playhead,
+.cursor {
+  stroke: var(--g-text);
+  stroke-width: 1.5;
+}
+.cursor {
+  stroke-opacity: 0.6;
+}
+.ghost-tick {
+  stroke: var(--g-text);
+  stroke-width: 2;
+}
+.hidden-box {
+  fill: none;
+  stroke: var(--g-stroke);
+  stroke-width: 1.25;
+  stroke-dasharray: 4 3;
+}

@@ -3493,6 +3493,69 @@ sample.ts`: the seeded year (seed 3282478, common random numbers, no two outages
     the write at every width, a Describe width check at every width for the default, the widest and a lookup setting,
     and a check that a level chip saying "model" has its gloss in the step line at every width.
 
+- **Backups & Recovery note** (R42, the third of its four remaining widgets, `recovery`; as built from the brief, mockup
+  and critique rounds of `design/r42-recovery`, and where it differs):
+  - **Verdict.** The old widget (three plan buttons, two disaster buttons, size and speed buttons, a slider for one plan
+    and three tiles) had every number right and none of them a picture: a learner could read "RPO 1 min, RTO 5.7 h"
+    without seeing why point-in-time recovery loses a minute, why it takes hours, or why the standby is useless after a
+    `DROP TABLE`. It is redrawn as one disaster in the middle of time: what each of four plans loses drawn before it, on
+    a log scale, and how long each takes to serve again drawn after it, on a linear scale.
+  - **Engine.** `widgets/recovery.ts`: `recoveryScenario` over the 972 settings in `RECOVERY_SETTINGS` (disaster, size,
+    restore speed, full backup cycle, archive interval, replay speed, standby mode), four plans (full backups,
+    point-in-time recovery, a standby, a delayed replica an hour behind) with each plan's worst-case recovery point and
+    its recovery time as whole-minute steps (restore, replay, promote, or after a drop copy the table back beside the
+    primary), and the scales `recoveryBeforeX`, `recoveryAfterX` and `recoveryInsetX`; `widgets/recovery-format.ts`
+    says its numbers. `recovery()` and its types are retired; every lesson number holds (200, 144 and 344 minutes, 3.3,
+    5.7 and 19.1 h, 1 min, 5 s). Framework: `ExperimentRun` gains `'recover'`, slot units gain `span`, `min`, `tb` and
+    `speed`, and `ExperimentBound` gains `atMost` (`boundMet` and `boundLimit` read it). `recovery-experiments.ts`: the
+    six experiments in the brief's wording, answers at 3, 2, 1, 3, 1, the challenge passing at exactly one restore,
+    base and replay triple (50 GB/min, every 6 h, 20×; 4 of the 972 settings). `recovery.spec.ts` pins the formulas
+    at every setting, the lesson's numbers, a second-by-second simulated timeline (each plan's worst loss over the
+    cycle is the model's) and a minute-by-minute simulated recovery (never later than the model, earlier by at most a
+    minute); `recovery-experiments.spec.ts` every rendered string, the word claims over all 972 settings and the
+    challenge's enumeration. The lesson's point-in-time recovery concept says its RTO is the restore and then the
+    replay, one after the other, the delayed replica's hour counts from the primary's commit time, and `tryThis` is gone.
+  - **Picture.** One stage from `buildStage` (`recovery-layout.ts`: the header and the on-stage controls;
+    `recovery-a.ts`: block A, a row a plan with its copies, the archived log as a comb that turns solid where it would
+    crowd, a stroke-only ring at the recovery point and the lost hatch to the disaster line; `recovery-b.ts`: block B,
+    each bar's restore, replay and promotion or copy-back at their minutes on one linear axis, a ledger that wraps, and
+    the inset of the first 90 minutes; `recovery-draw.ts`: the shared marks, the tick fitter, the control rows and the
+    focus outlines), drawn with its own roles on the shared `StageDraw` and `PRIMS_TEMPLATE`. The full backup, archive
+    and standby controls sit under block A, restore speed and replay under block B; the disaster and the size beside
+    the stage. Labels are drawn in the capitals `caps` writes, so "GB/min", "min", "h" and "s" keep their case and the
+    text measured is the text drawn. A row's name form is chosen once a width, the same in both blocks; block B's
+    ledger slack collects in one band at its foot, so its rows keep equal gaps and the height is a step function of
+    width alone. The focus outline is solid here, as on the Sharding stage, since dashed means hidden. `g-data-table`
+    takes a list of current rows (`marked`), and Describe keeps tabular digits to its two figure columns.
+  - **Motion.** One clock a play (`recovery-motion.ts`, 7.5 s): the history sweeps the day before (each backup,
+    segment and replica band appears as a cursor reaches it), the disaster strikes, each plan's recovery point lands,
+    then a playhead runs down block B and the inset at a uniform speed, each bar growing behind it, each ledger step's
+    minutes and each "back in" landing as it passes. The stage redraws at the named moments and on a 200-step grid while
+    something moves. Plays pause by the widget host's visibility; Stop or any change draws the rest state; a free
+    play brings block B into view as the recovery starts, and an answer first brings in the block it is
+    about, and again as its recovery starts. Reduced motion draws the end state and Play writes the story under the stage.
+  - **Hiding.** One `hiding()` map (`recovery-words.ts`) from the regions a question names (`replicasDrop`,
+    `pitrTime`, `pitrAfter`, `rtoAfter`, `delayedOutcome`) to the stage, the summary, the step, the notice, the story,
+    the model's note and Describe; while an answer plays its mechanism is drawn and its outcome marks (ring, hatch, ×,
+    serve dot, the "never" hairline) wait for the reveal. The component spec's sweep checks text and structure with
+    motion off and on, entering each question from nine other settings and sampling the answer's play, and catches
+    twenty planted leaks, one or more on every flag of the map, each against a clean run of the same question.
+  - **Fix round 1.** Which plans a question hides now comes, in the sweep, from its own `hide` list, so it checks the
+    inset's rows and the stage's summary by what they draw, and six leaks planted in render paths (the summary and the
+    inset ignoring a flag the map sets) prove it. A ghost is said only when its rounded words change, a zero is "was
+    nothing", and its tick stands only beside a "was" the row printed (`nameValue` reports it). E1 and E2 are titled by
+    their setting ("A dropped table", "Ten terabytes, a backup every six hours"), never by their finding; the
+    challenge's time bound is "within 1 h"; a free play brings block B into view in either layout.
+  - **Fix round 2.** Every play, an answer's too, brings the block it is about into view as the recovery starts, in
+    either layout, and in two columns the notice sticks under the header from a play's start until the reveal or the
+    next change (the controls' parts are rows of the side column, so it can), so a laptop sees the recovery and its
+    narration together. A row's vertical marks (cursor, strike line, playhead, ghost tick) reach 2 px past its track
+    and stop a pixel short of every text, and a ghost tick within 4 px of the disaster or its bar's end is left to
+    its "was" words; the layout spec checks both. The challenge's reveal says the 10× miss as a sum ("36 min, 76
+    min in all with the restore"), and a rule checks that a missed bound names a time over it. E2 is "Ten terabytes,
+    disks lost", one line on a phone. Off the goal's kept setting no check reads met, and the dock's checklist sets
+    tabular digits only on its kept number runs.
+
 **R46 Case widgets II.**
 
 - **Scope:**

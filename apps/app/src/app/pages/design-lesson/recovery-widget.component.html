@@ -1,0 +1,132 @@
+<div class="controls">
+  <fieldset class="group" [disabled]="locked()">
+    <legend class="control-label">The disaster</legend>
+    <div class="segments">
+      @for (d of disasters; track d.value) {
+        <label class="segment">
+          <input type="radio" name="recovery-disaster" [checked]="d.value === settings().disaster" (change)="set('disaster', d.value)" />
+          <span>{{ d.label }}</span>
+        </label>
+      }
+    </div>
+  </fieldset>
+  <fieldset class="group" [disabled]="locked()">
+    <legend class="control-label">Database</legend>
+    <div class="segments">
+      @for (d of sizes; track d.value) {
+        <label class="segment">
+          <input type="radio" name="recovery-size" [checked]="d.value === settings().size" (change)="set('size', d.value)" />
+          <span>{{ d.label }}</span>
+        </label>
+      }
+    </div>
+  </fieldset>
+  <p class="notice" aria-live="polite" aria-atomic="true"><g-code-text [text]="notice()" /></p>
+</div>
+
+<div class="main">
+  <g-stage
+    class="recovery-stage"
+    [height]="stage().H"
+    label="Backups and recovery: one disaster, what four recovery plans lose and how long each takes to serve again"
+  >
+    @if (ready()) {
+      @let st = stage();
+      <svg
+        class="draw"
+        [attr.viewBox]="'0 0 ' + st.D.W + ' ' + st.H"
+        [attr.width]="st.D.W"
+        [attr.height]="st.H"
+        role="img"
+        [attr.aria-label]="st.summary"
+      >
+        <defs>
+          <pattern id="recovery-lost" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <rect class="hatch-fill" width="5" height="5" />
+            <line class="hatch-line" x1="0" y1="0" x2="0" y2="5" />
+          </pattern>
+        </defs>
+        <g app-recovery-prims [prims]="under()" />
+        <g app-recovery-prims [prims]="over()" />
+        @for (f of st.focus; track f.id) {
+          <g app-focus [box]="f" [on]="exp.focusOn().includes(f.region)" />
+        }
+      </svg>
+      <div class="block-a" aria-hidden="true" [style.top.px]="blocks().a.top" [style.height.px]="blocks().a.height"></div>
+      <div class="block-b" aria-hidden="true" [style.top.px]="blocks().b.top" [style.height.px]="blocks().b.height"></div>
+
+      @if (playHit(); as h) {
+        <button
+          type="button"
+          class="play"
+          [attr.aria-label]="playName()"
+          [style]="hitStyle(h)"
+          [disabled]="locked()"
+          (click)="togglePlay()"
+        >
+          <svg viewBox="0 0 36 36" aria-hidden="true">
+            <circle cx="18" cy="18" r="16" />
+            @if (stopping()) {
+              <rect x="12" y="12" width="12" height="12" />
+            } @else {
+              <path d="M14 11v14l11-7z" />
+            }
+          </svg>
+        </button>
+      }
+      @for (g of groups; track g.name) {
+        <fieldset class="group on-stage" [disabled]="locked()">
+          <legend class="visually-hidden">{{ g.legend }}</legend>
+          @for (h of segs(g.name); track h.value) {
+            <label class="segment on-stage" [style]="hitStyle(h)">
+              <input type="radio" [name]="'recovery-' + g.name" [checked]="h.checked" (change)="set(g.name, h.value)" />
+              <span>{{ h.label }}</span>
+            </label>
+          }
+        </fieldset>
+      }
+    }
+  </g-stage>
+  @if (caption()) {
+    <p class="caption" aria-live="polite" aria-atomic="true"><g-code-text [text]="caption()" /></p>
+  }
+  <p class="model-note"><g-code-text [text]="note()" /></p>
+
+  <div class="describe">
+    <button type="button" class="g-btn" [attr.aria-expanded]="describe()" [disabled]="describeWaits()" (click)="toggleDescribe()">
+      {{ describe() && !describeWaits() ? 'Hide the description' : 'Describe' }}
+    </button>
+    @if (describeWaits()) {
+      <span class="muted">{{ describeWaitsWhy() }}</span>
+    }
+    @if (describe() && !describeWaits()) {
+      @let d = describeTable();
+      <p class="said"><g-code-text [text]="describeSaid()" /></p>
+      <g-data-table
+        label="Each plan against each disaster, for these settings"
+        [head]="d.head"
+        [rows]="d.rows"
+        [marked]="d.now"
+        [compact]="d.compact"
+        [rowHeads]="true"
+        [height]="null"
+      />
+      <p class="muted note"><g-code-text [text]="d.note" /></p>
+    }
+  </div>
+</div>
+
+@if (experiments().length) {
+  <app-experiment-dock
+    class="experiments"
+    [experiments]="experiments()"
+    [active]="exp.active()"
+    [phase]="exp.phase()"
+    [done]="exp.done()"
+    [goalStatus]="goalStatus()"
+    [goalChecks]="goalChecks()"
+    [chosen]="exp.chosen()"
+    (chosenChange)="exp.answer($event)"
+    (start)="start($event)"
+  />
+}

@@ -46,6 +46,7 @@ export * from './latency-experiments.js';
 export * from './capacity-experiments.js';
 export * from './reliability-experiments.js';
 export * from './storage-experiments.js';
+export * from './recovery-experiments.js';
 export * from './sharding-experiments.js';
 
 export const SD_LESSONS: Readonly<Record<string, SdLesson>> = {
