@@ -153,13 +153,21 @@ export function lanesBand(c: Ctx, y0: number): number {
         d = `M${r1(xa)} ${ya + r}V${ry}H${r1(xb)}V${yb + r}`;
         pts.push(...sampleLine(xa, ya + r, xa, ry, 2), ...sampleLine(xa, ry, xb, ry, 2), ...sampleLine(xb, ry, xb, yb + r, 2));
       } else {
-        // Across lanes the link runs under the lower dot's lane and rises into it, clear of the labels over its dots.
+        // Across lanes the link leaves the upper dot downward, crosses into the lower lane where nothing is written, runs
+        // under the lower dot's lane and rises into it, clear of the labels over its dots.
         const [up, down] = ya < yb ? [[xa, ya], [xb, yb]] : [[xb, yb], [xa, ya]];
+        const y1 = up[1] + 12;
         const ry = down[1] + 12 + depth(x.lane, xa, xb) * STACK;
-        d = `M${r1(up[0])} ${up[1] + r}V${ry}H${r1(down[0])}V${down[1] + r}`;
+        const lanes = `lane-${twin.lane} lane-${x.lane} repeat-${x.key}`;
+        const at = [0, -6, 6, -12, 12, -18, 18, -24, 24, -32, 32, -40, 40]
+          .map((dx) => up[0] + dx)
+          .find((dx) => dx >= x0 && dx <= x0 + w && D.free({ x0: dx - 0.5, x1: dx + 0.5, y0: y1, y1: ry }, lanes, 1)) ?? up[0];
+        d = `M${r1(up[0])} ${up[1] + r}V${y1}H${r1(at)}V${ry}H${r1(down[0])}V${down[1] + r}`;
         pts.push(
-          ...sampleLine(up[0], up[1] + r, up[0], ry, 2),
-          ...sampleLine(up[0], ry, down[0], ry, 2),
+          ...sampleLine(up[0], up[1] + r, up[0], y1, 2),
+          ...sampleLine(up[0], y1, at, y1, 2),
+          ...sampleLine(at, y1, at, ry, 2),
+          ...sampleLine(at, ry, down[0], ry, 2),
           ...sampleLine(down[0], ry, down[0], down[1] + r, 2),
         );
       }
