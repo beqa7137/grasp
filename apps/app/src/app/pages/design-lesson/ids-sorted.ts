@@ -62,7 +62,12 @@ export function sortedBand(c: Ctx, y0: number): number {
     if (k % 2 === 0) rect(c, 'back', `d-band-${k}`, 'tick-band', X(k * tickUs), top, X((k + 1) * tickUs) - X(k * tickUs), rowsH);
   const madeSoFar = (us: number) => view.t === null || us <= view.t;
   const rows = idRows(m).filter((r) => madeSoFar(r.made));
-  const late = new Set(lateAmong(m.sorted.filter((x) => x.issued < ID_WINDOW_US && madeSoFar(x.issued)), tickUs).map((x) => x.key));
+  const late = new Set(
+    lateAmong(
+      m.sorted.filter((x) => x.issued < ID_WINDOW_US && madeSoFar(x.issued)),
+      tickUs,
+    ).map((x) => x.key),
+  );
   const pts: [number, number][] = [];
   rows.forEach((row, i) => {
     const ry = top + i * ROW;

@@ -49,8 +49,7 @@ function gutter(c: Ctx, g: number, ly: number) {
   if (s.fault === ID_FAULT.stepBack && g === 1) notes.push(['clock steps back 2 ms at 5.5', 'steps back 2 ms', '−2 ms']);
   if (s.fault === ID_FAULT.shared && g === 2) notes.push(["given G1's number, 1", 'given number 1', 'number 1']);
   const after = lane.ids.filter((x) => x.issued >= ID_WINDOW_US).length;
-  if (after && c.view.t === null)
-    notes.push([`+${formatInt(after)} after 8 ms`, `+${formatInt(after)} later`, `+${formatInt(after)}`]);
+  if (after && c.view.t === null) notes.push([`+${formatInt(after)} after 8 ms`, `+${formatInt(after)} later`, `+${formatInt(after)}`]);
   notes.forEach((forms, i) => {
     const t = forms.find((f) => IDS_TEXT.tw(f, 'small') <= gw) ?? forms.at(-1)!;
     text(c, `lane-note-${g}-${i}`, PAD, ly + 46 + i * 15, small(t, i === 0 && notes.length > (after ? 1 : 0) ? 'warn' : 'muted'), {
@@ -155,13 +154,23 @@ export function lanesBand(c: Ctx, y0: number): number {
       } else {
         // Across lanes the link leaves the upper dot downward, crosses into the lower lane where nothing is written, runs
         // under the lower dot's lane and rises into it, clear of the labels over its dots.
-        const [up, down] = ya < yb ? [[xa, ya], [xb, yb]] : [[xb, yb], [xa, ya]];
+        const [up, down] =
+          ya < yb
+            ? [
+                [xa, ya],
+                [xb, yb],
+              ]
+            : [
+                [xb, yb],
+                [xa, ya],
+              ];
         const y1 = up[1] + 12;
         const ry = down[1] + 12 + depth(x.lane, xa, xb) * STACK;
         const lanes = `lane-${twin.lane} lane-${x.lane} repeat-${x.key}`;
-        const at = [0, -6, 6, -12, 12, -18, 18, -24, 24, -32, 32, -40, 40]
-          .map((dx) => up[0] + dx)
-          .find((dx) => dx >= x0 && dx <= x0 + w && D.free({ x0: dx - 0.5, x1: dx + 0.5, y0: y1, y1: ry }, lanes, 1)) ?? up[0];
+        const at =
+          [0, -6, 6, -12, 12, -18, 18, -24, 24, -32, 32, -40, 40]
+            .map((dx) => up[0] + dx)
+            .find((dx) => dx >= x0 && dx <= x0 + w && D.free({ x0: dx - 0.5, x1: dx + 0.5, y0: y1, y1: ry }, lanes, 1)) ?? up[0];
         d = `M${r1(up[0])} ${up[1] + r}V${y1}H${r1(at)}V${ry}H${r1(down[0])}V${down[1] + r}`;
         pts.push(
           ...sampleLine(up[0], up[1] + r, up[0], y1, 2),
@@ -307,7 +316,12 @@ function burstNotes(c: Ctx, mine: readonly IdGroup[], ly: number, ln: number, X:
     ];
     // The label keeps 4 px over the bracket, in the form that fits its span, else the shorter one centred over it.
     const said = forms.find((f) => IDS_TEXT.tw(f, 'small') <= b - a + 8) ?? forms[1];
-    c.D.place('burst-full', [[(a + b) / 2, top - 6.5, 'middle']], small(said, 'ink'), { owner: 'burst', margin: 3, optional: true, ignore });
+    c.D.place('burst-full', [[(a + b) / 2, top - 6.5, 'middle']], small(said, 'ink'), {
+      owner: 'burst',
+      margin: 3,
+      optional: true,
+      ignore,
+    });
   }
   const last = gauges.at(-1)!;
   if (last.count < per) {

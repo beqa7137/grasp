@@ -3,7 +3,17 @@ import { TestBed } from '@angular/core/testing';
 import { ID_BASELINE as B, ID_EXPERIMENTS, idMint, renderExperiment, type IdSettings, type SdExperiment } from '@grasp/engine';
 import { FALSE_CLAIMS } from './ids-claims.testing';
 import { IdsWidgetComponent } from './ids-widget.component';
-import { NOTHING_HIDDEN, PLAYING_NOTICE, PLAYS_OUT, REST_NOTICE, STOPPED_NOTICE, mintWords, summary, type Hid, type HidFlag } from './ids-words';
+import {
+  NOTHING_HIDDEN,
+  PLAYING_NOTICE,
+  PLAYS_OUT,
+  REST_NOTICE,
+  STOPPED_NOTICE,
+  mintWords,
+  summary,
+  type Hid,
+  type HidFlag,
+} from './ids-words';
 
 @Component({
   selector: 'app-ids-test-host',
@@ -117,9 +127,9 @@ async function setup({ width = 620, motion = 'off' } = {}) {
   /** Every word the widget shows or says outside the dock: the stage's text unless `picture` is false, its names, its controls, the notice, Describe. */
   const said = (picture = true) =>
     [
-      ...[...widget.querySelectorAll(`${picture ? 'svg.draw text, ' : ''}g-stage .panel, g-stage button, .controls, .caption, .describe`)].map(
-        clean,
-      ),
+      ...[
+        ...widget.querySelectorAll(`${picture ? 'svg.draw text, ' : ''}g-stage .panel, g-stage button, .controls, .caption, .describe`),
+      ].map(clean),
       ...[...widget.querySelectorAll('g-stage [aria-label]')].map((e) => e.getAttribute('aria-label') ?? ''),
     ].join(' | ');
   const describe = () => el.querySelector<HTMLButtonElement>('.describe button')!;

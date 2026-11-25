@@ -72,8 +72,7 @@ export const NOTHING_HIDDEN = hiding([], 'rest');
 /** The regions whose marks the stage draws as the answer's play makes them, so only their words wait for the reveal. */
 export const PLAYS_OUT = ['burstAfter', 'order', 'inspect', 'repeats'] as const;
 /** What the stage hides: while the answer plays, nothing of `PLAYS_OUT`; each mark waits for its event instead. */
-export const onStage = (hid: Hid): Hid =>
-  hid.answered ? { ...hid, ...Object.fromEntries(PLAYS_OUT.map((f) => [f, false])) } : hid;
+export const onStage = (hid: Hid): Hid => (hid.answered ? { ...hid, ...Object.fromEntries(PLAYS_OUT.map((f) => [f, false])) } : hid);
 /** How a hidden part says when it shows: before the answer, and while it plays. */
 export const untilWords = (hid: Hid) => (hid.answered ? 'shows at the reveal' : 'is hidden until you answer');
 /** Whether any part of the stage is hidden: Describe waits while one is. */

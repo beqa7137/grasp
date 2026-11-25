@@ -107,7 +107,9 @@ export function ledgerBand(c: Ctx, y0: number): number {
       ty + 2,
       cw,
       wordsH - 2,
-      hid.answered ? ['Its dates show at the reveal', 'Shown at the reveal'] : ['Its dates are hidden until you answer', 'Hidden until you answer'],
+      hid.answered
+        ? ['Its dates show at the reveal', 'Shown at the reveal']
+        : ['Its dates are hidden until you answer', 'Hidden until you answer'],
     );
   else {
     IDS_TEXT.wrap(led.time.end, 'small', cw).forEach((t, i) =>
@@ -188,7 +190,13 @@ function ruler(c: Ctx, top: number, x0: number, w: number, ghostSet: IdSettings 
   const tx = X(nowMs);
   D.add('marks', 'today', { k: 'path', cls: `today${L.fits ? '' : ' out'}`, d: `M${r1(tx - 4)} ${ay - 12}h8l-4 6z` });
   D.mark({ x0: tx - 4, x1: tx + 4, y0: ay - 12, y1: ay - 6 }, 'today');
-  marks.push({ id: 'today', x: tx, top: ay - 13, parts: small(`today, ${today}`, L.fits ? 'ink' : 'bad'), short: small('today', L.fits ? 'ink' : 'bad') });
+  marks.push({
+    id: 'today',
+    x: tx,
+    top: ay - 13,
+    parts: small(`today, ${today}`, L.fits ? 'ink' : 'bad'),
+    short: small('today', L.fits ? 'ink' : 'bad'),
+  });
   if (ghostSet) {
     const was = idLayout(ghostSet);
     if (Math.abs(was.lifetimeMs - L.lifetimeMs) > 1e-6) {
@@ -241,7 +249,14 @@ function nameMarks(c: Ctx, all: readonly RulerMark[], lo: number, hi: number, ba
   let chosen = tries.at(-1)!;
   for (const t of tries) {
     const row = marks.filter((m) => !(t.drop && m.optional));
-    if (pack(row.map((m) => width(formOf(m, t))), row.map((m) => m.x), lo, hi)) {
+    if (
+      pack(
+        row.map((m) => width(formOf(m, t))),
+        row.map((m) => m.x),
+        lo,
+        hi,
+      )
+    ) {
       rows = [row];
       chosen = t;
       break;
@@ -261,7 +276,12 @@ function nameMarks(c: Ctx, all: readonly RulerMark[], lo: number, hi: number, ba
     const at = row.map((m) => (r ? nearestIn(gaps, m.x) : m.x));
     const lefts = pack(ws, at, lo, hi);
     if (!lefts) {
-      for (const m of row) D.missing.push(formOf(m, chosen).map((p) => p[0]).join(''));
+      for (const m of row)
+        D.missing.push(
+          formOf(m, chosen)
+            .map((p) => p[0])
+            .join(''),
+        );
       return;
     }
     row.forEach((m, i) => {
@@ -297,4 +317,6 @@ function gapsBetween(boxes: readonly { x0: number; x1: number }[], lo: number, h
   return out;
 }
 const nearestIn = (gaps: readonly [number, number][], x: number) =>
-  gaps.map(([a, b]) => Math.max(a, Math.min(b, x))).reduce((best, v) => (Math.abs(v - x) < Math.abs(best - x) ? v : best), gaps[0]?.[0] ?? x);
+  gaps
+    .map(([a, b]) => Math.max(a, Math.min(b, x)))
+    .reduce((best, v) => (Math.abs(v - x) < Math.abs(best - x) ? v : best), gaps[0]?.[0] ?? x);

@@ -158,7 +158,8 @@ describe('Unique IDs words', { timeout: 120_000 }, () => {
       for (const x of m.lateByTick) {
         if (!m.sorted.slice(0, x.rank).some((y) => y.issued > x.issued)) out.push(`${show(s)}: ${x.key} has no later id ahead of it`);
         const note = notes.get(x.id.toLocaleString('en-US'));
-        if (note !== undefined && note !== 'made twice' && note !== 'sorts after a later id') out.push(`${show(s)}: ${x.key} noted "${note}"`);
+        if (note !== undefined && note !== 'made twice' && note !== 'sorts after a later id')
+          out.push(`${show(s)}: ${x.key} noted "${note}"`);
       }
     }
     expect(idMint({ ...B, fault: 1 }).lateByTick.length).toBeGreaterThan(0);

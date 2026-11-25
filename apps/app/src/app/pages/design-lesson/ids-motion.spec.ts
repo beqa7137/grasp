@@ -40,13 +40,16 @@ describe('Unique IDs motion', { timeout: 120_000 }, () => {
         // A step back, and the ticks its clock reads after it, show only once it happens.
         if (s.fault === 2 && at < ID_STEP_AT_US) {
           expect(ids.has('step-tick'), `${JSON.stringify(s)} step at ${t}`).toBe(false);
-          expect([...ids].filter((id) => /^own-1-/.test(id) && +id.split('-')[3] >= ID_STEP_AT_US)).toEqual([]);
+          expect([...ids].filter((id) => id.startsWith('own-1-') && +id.split('-')[3] >= ID_STEP_AT_US)).toEqual([]);
         }
         // An id is out of order only once a later-made id that sorts ahead of it exists.
         for (const p of st.D.prims())
           if (p.k === 'circle' && /\blate\b/.test(p.cls) && p.id.startsWith('rdot-')) {
             const x = m.ids.find((y) => p.id === `rdot-${y.key}`)!;
-            expect(m.sorted.slice(0, x.rank).some((y) => y.issued <= at && y.issued > x.issued), `${JSON.stringify(s)} ${p.id} at ${t}`).toBe(true);
+            expect(
+              m.sorted.slice(0, x.rank).some((y) => y.issued <= at && y.issued > x.issued),
+              `${JSON.stringify(s)} ${p.id} at ${t}`,
+            ).toBe(true);
           }
       }
     }

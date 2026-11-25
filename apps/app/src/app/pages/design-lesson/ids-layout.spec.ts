@@ -205,11 +205,12 @@ describe('the Unique IDs stage', { timeout: 300_000 }, () => {
     const bad: string[] = [];
     const faults = [1, 2, 3].flatMap((fault) => [0, 1].map((guard) => ({ ...B, fault, guard })));
     for (const W of [260, 320, 420, 620, 866]) {
-      for (const s of LAYOUTS) for (const f of [...collisions(build(W, s, { ...REST, challenge: true }))]) bad.push(`${W}px challenge ${show(s)}: ${f}`);
+      for (const s of LAYOUTS)
+        for (const f of collisions(build(W, s, { ...REST, challenge: true }))) bad.push(`${W}px challenge ${show(s)}: ${f}`);
       for (const s of faults) {
         const m = idMint(s);
         for (const x of m.drawn)
-          for (const f of [...collisions(buildStage(W, m, { ...REST, inspect: x.key }))]) bad.push(`${W}px ${show(s)} ${x.key}: ${f}`);
+          for (const f of collisions(buildStage(W, m, { ...REST, inspect: x.key }))) bad.push(`${W}px ${show(s)} ${x.key}: ${f}`);
       }
     }
     expect(distinct(bad).slice(0, 40)).toEqual([]);
@@ -218,13 +219,17 @@ describe('the Unique IDs stage', { timeout: 300_000 }, () => {
   it('marks every waited request: where it arrived, how long it waited and why', () => {
     for (const s of MINTS) {
       const m = idMint(s);
-      const ids = new Set(build(620, s).D.prims().map((p) => p.id));
+      const ids = new Set(
+        build(620, s)
+          .D.prims()
+          .map((p) => p.id),
+      );
       const waited = idGroups(m)
         .filter((g) => g.single)
         .flatMap((g) => g.ids)
         .filter((x) => x.wait > 0 && x.issued < ID_WINDOW_US && !(s.load === 1 && x.lane === 0));
       for (const x of waited) expect(ids.has(`wait-${x.key}`) && ids.has(`arrive-${x.key}`), `${show(s)} ${x.key}`).toBe(true);
-      expect([...ids].filter((id) => /^wait-g/.test(id)).length, show(s)).toBe(waited.length);
+      expect([...ids].filter((id) => id.startsWith('wait-g')).length, show(s)).toBe(waited.length);
     }
   });
 

@@ -102,7 +102,9 @@ test('the ids widget draws one id bit by bit, and changes with every control', a
   await widget.getByRole('radio', { name: '5,000 at once' }).check();
   await expect(summary).toHaveAttribute('aria-label', /G0's burst of 5,000 requests/);
   await widget.getByRole('radio', { name: "G1's clock steps back" }).check();
-  await expect(widget.locator('.notice')).toHaveText(/G1's clock steps back 2 ms at 5\.5 ms, and G1 checks its clock against its last timestamp\./);
+  await expect(widget.locator('.notice')).toHaveText(
+    /G1's clock steps back 2 ms at 5\.5 ms, and G1 checks its clock against its last timestamp\./,
+  );
   await widget.getByRole('checkbox', { name: /^Check the clock against the last timestamp/ }).uncheck();
   await expect(widget.locator('.notice')).toHaveText(/Two ids repeat: G1 trusted its clock when it stepped back 2 ms/);
   await widget.getByRole('radio', { name: 'G2 given number 1' }).check();
