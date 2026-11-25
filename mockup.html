@@ -2194,6 +2194,32 @@ function drawRandom(c, y) {
     const cx = xs(s.count);
     const cy = ys(lp);
     line(cx, ptop, cx, pb, 'now-line', { kind: 'marker' });
+    const below = lp <= -24 && p < 1e-24;
+    if (below) {
+      el('path', { d: `M${(cx - 6).toFixed(1)} ${(pb - 9).toFixed(1)} h12 l-6 8 z`, class: 'marker' });
+      reg.marks.push({ x0: cx - 6, y0: pb - 9, x1: cx + 6, y1: pb - 1, cls: 'cut' });
+    } else dot(cx, cy, 5.5, 'marker', { key: 'current' });
+    if (!slide) {
+      const val = F.chance(p);
+      const wv = measure('smallB', val);
+      const cands = [
+        ...(below ? [[px1 - wv - 4, pb - 20]] : []),
+        ...[16, -10, 30, -24, 46, 62].flatMap((dy) => [[cx + 10, cy + dy], [cx - 10 - wv, cy + dy]]),
+        [cx + 10, pb - 8],
+        [cx - 10 - wv, pb - 8],
+        [px0 + 4, ptop + 12],
+      ].map(([lx, ly]) => [Math.min(Math.max(lx, px0 + 4), px1 - wv), Math.min(Math.max(ly, ptop + 12), pb - 8)]);
+      // Then every place in the plot, nearest the marker first.
+      const grid = [];
+      for (let ly = ptop + 12; ly <= pb - 8; ly += 8) for (const lx of [cx + 10, cx - 10 - wv, px0 + 4, px1 - wv]) grid.push([Math.min(Math.max(lx, px0 + 4), px1 - wv), ly]);
+      grid.sort((a, b) => Math.hypot(a[0] - cx, a[1] - cy) - Math.hypot(b[0] - cx, b[1] - cy));
+      const at = [...cands, ...grid].find(([lx, ly]) => clearBox(textBox('smallB', lx, ly, val), 3)) ?? cands[0];
+      text('smallB', at[0], at[1], val, { cls: 'acc' });
+      if (below) {
+        const b = textBox('small', px1 - 4, pb - 8, 'below the chart', 'end');
+        if (clearBox(b, 2)) text('small', px1 - 4, pb - 8, 'below the chart', { anchor: 'end' });
+      }
+    }
     // The square law as a drawn transform: back from the marker when that leg is on the chart, else forward from it.
     const pBack = M.birthday(s.bits, n / 1000);
     const pFwd = M.birthday(s.bits, n * 1000);
@@ -2202,15 +2228,24 @@ function drawRandom(c, y) {
       const tx1 = cx - 4;
       const ty0 = ys(Math.log10(pBack));
       const ty1 = ys(Math.log10(p)) + 6;
-      path(`M${tx0.toFixed(1)} ${ty0.toFixed(1)} H${tx1.toFixed(1)} V${ty1.toFixed(1)}`, 'tri', { segments: [[[tx0, ty0], [tx1, ty0]], [[tx1, ty0], [tx1, ty1]]] });
-      triLabels((tx0 + tx1) / 2, ty0 + 14, tx1 - 5, (ty0 + ty1) / 2 + 4);
+      if (triClear(tx0, tx1, ty0, ty1)) {
+        path(`M${tx0.toFixed(1)} ${ty0.toFixed(1)} H${tx1.toFixed(1)} V${ty1.toFixed(1)}`, 'tri', { segments: [[[tx0, ty0], [tx1, ty0]], [[tx1, ty0], [tx1, ty1]]], kind: 'triangle' });
+        triLabels((tx0 + tx1) / 2, ty0 + 14, tx1 - 5, (ty0 + ty1) / 2 + 4);
+      }
     } else if (!slide && s.count <= 12 && pFwd < 0.1 && p >= 1e-24) {
       const tx0 = cx + 7;
       const tx1 = xs(s.count + 3);
       const ty0 = cy;
       const ty1 = ys(Math.log10(pFwd)) + 6;
-      path(`M${tx0.toFixed(1)} ${ty0.toFixed(1)} H${tx1.toFixed(1)} V${ty1.toFixed(1)}`, 'tri', { segments: [[[tx0, ty0], [tx1, ty0]], [[tx1, ty0], [tx1, ty1]]] });
-      triLabels((tx0 + tx1) / 2, ty0 + 14, tx1 + 5, (ty0 + ty1) / 2 + 4, 'start');
+      if (triClear(tx0, tx1, ty0, ty1)) {
+        path(`M${tx0.toFixed(1)} ${ty0.toFixed(1)} H${tx1.toFixed(1)} V${ty1.toFixed(1)}`, 'tri', { segments: [[[tx0, ty0], [tx1, ty0]], [[tx1, ty0], [tx1, ty1]]], kind: 'triangle' });
+        triLabels((tx0 + tx1) / 2, ty0 + 14, tx1 + 5, (ty0 + ty1) / 2 + 4, 'start');
+      }
+    }
+    /** The triangle is drawn only where its legs cross no word already placed (the marker's figure goes first). */
+    function triClear(tx0, tx1, ty0, ty1) {
+      const segs = [{ x1: tx0, y1: ty0, x2: tx1, y2: ty0 }, { x1: tx1, y1: ty0, x2: tx1, y2: ty1 }];
+      return !segs.some((l) => reg.texts.some((tb) => segHitsBox(l, { x0: tb.x0 - 2, x1: tb.x1 + 2, y0: tb.y0 - 2, y1: tb.y1 + 2 })));
     }
     function triLabels(ax, ay, ux, uy, upAnchor = 'end') {
       const along = '× 1,000 ids';
@@ -2230,28 +2265,6 @@ function drawRandom(c, y) {
         }
       }
     }
-    const below = lp <= -24 && p < 1e-24;
-    if (below) {
-      el('path', { d: `M${(cx - 6).toFixed(1)} ${(pb - 9).toFixed(1)} h12 l-6 8 z`, class: 'marker' });
-      reg.marks.push({ x0: cx - 6, y0: pb - 9, x1: cx + 6, y1: pb - 1, cls: 'cut' });
-    } else dot(cx, cy, 5.5, 'marker', { key: 'current' });
-    if (!slide) {
-      const val = F.chance(p);
-      const wv = measure('smallB', val);
-      const cands = [
-        ...(below ? [[px1 - wv - 4, pb - 20]] : []),
-        ...[16, -10, 30, -24, 46, 62].flatMap((dy) => [[cx + 10, cy + dy], [cx - 10 - wv, cy + dy]]),
-        [cx + 10, pb - 8],
-        [cx - 10 - wv, pb - 8],
-        [px0 + 4, ptop + 12],
-      ].map(([lx, ly]) => [Math.min(Math.max(lx, px0 + 4), px1 - wv), Math.min(Math.max(ly, ptop + 12), pb - 8)]);
-      const at = cands.find(([lx, ly]) => clearBox(textBox('smallB', lx, ly, val), 3)) ?? cands[0];
-      text('smallB', at[0], at[1], val, { cls: 'acc' });
-      if (below) {
-        const b = textBox('small', px1 - 4, pb - 8, 'below the chart', 'end');
-        if (clearBox(b, 2)) text('small', px1 - 4, pb - 8, 'below the chart', { anchor: 'end' });
-      }
-    }
     // Curve names: off every curve, grid line, dot and word.
     const name122 = narrow ? '122 bits' : '122 bits, UUIDv4';
     const w122 = measure('smallB', name122);
@@ -2260,12 +2273,16 @@ function drawRandom(c, y) {
       const yc = ys(Math.log10(M.birthday(122, 10 ** e)));
       c122.push([xs(e) - w122 - 4, yc - 6], [xs(e) + 6, yc + 14]);
     }
-    const p122 = c122.find(([lx, ly]) => lx >= px0 + 2 && lx + w122 <= px1 && ly - 9 > ptop && ly < pb - 4 && clearBox(textBox('smallB', lx, ly, name122), 3)) ?? c122[0];
+    for (let e = 14.5; e >= 4; e -= 0.25) {
+      const yc = ys(Math.max(Math.log10(M.birthday(122, 10 ** e)), -24));
+      for (const dy of [-18, 26, -30, 38]) c122.push([xs(e) - w122 / 2, yc + dy]);
+    }
+    const p122 = c122.find(([lx, ly]) => lx >= px0 + 2 && lx + w122 <= px1 && ly - 9 > ptop && ly < pb - 4 && clearBox(textBox('smallB', lx, ly, name122), 6)) ?? c122[0];
     text('smallB', p122[0], p122[1], name122, { cls: s.bits === 122 ? 'acc' : 'muted' });
     const w64 = measure('smallB', '64 bits');
     const c64 = [];
-    for (let e = 14.6; e >= 9; e -= 0.4) c64.push([xs(e) - w64, ys(0) + 14], [xs(e) - w64, ys(0) + 28]);
-    const p64 = c64.find(([lx, ly]) => lx >= px0 + 2 && clearBox(textBox('smallB', lx, ly, '64 bits'), 3)) ?? c64[0];
+    for (const dy of [14, 28, 42, 56]) for (let e = 14.6; e >= 4; e -= 0.4) c64.push([xs(e) - w64, ys(0) + dy]);
+    const p64 = c64.find(([lx, ly]) => lx >= px0 + 2 && clearBox(textBox('smallB', lx, ly, '64 bits'), 6)) ?? c64[0];
     text('smallB', p64[0], p64[1], '64 bits', { cls: s.bits === 64 ? 'acc' : 'muted' });
     if (!slide) wrapSegments('small', M.pairsChain(s), chartW, '  ').forEach((ln, i) => text('small', pad, chainTop + i * 15, ln, { region: 'pairs' }));
   }

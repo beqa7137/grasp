@@ -133,7 +133,7 @@ async function load(page, url) {
       const words = {
         'one-bit': [M.fmt.years(M.layout({ ...e.setup, gen: 11 }).years), '3 November 2060', 'lasts 34.8', 'halves'],
         burst: ['3.95 ms', 'waits 3.95', 'full ticks', '904', '4 × 1,024', '4 ms'],
-        order: ['sorts after', 'sort after', 'sorts first', 'made 0.7 ms later'],
+        order: ['sorts after', 'sort after', "G1's id sorts first", 'made 0.7 ms later'],
         'clock-back': ['ids repeat', 'id repeats', 'Two ids', 'same id', 'made twice', 'No id repeats'],
         birthday: ['2.7%', 'about 2.7', '0.027'],
       }[e.id];
